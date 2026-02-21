@@ -27,40 +27,39 @@ Source model: [`Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice`](https://huggingface.co/Qw
 ## Project Structure
 
 ```
-setup_environment.py         # One-command setup (download models + restore .NET)
-docs/                        # Documentation
-  prerequisites.md           # System requirements
-  getting-started.md         # Setup and first run
-  cli-reference.md           # CLI options and speakers
-  architecture.md            # This file
-  exporting-models.md        # Re-exporting ONNX models
-  troubleshooting.md         # Common issues and fixes
+setup_environment.py             # One-command setup (download models + restore .NET)
+QwenTTS.slnx                     # Solution file (all projects)
 
-python/                      # ONNX export & download tools
-  download_onnx_models.py    # Download pre-exported ONNX models from HF
-  upload_to_hf.py            # Upload ONNX models to HuggingFace
-  reexport_lm_novmap.py      # Re-export LM models with vmap-free masking
-  export_vocoder.py          # Export vocoder to ONNX (advanced)
-  export_lm.py               # Export Talker LM + Code Predictor to ONNX (advanced)
-  export_embeddings.py       # Extract embedding weights as .npy files (advanced)
-  extract_tokenizer.py       # Extract BPE vocab + merges for C# (advanced)
-  download_models.py         # Download PyTorch weights from HuggingFace (advanced)
-  requirements.txt           # Full deps for ONNX export (torch, transformers, etc.)
-  requirements-runtime.txt   # Minimal deps for download only (huggingface_hub)
-  ARCHITECTURE.md            # Detailed model architecture reference
-
-src/QwenTTS/                 # C# .NET 10 console application
-  Program.cs                 # CLI entry point
-  Models/
-    TextTokenizer.cs         # BPE tokenizer (Microsoft.ML.Tokenizers)
-    LanguageModel.cs         # 3-session autoregressive inference with KV-cache
-    Vocoder.cs               # ONNX vocoder inference
-    EmbeddingStore.cs        # Text/codec embedding lookups + projection MLP
-    NpyReader.cs             # NumPy .npy file loader
+src/QwenTTS.Core/                # Core library (shared by all apps)
   Pipeline/
-    TtsPipeline.cs           # Full TTS orchestrator
+    TtsPipeline.cs               # Full TTS orchestrator
+  Models/
+    TextTokenizer.cs             # BPE tokenizer (Microsoft.ML.Tokenizers)
+    LanguageModel.cs             # 3-session autoregressive inference with KV-cache
+    Vocoder.cs                   # ONNX vocoder inference
+    EmbeddingStore.cs            # Text/codec embedding lookups + projection MLP
+    NpyReader.cs                 # NumPy .npy file loader
   Audio/
-    WavWriter.cs             # WAV file writer (24 kHz, 16-bit PCM)
+    WavWriter.cs                 # WAV file writer (24 kHz, 16-bit PCM)
+
+src/QwenTTS/                     # CLI console application
+  Program.cs                     # CLI entry point (references QwenTTS.Core)
+
+src/QwenTTS.FileReader/          # Batch file reader (text/SRT → audio)
+  Program.cs                     # CLI entry point (references QwenTTS.Core)
+
+src/QwenTTS.Web/                 # Blazor web app — single text-to-speech
+  Services/TtsPipelineService.cs # Singleton wrapper with thread-safe access
+  Components/Pages/Home.razor    # TTS generation page
+
+src/QwenTTS.Podcast/             # Blazor web app — podcast episode generator
+  Services/TtsPipelineService.cs # Singleton wrapper with thread-safe access
+  Components/Pages/Podcast.razor # Podcast generation page
+  Components/Pages/Samples.razor # LLM prompt templates
+
+docs/                            # Documentation
+python/                          # ONNX export & download tools
+samples/                         # Sample text files and podcast scripts
 ```
 
 ## Detailed Architecture

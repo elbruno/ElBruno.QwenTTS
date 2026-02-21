@@ -8,7 +8,9 @@ The **QwenTTS.Web** Blazor Server application provides a browser-based UI for ge
 dotnet run --project src/QwenTTS.Web
 ```
 
-Then open [http://localhost:5123](http://localhost:5123) in your browser.
+Then open [http://localhost:5153](http://localhost:5153) in your browser.
+
+> **Note:** The Podcast Generator is a separate app — see [Podcast Generator](podcast.md).
 
 ## Features
 

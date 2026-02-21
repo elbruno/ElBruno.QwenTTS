@@ -1,0 +1,53 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <ResourcePreloader />
+    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["QwenTTS.Podcast.styles.css"]" />
+    <ImportMap />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <HeadOutlet />
+    <script>
+        function setTheme(theme) {
+            if (theme === 'system') {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.removeItem('qwen-theme');
+            } else {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem('qwen-theme', theme);
+            }
+            document.querySelectorAll('.theme-btn').forEach(function(btn) { btn.classList.remove('active'); });
+            var labels = {'light':0,'system':1,'dark':2};
+            var btns = document.querySelectorAll('.theme-btn');
+            if (btns[labels[theme]]) btns[labels[theme]].classList.add('active');
+        }
+        (function() {
+            var saved = localStorage.getItem('qwen-theme');
+            if (saved && saved !== 'system') document.documentElement.setAttribute('data-theme', saved);
+            document.addEventListener('DOMContentLoaded', function() {
+                var path = window.location.pathname;
+                document.querySelectorAll('.app-top-bar .nav-pill').forEach(function(a) {
+                    var href = a.getAttribute('href');
+                    if (path === href || (href === '/' && path === '/')) a.classList.add('active');
+                    else a.classList.remove('active');
+                });
+                var theme = saved || 'system';
+                var labels = {'light':0,'system':1,'dark':2};
+                var btns = document.querySelectorAll('.theme-btn');
+                if (btns[labels[theme]]) btns[labels[theme]].classList.add('active');
+            });
+        })();
+    </script>
+</head>
+
+<body>
+    <Routes />
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+</body>
+
+</html>

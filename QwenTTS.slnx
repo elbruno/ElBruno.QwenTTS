@@ -1,7 +1,9 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/QwenTTS.Core/QwenTTS.Core.csproj" />
     <Project Path="src/QwenTTS/QwenTTS.csproj" />
     <Project Path="src/QwenTTS.FileReader/QwenTTS.FileReader.csproj" />
     <Project Path="src/QwenTTS.Web/QwenTTS.Web.csproj" />
+    <Project Path="src/QwenTTS.Podcast/QwenTTS.Podcast.csproj" />
   </Folder>
 </Solution>

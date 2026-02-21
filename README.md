@@ -43,17 +43,21 @@ dotnet run --project src/QwenTTS.FileReader -- --model-dir python/onnx_runtime -
 dotnet run --project src/QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/demo_subtitles.srt --speaker serena --output-dir output/subtitles
 ```
 
-### Web App (browser UI)
+### Web App (browser UI — Text-to-Speech)
 
 ```bash
 dotnet run --project src/QwenTTS.Web
 ```
 
-Open [http://localhost:5123](http://localhost:5123) — type text or upload files, pick a voice, and generate speech.
+Open [http://localhost:5153](http://localhost:5153) — type text or upload files, pick a voice, and generate speech.
 
-### Podcast Generator
+### Podcast Generator (browser UI — Multi-speaker episodes)
 
-Open [http://localhost:5123/podcast](http://localhost:5123/podcast) — upload a multi-speaker script file and generate a full podcast episode. See `samples/podcast_prompt_template.md` for an LLM prompt to generate scripts.
+```bash
+dotnet run --project src/QwenTTS.Podcast
+```
+
+Open [http://localhost:5217](http://localhost:5217) — upload a multi-speaker script file and generate a full podcast episode. See the **Prompts** page for LLM prompt templates to generate scripts.
 
 ---
 

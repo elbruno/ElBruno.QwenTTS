@@ -1,11 +1,11 @@
 # Podcast Generator
 
-The **Podcast Generator** page lets you generate a full podcast episode from a structured multi-speaker script file.
+The **QwenTTS.Podcast** Blazor Server application lets you generate full podcast episodes from structured multi-speaker script files.
 
 ## Quick Start
 
-1. Run the web app: `dotnet run --project src/QwenTTS.Web`
-2. Navigate to [http://localhost:5123/podcast](http://localhost:5123/podcast)
+1. Run the podcast app: `dotnet run --project src/QwenTTS.Podcast`
+2. Navigate to [http://localhost:5217](http://localhost:5217)
 3. Upload a podcast script file (see format below)
 4. Click **Generate Podcast Episode**
 5. Download the merged audio file
