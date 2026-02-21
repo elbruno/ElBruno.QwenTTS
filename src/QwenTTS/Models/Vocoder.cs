@@ -10,22 +10,32 @@ namespace QwenTTS.Models;
 /// </summary>
 public sealed class Vocoder : IDisposable
 {
-    private readonly InferenceSession _session;
-    private readonly string _inputName;
+    private InferenceSession? _session;
+    private string? _inputName;
+    private readonly string _modelPath;
 
     public int SampleRate => 24000;
 
     /// <summary>
-    /// Loads the ONNX vocoder model from the specified path.
+    /// Creates a vocoder wrapper. Session is loaded lazily on first Decode call.
     /// </summary>
     public Vocoder(string modelPath)
     {
-        var options = new SessionOptions();
-        options.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL;
-        _session = new InferenceSession(modelPath, options);
+        _modelPath = modelPath;
+    }
 
-        // Read actual input name from model metadata; fall back to "codes"
-        _inputName = _session.InputMetadata.Keys.FirstOrDefault() ?? "codes";
+    private InferenceSession GetSession()
+    {
+        if (_session is null)
+        {
+            var options = new SessionOptions
+            {
+                GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
+            };
+            _session = new InferenceSession(_modelPath, options);
+            _inputName = _session.InputMetadata.Keys.FirstOrDefault() ?? "codes";
+        }
+        return _session;
     }
 
     /// <summary>
@@ -48,10 +58,10 @@ public sealed class Vocoder : IDisposable
 
         var inputs = new List<NamedOnnxValue>
         {
-            NamedOnnxValue.CreateFromTensor(_inputName, tensor)
+            NamedOnnxValue.CreateFromTensor(_inputName ?? "codes", tensor)
         };
 
-        using var results = _session.Run(inputs);
+        using var results = GetSession().Run(inputs);
 
         // Extract waveform from first output tensor
         var outputTensor = results.First().AsTensor<float>();
@@ -67,6 +77,6 @@ public sealed class Vocoder : IDisposable
 
     public void Dispose()
     {
-        _session.Dispose();
+        _session?.Dispose();
     }
 }

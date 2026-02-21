@@ -201,11 +201,15 @@ If you need to re-export the ONNX models from PyTorch weights (e.g., for a diffe
 cd python
 pip install -r requirements.txt       # Installs torch, transformers, onnx, etc.
 python download_models.py              # Download PyTorch weights (~4 GB)
+python reexport_lm_novmap.py           # → onnx_runtime/ (prefill, decode, code_predictor)
 python export_vocoder.py               # → onnx_models/vocoder.onnx
-python export_lm.py                    # → onnx_models/talker_prefill.onnx, talker_decode.onnx, code_predictor.onnx
 python export_embeddings.py            # → onnx_models/embeddings/
 python extract_tokenizer.py            # → tokenizer_artifacts/
 ```
+
+> **Note:** The LM models must be exported with vmap-free masking (`reexport_lm_novmap.py`)
+> to work with C# ONNX Runtime. The standard `export_lm.py` produces models that use
+> `torch.vmap`-generated Expand nodes which are incompatible with ORT's C# binding.
 
 To upload your exported models to HuggingFace:
 
@@ -227,6 +231,8 @@ python upload_to_hf.py --repo-id your-username/your-repo-name
 | `huggingface_hub` import error | Run `pip install huggingface_hub` |
 | Out of memory during inference | Close other applications — the LM loads ~3.4 GB into RAM |
 | Wrong speaker name | Use lowercase: `ryan`, `serena`, etc. (see speaker table above) |
+| `invalid expand shape` in C# ORT | Re-export LM models with `python/reexport_lm_novmap.py` (vmap-free masking) |
+| `Not a valid NPY file (bad magic)` | Ensure NpyReader uses byte array `[0x93, ...]` not UTF-8 string literal |
 
 ---
 

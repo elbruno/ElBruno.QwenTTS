@@ -10,24 +10,31 @@ namespace QwenTTS.Models;
 /// </summary>
 public sealed class LanguageModel : IDisposable
 {
-    private readonly InferenceSession _prefillSession;
-    private readonly InferenceSession _decodeSession;
-    private readonly InferenceSession _cpSession;
+    private InferenceSession? _prefillSession;
+    private InferenceSession? _decodeSession;
+    private InferenceSession? _cpSession;
     private readonly EmbeddingStore _embeddings;
+    private readonly string _modelDir;
 
     public LanguageModel(string modelDir, EmbeddingStore embeddings)
     {
         _embeddings = embeddings;
-
-        var options = new SessionOptions
-        {
-            GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
-        };
-
-        _prefillSession = new InferenceSession(Path.Combine(modelDir, "talker_prefill.onnx"), options);
-        _decodeSession = new InferenceSession(Path.Combine(modelDir, "talker_decode.onnx"), options);
-        _cpSession = new InferenceSession(Path.Combine(modelDir, "code_predictor.onnx"), options);
+        _modelDir = modelDir;
     }
+
+    private static SessionOptions CreateOptions() => new()
+    {
+        GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
+    };
+
+    private InferenceSession GetPrefillSession()
+        => _prefillSession ??= new InferenceSession(Path.Combine(_modelDir, "talker_prefill.onnx"), CreateOptions());
+
+    private InferenceSession GetDecodeSession()
+        => _decodeSession ??= new InferenceSession(Path.Combine(_modelDir, "talker_decode.onnx"), CreateOptions());
+
+    private InferenceSession GetCpSession()
+        => _cpSession ??= new InferenceSession(Path.Combine(_modelDir, "code_predictor.onnx"), CreateOptions());
 
     public long[,,] Generate(int[] tokenIds, string speaker, string language,
                              int maxNewTokens = 2048, float temperature = 0.9f,
@@ -53,19 +60,35 @@ public sealed class LanguageModel : IDisposable
                 positionIds[ax, 0, i] = i;
 
         // Run prefill
-        var prefillInputs = new List<NamedOnnxValue>
+        var flatEmbeds = new float[1 * prefillLen * 1024];
+        Buffer.BlockCopy(inputsEmbeds, 0, flatEmbeds, 0, flatEmbeds.Length * sizeof(float));
+        
+        var flatMask = new long[1 * prefillLen];
+        Buffer.BlockCopy(attentionMask, 0, flatMask, 0, flatMask.Length * sizeof(long));
+        
+        var flatPosIds = new long[3 * 1 * prefillLen];
+        Buffer.BlockCopy(positionIds, 0, flatPosIds, 0, flatPosIds.Length * sizeof(long));
+
+        float[] logits, hiddenStates;
+        float[] pastKeys, pastValues;
+
+        var prefillSession = GetPrefillSession();
+        using var embedsOrt = OrtValue.CreateTensorValueFromMemory(flatEmbeds, [1, prefillLen, 1024]);
+        using var maskOrt = OrtValue.CreateTensorValueFromMemory(flatMask, [1, prefillLen]);
+        using var posOrt = OrtValue.CreateTensorValueFromMemory(flatPosIds, [3, 1, prefillLen]);
+
+        var inputNames = new[] { "inputs_embeds", "attention_mask", "position_ids" };
+        using (var prefillOutputs = prefillSession.Run(new RunOptions(), inputNames,
+            new[] { embedsOrt, maskOrt, posOrt }, prefillSession.OutputNames))
         {
-            NamedOnnxValue.CreateFromTensor("inputs_embeds", new DenseTensor<float>(inputsEmbeds.Cast<float>().ToArray(), new[] { 1, prefillLen, 1024 })),
-            NamedOnnxValue.CreateFromTensor("attention_mask", new DenseTensor<long>(attentionMask.Cast<long>().ToArray(), new[] { 1, prefillLen })),
-            NamedOnnxValue.CreateFromTensor("position_ids", new DenseTensor<long>(positionIds.Cast<long>().ToArray(), new[] { 3, 1, prefillLen }))
-        };
+            logits = prefillOutputs[0].GetTensorDataAsSpan<float>().ToArray();
+            hiddenStates = prefillOutputs[1].GetTensorDataAsSpan<float>().ToArray();
+            (pastKeys, pastValues) = StackPrefillKVFromOrtValues(prefillOutputs, prefillLen);
+        }
 
-        using var prefillOutputs = _prefillSession.Run(prefillInputs);
-        var logits = prefillOutputs.First(x => x.Name == "logits").AsEnumerable<float>().ToArray();
-        var hiddenStates = prefillOutputs.First(x => x.Name == "hidden_states").AsEnumerable<float>().ToArray();
-
-        // Stack KV cache from flat outputs
-        var (pastKeys, pastValues) = StackPrefillKV(prefillOutputs, prefillLen);
+        // Release prefill session to free memory before loading decode + CP sessions
+        _prefillSession?.Dispose();
+        _prefillSession = null;
 
         // Generation loop
         var generatedCodes = new List<long[]>();
@@ -114,15 +137,18 @@ public sealed class LanguageModel : IDisposable
             for (int groupIdx = 1; groupIdx < 16; groupIdx++)
             {
                 int cpInputSeqLen = groupIdx == 1 ? 2 : 1;
+                var flatCpEmbeds = new float[cpInputSeqLen * 1024];
+                Buffer.BlockCopy(cpInputs, 0, flatCpEmbeds, 0, flatCpEmbeds.Length * sizeof(float));
+                
                 var cpInputsList = new List<NamedOnnxValue>
                 {
-                    NamedOnnxValue.CreateFromTensor("inputs_embeds", new DenseTensor<float>(cpInputs.Cast<float>().ToArray(), new[] { 1, cpInputSeqLen, 1024 })),
-                    NamedOnnxValue.CreateFromTensor("generation_steps", new DenseTensor<long>(new[] { (long)(groupIdx - 1) }, new[] { 1 })),
-                    NamedOnnxValue.CreateFromTensor("past_keys", new DenseTensor<float>(cpPastKeys, new[] { 5, 1, 8, cpPastLen, 128 })),
-                    NamedOnnxValue.CreateFromTensor("past_values", new DenseTensor<float>(cpPastValues, new[] { 5, 1, 8, cpPastLen, 128 }))
+                    NamedOnnxValue.CreateFromTensor("inputs_embeds", new DenseTensor<float>(flatCpEmbeds, [1, cpInputSeqLen, 1024])),
+                    NamedOnnxValue.CreateFromTensor("generation_steps", new DenseTensor<long>(new long[] { groupIdx - 1 }, [1])),
+                    NamedOnnxValue.CreateFromTensor("past_keys", new DenseTensor<float>(cpPastKeys, [5, 1, 8, cpPastLen, 128])),
+                    NamedOnnxValue.CreateFromTensor("past_values", new DenseTensor<float>(cpPastValues, [5, 1, 8, cpPastLen, 128]))
                 };
 
-                using var cpOutputs = _cpSession.Run(cpInputsList);
+                using var cpOutputs = GetCpSession().Run(cpInputsList);
                 var cpLogits = cpOutputs.First(x => x.Name == "logits").AsEnumerable<float>().ToArray();
                 var cpToken = SampleTokenSimple(cpLogits, temperature);
                 codes[groupIdx] = cpToken;
@@ -176,16 +202,21 @@ public sealed class LanguageModel : IDisposable
                 newPositionIds[ax, 0, 0] = prefillLen + step;
 
             // Run decode
+            var flatDecodeMask = new long[newLen];
+            Buffer.BlockCopy(newAttentionMask, 0, flatDecodeMask, 0, newLen * sizeof(long));
+            var flatDecodePos = new long[3];
+            Buffer.BlockCopy(newPositionIds, 0, flatDecodePos, 0, 3 * sizeof(long));
+
             var decodeInputs = new List<NamedOnnxValue>
             {
-                NamedOnnxValue.CreateFromTensor("inputs_embeds", new DenseTensor<float>(nextInputBuf, new[] { 1, 1, 1024 })),
-                NamedOnnxValue.CreateFromTensor("attention_mask", new DenseTensor<long>(newAttentionMask.Cast<long>().ToArray(), new[] { 1, newLen })),
-                NamedOnnxValue.CreateFromTensor("position_ids", new DenseTensor<long>(newPositionIds.Cast<long>().ToArray(), new[] { 3, 1, 1 })),
-                NamedOnnxValue.CreateFromTensor("past_keys", new DenseTensor<float>(pastKeys, new[] { 28, 1, 8, prefillLen + step, 128 })),
-                NamedOnnxValue.CreateFromTensor("past_values", new DenseTensor<float>(pastValues, new[] { 28, 1, 8, prefillLen + step, 128 }))
+                NamedOnnxValue.CreateFromTensor("inputs_embeds", new DenseTensor<float>(nextInputBuf, [1, 1, 1024])),
+                NamedOnnxValue.CreateFromTensor("attention_mask", new DenseTensor<long>(flatDecodeMask, [1, newLen])),
+                NamedOnnxValue.CreateFromTensor("position_ids", new DenseTensor<long>(flatDecodePos, [3, 1, 1])),
+                NamedOnnxValue.CreateFromTensor("past_keys", new DenseTensor<float>(pastKeys, [28, 1, 8, prefillLen + step, 128])),
+                NamedOnnxValue.CreateFromTensor("past_values", new DenseTensor<float>(pastValues, [28, 1, 8, prefillLen + step, 128]))
             };
 
-            using var decodeOutputs = _decodeSession.Run(decodeInputs);
+            using var decodeOutputs = GetDecodeSession().Run(decodeInputs);
             logits = decodeOutputs.First(x => x.Name == "logits").AsEnumerable<float>().ToArray();
             hiddenStates = decodeOutputs.First(x => x.Name == "hidden_states").AsEnumerable<float>().ToArray();
             pastKeys = decodeOutputs.First(x => x.Name == "present_keys").AsEnumerable<float>().ToArray();
@@ -338,6 +369,25 @@ public sealed class LanguageModel : IDisposable
         return (keys, values);
     }
 
+    private (float[], float[]) StackPrefillKVFromOrtValues(IReadOnlyList<OrtValue> outputs, int seqLen)
+    {
+        // Output order: [0]=logits, [1]=hidden_states, then 56 KV tensors alternating key/value per layer
+        // present_key_0 at [2], present_value_0 at [3], present_key_1 at [4], ...
+        var keys = new float[28 * 1 * 8 * seqLen * 128];
+        var values = new float[28 * 1 * 8 * seqLen * 128];
+        int layerSize = 1 * 8 * seqLen * 128;
+
+        for (int layer = 0; layer < 28; layer++)
+        {
+            var keySpan = outputs[2 + layer * 2].GetTensorDataAsSpan<float>();
+            var valSpan = outputs[2 + layer * 2 + 1].GetTensorDataAsSpan<float>();
+            keySpan.CopyTo(keys.AsSpan(layer * layerSize));
+            valSpan.CopyTo(values.AsSpan(layer * layerSize));
+        }
+
+        return (keys, values);
+    }
+
     private (float[], float[]) InitCPKV()
     {
         // Empty KV for CP prefill: (5, 1, 8, 0, 128)
@@ -441,8 +491,8 @@ public sealed class LanguageModel : IDisposable
 
     public void Dispose()
     {
-        _prefillSession.Dispose();
-        _decodeSession.Dispose();
-        _cpSession.Dispose();
+        _prefillSession?.Dispose();
+        _decodeSession?.Dispose();
+        _cpSession?.Dispose();
     }
 }
