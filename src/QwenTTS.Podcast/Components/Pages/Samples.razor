@@ -2,15 +2,15 @@
 @inject IJSRuntime JS
 @rendermode InteractiveServer
 
-<PageTitle>Prompt Templates ΓÇö Qwen TTS</PageTitle>
+<PageTitle>Prompt Templates — Qwen TTS</PageTitle>
 
 <div class="main-content">
     <div class="top-bar">
-        <div class="top-bar-brand"><span>≡ƒôï</span> Prompt Templates</div>
+        <div class="top-bar-brand"><span>📋</span> Prompt Templates</div>
         <div class="top-bar-actions">
-            <a href="/" class="nav-pill">≡ƒöè TTS</a>
-            <a href="/podcast" class="nav-pill">≡ƒÄÖ∩╕Å Podcast</a>
-            <a href="/samples" class="nav-pill active">≡ƒôï Prompts</a>
+            <a href="/" class="nav-pill">🔊 TTS</a>
+            <a href="/podcast" class="nav-pill">🎙️ Podcast</a>
+            <a href="/samples" class="nav-pill active">📋 Prompts</a>
         </div>
     </div>
 
@@ -21,8 +21,8 @@
     <!-- Claude Research Template -->
     <div class="tts-card">
         <div class="prompt-header">
-            <h3>≡ƒöÄ Research-Based ΓÇö Claude / LLM with web access</h3>
-            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-research")'>≡ƒôï Copy</button>
+            <h3>🔎 Research-Based — Claude / LLM with web access</h3>
+            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-research")'>📋 Copy</button>
         </div>
         <p class="prompt-desc">Best for LLMs that can research topics (Claude with web search, ChatGPT with browsing, Perplexity). The LLM researches the topic first, then generates the script and offers it as a downloadable file.</p>
         <div class="prompt-box" id="prompt-research">Generate a podcast conversation script between two hosts about the topic that you researched.
@@ -36,7 +36,7 @@ Rules:
 - Include an intro and outro
 - At the beginning each speaker must introduce themselves
 
-Format (copy exactly ΓÇö text goes after the metadata fields):
+Format (copy exactly — text goes after the metadata fields):
 
 --- 01
 speaker: [speaker_name]
@@ -58,10 +58,10 @@ At the end present this in plain text and make it available to download as a tex
     <!-- Generic Template -->
     <div class="tts-card">
         <div class="prompt-header">
-            <h3>≡ƒÄ» Generic Podcast Prompt</h3>
-            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-generic")'>≡ƒôï Copy</button>
+            <h3>🎫 Generic Podcast Prompt</h3>
+            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-generic")'>📋 Copy</button>
         </div>
-        <p class="prompt-desc">A customizable template ΓÇö replace [YOUR TOPIC HERE] with any subject.</p>
+        <p class="prompt-desc">A customizable template — replace [YOUR TOPIC HERE] with any subject.</p>
         <div class="prompt-box" id="prompt-generic">Generate a podcast conversation script between two hosts about [YOUR TOPIC HERE].
 
 Rules:
@@ -73,7 +73,7 @@ Rules:
 - Include an intro and outro
 - At the beginning each speaker must introduce themselves
 
-Format (copy exactly ΓÇö text goes after the metadata fields):
+Format (copy exactly — text goes after the metadata fields):
 
 --- 01
 speaker: [speaker_name]
@@ -94,10 +94,10 @@ Topic: [YOUR TOPIC HERE]</div>
     <!-- Context-Based Template -->
     <div class="tts-card">
         <div class="prompt-header">
-            <h3>≡ƒôä Context-Based ΓÇö Generate from Existing Content</h3>
-            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-context")'>≡ƒôï Copy</button>
+            <h3>📄 Context-Based — Generate from Existing Content</h3>
+            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-context")'>📋 Copy</button>
         </div>
-        <p class="prompt-desc">Paste this prompt along with an article, document, or any content you already have ΓÇö the LLM will turn it into a podcast script.</p>
+        <p class="prompt-desc">Paste this prompt along with an article, document, or any content you already have — the LLM will turn it into a podcast script.</p>
         <div class="prompt-box" id="prompt-context">Based on this content, generate a podcast conversation script between two or three hosts about this topic.
 
 Rules:
@@ -108,7 +108,7 @@ Rules:
 - Alternate between speakers naturally
 - Include an intro and outro
 
-Format (copy exactly ΓÇö text goes after the metadata fields):
+Format (copy exactly — text goes after the metadata fields):
 
 --- 01
 speaker: [speaker_name]
@@ -132,8 +132,8 @@ Content:
     <!-- English AI Topic -->
     <div class="tts-card">
         <div class="prompt-header">
-            <h3>≡ƒñû English ΓÇö AI Agents in Software Development</h3>
-            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-en-ai")'>≡ƒôï Copy</button>
+            <h3>🤝 English — AI Agents in Software Development</h3>
+            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-en-ai")'>📋 Copy</button>
         </div>
         <p class="prompt-desc">Two hosts discuss the impact of AI agents on coding and development workflows.</p>
         <div class="prompt-box" id="prompt-en-ai">Generate a podcast conversation script between two hosts about the future of AI agents in software development.
@@ -147,7 +147,7 @@ Rules:
 - Make it engaging, conversational, and informative
 - At the beginning each speaker must introduce themselves
 
-Format (copy exactly ΓÇö text goes after the metadata fields):
+Format (copy exactly — text goes after the metadata fields):
 
 --- 01
 speaker: ryan
@@ -168,8 +168,8 @@ Topic: The future of AI agents in software development</div>
     <!-- English Science Topic -->
     <div class="tts-card">
         <div class="prompt-header">
-            <h3>≡ƒö¼ English ΓÇö Science & Technology News</h3>
-            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-en-science")'>≡ƒôï Copy</button>
+            <h3>🔬 English — Science & Technology News</h3>
+            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-en-science")'>📋 Copy</button>
         </div>
         <p class="prompt-desc">A weekly science news roundup podcast with two co-hosts.</p>
         <div class="prompt-box" id="prompt-en-science">Generate a podcast conversation script for a weekly science and technology news roundup.
@@ -184,7 +184,7 @@ Rules:
 - Make it fun and accessible for a general audience
 - At the beginning each speaker must introduce themselves
 
-Format (copy exactly ΓÇö text goes after the metadata fields):
+Format (copy exactly — text goes after the metadata fields):
 
 --- 01
 speaker: aiden
@@ -205,8 +205,8 @@ Topic: This week in science and technology</div>
     <!-- Spanish Topic -->
     <div class="tts-card">
         <div class="prompt-header">
-            <h3>≡ƒç¬≡ƒç╕ Spanish ΓÇö Inteligencia Artificial y el Futuro</h3>
-            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-es-ai")'>≡ƒôï Copy</button>
+            <h3>🇪🇸 Spanish — Inteligencia Artificial y el Futuro</h3>
+            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-es-ai")'>📋 Copy</button>
         </div>
         <p class="prompt-desc">Podcast en espa├▒ol sobre IA y su impacto en la sociedad.</p>
         <div class="prompt-box" id="prompt-es-ai">Genera un guion de podcast conversacional entre dos presentadores sobre inteligencia artificial y su impacto en la sociedad.
@@ -220,7 +220,7 @@ Reglas:
 - Hazlo conversacional, informativo y entretenido
 - Al inicio cada presentador debe presentarse
 
-Formato (copiar exactamente ΓÇö el texto va despu├⌐s de los campos de metadatos):
+Formato (copiar exactamente — el texto va despu├⌐s de los campos de metadatos):
 
 --- 01
 speaker: ryan
@@ -241,10 +241,10 @@ Tema: El impacto de la inteligencia artificial en la vida cotidiana</div>
     <!-- Interview Style -->
     <div class="tts-card">
         <div class="prompt-header">
-            <h3>≡ƒÄñ English ΓÇö Interview Format</h3>
-            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-en-interview")'>≡ƒôï Copy</button>
+            <h3>🎤 English — Interview Format</h3>
+            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-en-interview")'>📋 Copy</button>
         </div>
-        <p class="prompt-desc">A host interviews a guest expert ΓÇö great for educational or deep-dive content.</p>
+        <p class="prompt-desc">A host interviews a guest expert — great for educational or deep-dive content.</p>
         <div class="prompt-box" id="prompt-en-interview">Generate a podcast script in interview format where a host interviews a guest expert about [YOUR TOPIC HERE].
 
 Rules:
@@ -258,7 +258,7 @@ Rules:
 - The host should ask follow-up questions based on the guest's answers
 - At the beginning each speaker must introduce themselves
 
-Format (copy exactly ΓÇö text goes after the metadata fields):
+Format (copy exactly — text goes after the metadata fields):
 
 --- 01
 speaker: ryan
@@ -279,10 +279,10 @@ Topic: [YOUR TOPIC HERE]</div>
     <!-- Storytelling -->
     <div class="tts-card">
         <div class="prompt-header">
-            <h3>≡ƒôû English ΓÇö Storytelling / Narrative</h3>
-            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-en-story")'>≡ƒôï Copy</button>
+            <h3>📝 English — Storytelling / Narrative</h3>
+            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-en-story")'>📋 Copy</button>
         </div>
-        <p class="prompt-desc">A single narrator tells a compelling story ΓÇö great for audiobook-style content.</p>
+        <p class="prompt-desc">A single narrator tells a compelling story — great for audiobook-style content.</p>
         <div class="prompt-box" id="prompt-en-story">Generate a podcast script for a storytelling episode with a single narrator.
 
 Rules:
@@ -294,7 +294,7 @@ Rules:
 - Use vivid descriptions and engaging narration
 - Include pauses between story beats (separate segments)
 
-Format (copy exactly ΓÇö text goes after the metadata fields):
+Format (copy exactly — text goes after the metadata fields):
 
 --- 01
 speaker: ryan
@@ -321,7 +321,7 @@ Topic: [YOUR STORY TOPIC HERE]</div>
             if (el) {{
                 navigator.clipboard.writeText(el.innerText).then(function() {{
                     var btn = el.parentElement.querySelector('.copy-btn');
-                    if (btn) {{ btn.innerText = 'Γ£ô Copied!'; setTimeout(function(){{ btn.innerText = '≡ƒôï Copy'; }}, 2000); }}
+                    if (btn) {{ btn.innerText = '✔ Copied!'; setTimeout(function(){{ btn.innerText = '📋 Copy'; }}, 2000); }}
                 }});
             }}
         ");
