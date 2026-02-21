@@ -52,9 +52,10 @@ public static class NpyReader
     {
         using var fs = File.OpenRead(path);
         
-        // Read magic: \x93NUMPY
+        // Read magic: 0x93 N U M P Y
         Span<byte> magic = stackalloc byte[6];
-        if (fs.Read(magic) != 6 || !magic.SequenceEqual("\x93NUMPY"u8))
+        ReadOnlySpan<byte> expected = [0x93, (byte)'N', (byte)'U', (byte)'M', (byte)'P', (byte)'Y'];
+        if (fs.Read(magic) != 6 || !magic.SequenceEqual(expected))
             throw new InvalidDataException("Not a valid NPY file (bad magic)");
 
         // Version
