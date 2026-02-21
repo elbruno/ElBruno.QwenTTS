@@ -1,0 +1,3 @@
+# Runtime-only dependencies (for downloading and running ONNX models).
+# For ONNX export from PyTorch, use requirements.txt instead.
+huggingface_hub
