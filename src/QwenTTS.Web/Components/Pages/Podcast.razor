@@ -126,7 +126,7 @@
     {
         <div class="tts-card" style="margin-top:0.75rem;">
             <h3>🎧 Episode Ready</h3>
-            <audio controls src="@_mergedUrl" preload="auto" style="width:100%;height:40px;border-radius:6px;"></audio>
+            <audio id="episodePlayer" controls src="@_mergedUrl" preload="auto" style="width:100%;height:40px;border-radius:6px;"></audio>
             <div class="download-all-bar" style="padding-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
                 <a href="@_mergedUrl" download="podcast_episode.wav" class="download-all-btn">
                     ⬇ Download Full Episode (.wav)
@@ -380,6 +380,9 @@
             _progressPct = 100;
             _completed = true;
             Log($"Episode ready! {validUrls.Count} segments merged in {_elapsed.TotalSeconds:F1}s total", "success");
+            StateHasChanged();
+            await Task.Delay(100); // let the audio element render
+            await JS.InvokeVoidAsync("eval", "document.getElementById('episodePlayer')?.play()");
         }
         catch (Exception ex)
         {
