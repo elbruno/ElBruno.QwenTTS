@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/QwenTTS/QwenTTS.csproj" />
+    <Project Path="src/QwenTTS.FileReader/QwenTTS.FileReader.csproj" />
   </Folder>
 </Solution>

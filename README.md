@@ -23,12 +23,24 @@ dotnet run --project src/QwenTTS -- --model-dir python/onnx_runtime --text "Hell
 
 ```bash
 dotnet run --project src/QwenTTS -- --model-dir python/onnx_runtime --text "Welcome to the future of speech synthesis." --speaker serena --output welcome.wav
-
 dotnet run --project src/QwenTTS -- --model-dir python/onnx_runtime --text "This is a demo of local text to speech." --speaker vivian --language english --output demo.wav
-
 dotnet run --project src/QwenTTS -- --model-dir python/onnx_runtime --text "Speaking with excitement and energy!" --speaker aiden --instruct "speak with excitement" --output excited.wav
-
 dotnet run --project src/QwenTTS -- --model-dir python/onnx_runtime --text "A calm and gentle narration." --speaker ryan --instruct "speak slowly and calmly" --output calm.wav
+```
+
+### Spanish Examples
+
+```bash
+dotnet run --project src/QwenTTS -- --model-dir python/onnx_runtime --text "Hola, esta es una prueba de texto a voz." --speaker ryan --language spanish --output hola.wav
+dotnet run --project src/QwenTTS -- --model-dir python/onnx_runtime --text "Bienvenidos al futuro de la sintesis de voz." --speaker serena --language spanish --output bienvenidos.wav
+```
+
+### File Reader (batch audio from text/SRT files)
+
+```bash
+dotnet run --project src/QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/hello_demo.txt --speaker ryan --language english --output-dir output/hello
+dotnet run --project src/QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/hola_demo.txt --speaker ryan --language spanish --output-dir output/hola
+dotnet run --project src/QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/demo_subtitles.srt --speaker serena --output-dir output/subtitles
 ```
 
 ---
@@ -40,6 +52,7 @@ dotnet run --project src/QwenTTS -- --model-dir python/onnx_runtime --text "A ca
 | [Prerequisites](docs/prerequisites.md) | System requirements (Python, .NET, disk space) |
 | [Getting Started](docs/getting-started.md) | Setup, model download, and first run |
 | [CLI Reference](docs/cli-reference.md) | All command options, speakers, and examples |
+| [File Reader](docs/file-reader.md) | Batch audio generation from text and SRT files |
 | [Architecture](docs/architecture.md) | Pipeline design, model components, project structure |
 | [Exporting Models](docs/exporting-models.md) | Re-exporting ONNX models from PyTorch weights |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues and fixes |

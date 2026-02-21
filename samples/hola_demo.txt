@@ -1,0 +1,7 @@
+Hola y bienvenidos a esta demo del sistema Qwen TTS.
+
+Este es un ejemplo de como el lector de archivos divide el texto por lineas en blanco. Cada parrafo se convierte en un segmento de audio separado.
+
+El sistema soporta multiples idiomas incluyendo espanol, ingles y chino. Puedes generar audio natural en el idioma que prefieras.
+
+Gracias por escuchar esta demo. Esperamos que disfrutes usando Qwen TTS para tus necesidades de texto a voz.

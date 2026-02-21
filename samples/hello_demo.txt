@@ -1,0 +1,7 @@
+Hello and welcome to this demo of the Qwen TTS system.
+
+This is a paragraph that demonstrates how the file reader splits text by blank lines. Each paragraph becomes a separate audio segment.
+
+The system supports multiple speakers and languages. You can use speakers like Ryan, Serena, Vivian, or Aiden for English content.
+
+Thanks for listening to this demo. We hope you enjoy using Qwen TTS for your text-to-speech needs!
