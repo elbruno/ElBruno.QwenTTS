@@ -23,8 +23,8 @@ Add a project reference to `ElBruno.QwenTTS.Core`:
 ```csharp
 using ElBruno.QwenTTS.Pipeline;
 
-// Point to the directory containing the ONNX models
-using var pipeline = new TtsPipeline("path/to/onnx_runtime");
+// CreateAsync downloads models automatically if missing (~5.5 GB on first run)
+using var pipeline = await TtsPipeline.CreateAsync("models");
 
 // Generate speech
 await pipeline.SynthesizeAsync(
@@ -33,6 +33,8 @@ await pipeline.SynthesizeAsync(
     outputPath: "output.wav"
 );
 ```
+
+> **Note:** Use `TtsPipeline.CreateAsync()` for automatic model management. Use `new TtsPipeline(modelDir)` only when you know the models are already present.
 
 ## API Reference
 
@@ -43,6 +45,25 @@ The main orchestrator class. Create one instance and reuse it — model loading 
 ```csharp
 public sealed class TtsPipeline : IDisposable
 ```
+
+#### Static Factory (recommended)
+
+```csharp
+public static async Task<TtsPipeline> CreateAsync(
+    string modelDir,
+    string repoId = ModelDownloader.DefaultRepoId,
+    IProgress<string>? progress = null,
+    CancellationToken cancellationToken = default)
+```
+
+Creates a `TtsPipeline`, automatically downloading missing model files from HuggingFace. This is the recommended way to create a pipeline.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `modelDir` | `string` | Directory to store/load model files |
+| `repoId` | `string` | HuggingFace repo ID (default: `elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX`) |
+| `progress` | `IProgress<string>?` | Optional progress callback for download status |
+| `cancellationToken` | `CancellationToken` | Cancellation token |
 
 #### Constructor
 
@@ -67,7 +88,7 @@ modelDir/
   vocoder.onnx
 ```
 
-> **Tip:** Run `python setup_environment.py` from the repo root to download pre-exported models from [elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX](https://huggingface.co/elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX). Models are placed in `python/onnx_runtime/`.
+> **Tip:** Use `TtsPipeline.CreateAsync()` instead — it downloads these files automatically. The manual constructor is for advanced scenarios where you manage model files yourself.
 
 #### Properties
 
@@ -105,6 +126,53 @@ public void Dispose()
 
 Releases all ONNX sessions, tokenizer, and embedding resources. Always dispose when done.
 
+### `ModelDownloader`
+
+Static utility class for downloading and verifying ONNX model files.
+
+```csharp
+public sealed class ModelDownloader
+```
+
+#### Constants
+
+```csharp
+public const string DefaultRepoId = "elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX";
+```
+
+#### Methods
+
+```csharp
+// Check if all model files are present
+public static bool IsModelReady(string modelDir);
+
+// Get list of missing files
+public static IReadOnlyList<string> GetMissingFiles(string modelDir);
+
+// Download all missing files from HuggingFace
+public static async Task DownloadModelAsync(
+    string modelDir,
+    string repoId = DefaultRepoId,
+    IProgress<ModelDownloadProgress>? progress = null,
+    CancellationToken cancellationToken = default);
+
+// Ensure models are present (download if needed), return modelDir
+public static async Task<string> EnsureModelAsync(
+    string modelDir,
+    string repoId = DefaultRepoId,
+    IProgress<ModelDownloadProgress>? progress = null,
+    CancellationToken cancellationToken = default);
+```
+
+### `ModelDownloadProgress`
+
+```csharp
+public record ModelDownloadProgress(int Current, int Total, string? FileName, string Message)
+{
+    public double Percentage { get; } // 0-100
+}
+```
+
 ## Usage Examples
 
 ### Basic text-to-speech
@@ -112,7 +180,8 @@ Releases all ONNX sessions, tokenizer, and embedding resources. Always dispose w
 ```csharp
 using ElBruno.QwenTTS.Pipeline;
 
-using var pipeline = new TtsPipeline("python/onnx_runtime");
+// Auto-downloads models on first run
+using var pipeline = await TtsPipeline.CreateAsync("models");
 await pipeline.SynthesizeAsync("Hello world!", "ryan", "hello.wav");
 ```
 
@@ -155,7 +224,7 @@ Output:
 ### Batch processing multiple texts
 
 ```csharp
-using var pipeline = new TtsPipeline("python/onnx_runtime");
+using var pipeline = await TtsPipeline.CreateAsync("models");
 
 var segments = new[]
 {
@@ -175,7 +244,7 @@ for (int i = 0; i < segments.Length; i++)
 ### Listing available speakers
 
 ```csharp
-using var pipeline = new TtsPipeline("python/onnx_runtime");
+using var pipeline = await TtsPipeline.CreateAsync("models");
 
 Console.WriteLine("Available voices:");
 foreach (var speaker in pipeline.Speakers)

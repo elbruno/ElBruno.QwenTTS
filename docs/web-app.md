@@ -29,12 +29,12 @@ The model directory is configured in `appsettings.json`:
 ```json
 {
   "TTS": {
-    "ModelDir": "python/onnx_runtime"
+    "ModelDir": "models"
   }
 }
 ```
 
-Relative paths are resolved from the repository root. You can also use an absolute path.
+Models are downloaded automatically on first request if not already present. You can also use an absolute path to a pre-downloaded model directory.
 
 ## Architecture
 

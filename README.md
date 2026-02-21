@@ -1,6 +1,6 @@
-# Qwen3-TTS ONNX Pipeline + C# Console App
+# Qwen3-TTS ONNX Pipeline + C# .NET 10
 
-Run **Qwen3-TTS** text-to-speech locally from a C# .NET 10 console application using ONNX Runtime — no Python needed at inference time.
+Run **Qwen3-TTS** text-to-speech locally from C# using ONNX Runtime — no Python needed at inference time. Models are downloaded automatically on first run.
 
 Pre-exported ONNX models are hosted on HuggingFace:
 [**elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX**](https://huggingface.co/elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX)
@@ -9,14 +9,28 @@ Pre-exported ONNX models are hosted on HuggingFace:
 
 ## Quick Start
 
-```bash
-python setup_environment.py
+### Option 1: C# (recommended — no Python needed)
+
+```csharp
+using ElBruno.QwenTTS.Pipeline;
+
+// Models download automatically on first run (~5.5 GB)
+using var pipeline = await TtsPipeline.CreateAsync("models");
+await pipeline.SynthesizeAsync("Hello world!", "ryan", "hello.wav", "english");
 ```
 
-Then generate speech:
+### Option 2: CLI
 
 ```bash
-dotnet run --project src/ElBruno.QwenTTS -- --model-dir python/onnx_runtime --text "Hello, this is a test." --speaker ryan --language english --output hello.wav
+dotnet run --project src/ElBruno.QwenTTS -- --model-dir models --text "Hello, this is a test." --speaker ryan --language english --output hello.wav
+```
+
+Models are downloaded automatically if not present in the `--model-dir` directory.
+
+### Option 3: Python setup (alternative)
+
+```bash
+python setup_environment.py
 ```
 
 ## More Examples
@@ -65,8 +79,8 @@ Open [http://localhost:5217](http://localhost:5217) — upload a multi-speaker s
 
 | Document | Description |
 |----------|-------------|
-| [Prerequisites](docs/prerequisites.md) | System requirements (Python, .NET, disk space) |
-| [Getting Started](docs/getting-started.md) | Setup, model download, and first run |
+| [Prerequisites](docs/prerequisites.md) | System requirements (.NET 10, disk space) |
+| [Getting Started](docs/getting-started.md) | Setup, auto-download, and first run |
 | [Core Library](docs/core-library.md) | ElBruno.QwenTTS.Core API reference and usage examples |
 | [CLI Reference](docs/cli-reference.md) | All command options, speakers, and examples |
 | [File Reader](docs/file-reader.md) | Batch audio generation from text and SRT files |

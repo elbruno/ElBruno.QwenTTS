@@ -27,12 +27,13 @@ Source model: [`Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice`](https://huggingface.co/Qw
 ## Project Structure
 
 ```
-setup_environment.py             # One-command setup (download models + restore .NET)
-QwenTTS.slnx                     # Solution file (all projects)
+setup_environment.py             # Alternative Python setup (optional)
+ElBruno.QwenTTS.slnx             # Solution file (all projects)
 
 src/ElBruno.QwenTTS.Core/                # Core library (shared by all apps)
   Pipeline/
-    TtsPipeline.cs               # Full TTS orchestrator
+    TtsPipeline.cs               # Full TTS orchestrator + CreateAsync factory
+    ModelDownloader.cs           # Auto-download models from HuggingFace
   Models/
     TextTokenizer.cs             # BPE tokenizer (Microsoft.ML.Tokenizers)
     LanguageModel.cs             # 3-session autoregressive inference with KV-cache
@@ -42,23 +43,18 @@ src/ElBruno.QwenTTS.Core/                # Core library (shared by all apps)
   Audio/
     WavWriter.cs                 # WAV file writer (24 kHz, 16-bit PCM)
 
+src/ElBruno.QwenTTS.Core.Tests/          # Unit tests (xUnit)
+
 src/ElBruno.QwenTTS/                     # CLI console application
-  Program.cs                     # CLI entry point (references QwenTTS.Core)
 
 src/ElBruno.QwenTTS.FileReader/          # Batch file reader (text/SRT → audio)
-  Program.cs                     # CLI entry point (references QwenTTS.Core)
 
 src/ElBruno.QwenTTS.Web/                 # Blazor web app — single text-to-speech
-  Services/TtsPipelineService.cs # Singleton wrapper with thread-safe access
-  Components/Pages/Home.razor    # TTS generation page
 
 src/ElBruno.QwenTTS.Podcast/             # Blazor web app — podcast episode generator
-  Services/TtsPipelineService.cs # Singleton wrapper with thread-safe access
-  Components/Pages/Podcast.razor # Podcast generation page
-  Components/Pages/Samples.razor # LLM prompt templates
 
 docs/                            # Documentation
-python/                          # ONNX export & download tools
+python/                          # ONNX export & download tools (optional)
 samples/                         # Sample text files and podcast scripts
 ```
 

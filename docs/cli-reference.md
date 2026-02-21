@@ -10,7 +10,7 @@ dotnet run --project src/ElBruno.QwenTTS -- --model-dir <path> --text "<text>" [
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `--model-dir` | *(required)* | Path to downloaded model directory |
+| `--model-dir` | *(required)* | Path to model directory (models auto-download if missing) |
 | `--text` | *(required)* | Text to synthesize |
 | `--speaker` | `Ryan` | Speaker voice name (see below) |
 | `--language` | `auto` | Language: `english`, `chinese`, `auto`, etc. |
