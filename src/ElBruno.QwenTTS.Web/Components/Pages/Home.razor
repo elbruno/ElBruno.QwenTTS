@@ -1,5 +1,6 @@
 @page "/"
 @using ElBruno.QwenTTS.Web.Services
+@using ElBruno.QwenTTS.Pipeline
 @inject TtsPipelineService Tts
 @inject IJSRuntime JS
 @rendermode InteractiveServer
@@ -7,6 +8,43 @@
 <PageTitle>Qwen TTS</PageTitle>
 
 <div class="main-content">
+    <!-- Model Status Banner -->
+    @if (!Tts.IsReady)
+    {
+        <div class="tts-card" style="border-left:4px solid var(--accent);">
+            @if (_downloadProgress != null)
+            {
+                <h3>⬇️ Downloading Model</h3>
+                <div class="progress-bar-track" style="margin-bottom:0.5rem;">
+                    <div class="progress-bar-fill" style="width:@(_downloadProgress.FilePercentage)%"></div>
+                </div>
+                <div style="font-size:0.82rem;color:var(--text-muted);">
+                    [@_downloadProgress.CurrentFile/@_downloadProgress.TotalFiles] @_downloadProgress.Message
+                </div>
+            }
+            else if (_initError != null)
+            {
+                <h3>⚠️ Model Error</h3>
+                <div style="color:var(--red);font-size:0.88rem;">@_initError</div>
+                <button class="btn btn-sm btn-primary mt-2" @onclick="InitializeModel">Retry</button>
+            }
+            else
+            {
+                <h3>⏳ Loading Model...</h3>
+                <div style="font-size:0.82rem;color:var(--text-muted);">
+                    @if (Tts.IsModelDownloaded)
+                    {
+                        <span>Model files found — loading ONNX sessions...</span>
+                    }
+                    else
+                    {
+                        <span>Preparing to download model from HuggingFace (~5.5 GB)...</span>
+                    }
+                </div>
+            }
+        </div>
+    }
+
     <div class="row g-3">
         <!-- Left: Input + Settings -->
         <div class="col-lg-7">
@@ -178,12 +216,44 @@
     private List<AudioResult> _results = new();
     private List<string> _speakers = new();
     private List<LogEntry> _logs = new();
+    private ModelDownloadProgress? _downloadProgress;
+    private string? _initError;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        _speakers = Tts.Speakers.OrderBy(s => s).ToList();
-        if (_speakers.Count > 0 && !_speakers.Contains(_speaker))
-            _speaker = _speakers[0];
+        Tts.OnDownloadProgress += OnDownloadProgressUpdate;
+        await InitializeModel();
+    }
+
+    private async Task InitializeModel()
+    {
+        _initError = null;
+        _downloadProgress = null;
+        StateHasChanged();
+
+        try
+        {
+            await Tts.InitializeAsync();
+            _speakers = Tts.Speakers.OrderBy(s => s).ToList();
+            if (_speakers.Count > 0 && !_speakers.Contains(_speaker))
+                _speaker = _speakers[0];
+            Log("Model loaded and ready", "success");
+        }
+        catch (Exception ex)
+        {
+            _initError = ex.Message;
+            Log($"Model initialization failed: {ex.Message}", "error");
+        }
+        StateHasChanged();
+    }
+
+    private void OnDownloadProgressUpdate(ModelDownloadProgress progress)
+    {
+        InvokeAsync(() =>
+        {
+            _downloadProgress = progress;
+            StateHasChanged();
+        });
     }
 
     private void ToggleConsole() => _consoleExpanded = !_consoleExpanded;

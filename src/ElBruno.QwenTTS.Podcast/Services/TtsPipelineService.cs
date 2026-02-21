@@ -5,28 +5,82 @@ namespace ElBruno.QwenTTS.Podcast.Services;
 
 /// <summary>
 /// Singleton service that wraps TtsPipeline with thread-safe access.
+/// Initializes asynchronously — models are downloaded automatically if missing.
 /// </summary>
 public sealed class TtsPipelineService : IDisposable
 {
-    private readonly TtsPipeline _pipeline;
+    private TtsPipeline? _pipeline;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private readonly string _outputDir;
+    private readonly string _modelDir;
+    private bool _isInitializing;
+    private bool _isReady;
+
+    /// <summary>True when models are downloaded and pipeline is loaded.</summary>
+    public bool IsReady => _isReady;
+
+    /// <summary>True when model download/init is in progress.</summary>
+    public bool IsInitializing => _isInitializing;
+
+    /// <summary>True when models exist on disk (may not be loaded yet).</summary>
+    public bool IsModelDownloaded => ModelDownloader.IsModelDownloaded(_modelDir);
+
+    /// <summary>Fires during model download with detailed progress.</summary>
+    public event Action<ModelDownloadProgress>? OnDownloadProgress;
+
+    /// <summary>Fires when initialization completes (success or failure).</summary>
+    public event Action<bool, string?>? OnInitialized;
 
     public TtsPipelineService(IConfiguration config, IWebHostEnvironment env)
     {
-        var modelDir = config["TTS:ModelDir"] ?? "python/onnx_runtime";
-        // Resolve relative paths from the solution root (two levels up from web project)
-        if (!Path.IsPathRooted(modelDir))
+        var modelDir = config["TTS:ModelDir"];
+        if (string.IsNullOrEmpty(modelDir))
+        {
+            _modelDir = ModelDownloader.DefaultModelDir;
+        }
+        else if (!Path.IsPathRooted(modelDir))
         {
             var solutionRoot = Path.GetFullPath(Path.Combine(env.ContentRootPath, "..", ".."));
-            modelDir = Path.Combine(solutionRoot, modelDir);
+            _modelDir = Path.Combine(solutionRoot, modelDir);
         }
-        _pipeline = new TtsPipeline(modelDir);
+        else
+        {
+            _modelDir = modelDir;
+        }
         _outputDir = Path.Combine(env.WebRootPath, "generated");
         Directory.CreateDirectory(_outputDir);
     }
 
-    public IReadOnlyCollection<string> Speakers => _pipeline.Speakers;
+    /// <summary>
+    /// Initialize the pipeline, downloading models if needed.
+    /// Call once at startup; safe to call multiple times.
+    /// </summary>
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        if (_isReady || _isInitializing) return;
+        _isInitializing = true;
+
+        try
+        {
+            var progress = new Progress<ModelDownloadProgress>(p => OnDownloadProgress?.Invoke(p));
+            _pipeline = await TtsPipeline.CreateAsync(_modelDir, progress, cancellationToken: cancellationToken);
+            _isReady = true;
+            OnInitialized?.Invoke(true, null);
+        }
+        catch (Exception ex)
+        {
+            OnInitialized?.Invoke(false, ex.Message);
+            throw;
+        }
+        finally
+        {
+            _isInitializing = false;
+        }
+    }
+
+    public IReadOnlyCollection<string> Speakers => _pipeline?.Speakers ?? [];
+
+    public string ModelDirectory => _modelDir;
 
     /// <summary>
     /// Generates a WAV file and returns the relative URL path.
@@ -34,13 +88,16 @@ public sealed class TtsPipelineService : IDisposable
     public async Task<string> GenerateAsync(string text, string speaker, string language,
                                             string? instruct, IProgress<string>? progress = null)
     {
+        if (!_isReady)
+            throw new InvalidOperationException("Pipeline not initialized. Call InitializeAsync first.");
+
         var fileName = $"{Guid.NewGuid():N}.wav";
         var filePath = Path.Combine(_outputDir, fileName);
 
         await _semaphore.WaitAsync();
         try
         {
-            await _pipeline.SynthesizeAsync(text, speaker, filePath, language, instruct, progress);
+            await _pipeline!.SynthesizeAsync(text, speaker, filePath, language, instruct, progress);
         }
         finally
         {
@@ -134,6 +191,6 @@ public sealed class TtsPipelineService : IDisposable
     public void Dispose()
     {
         _semaphore.Dispose();
-        _pipeline.Dispose();
+        _pipeline?.Dispose();
     }
 }

@@ -41,7 +41,9 @@ public static class Program
 
         try
         {
-            using var pipeline = new TtsPipeline(modelDir);
+            // Auto-download models if not present
+            using var pipeline = await TtsPipeline.CreateAsync(modelDir,
+                progress: new Progress<string>(msg => Console.WriteLine($"  {msg}")));
             await pipeline.SynthesizeAsync(text, speaker, output, language, instruct);
             return 0;
         }

@@ -62,17 +62,18 @@ public sealed class TtsPipeline : IDisposable
     /// <summary>
     /// Creates a TtsPipeline, automatically downloading model files if they are missing.
     /// </summary>
-    /// <param name="modelDir">Directory to store/load model files.</param>
+    /// <param name="modelDir">Directory to store/load model files. Defaults to shared location in LocalAppData.</param>
     /// <param name="repoId">HuggingFace repository ID (default: elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX).</param>
     /// <param name="progress">Optional progress callback for download status.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     public static async Task<TtsPipeline> CreateAsync(
-        string modelDir,
+        string? modelDir = null,
         string repoId = ModelDownloader.DefaultRepoId,
         IProgress<string>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        if (!ModelDownloader.IsModelReady(modelDir))
+        modelDir ??= ModelDownloader.DefaultModelDir;
+        if (!ModelDownloader.IsModelDownloaded(modelDir))
         {
             progress?.Report("Model files not found — downloading from HuggingFace...");
             var downloadProgress = progress != null
@@ -81,6 +82,21 @@ public sealed class TtsPipeline : IDisposable
             await ModelDownloader.DownloadModelAsync(modelDir, repoId, downloadProgress, cancellationToken);
             progress?.Report("Model download complete.");
         }
+        return new TtsPipeline(modelDir);
+    }
+
+    /// <summary>
+    /// Creates a TtsPipeline with detailed download progress reporting.
+    /// </summary>
+    public static async Task<TtsPipeline> CreateAsync(
+        string? modelDir,
+        IProgress<ModelDownloadProgress> downloadProgress,
+        string repoId = ModelDownloader.DefaultRepoId,
+        CancellationToken cancellationToken = default)
+    {
+        modelDir ??= ModelDownloader.DefaultModelDir;
+        if (!ModelDownloader.IsModelDownloaded(modelDir))
+            await ModelDownloader.DownloadModelAsync(modelDir, repoId, downloadProgress, cancellationToken);
         return new TtsPipeline(modelDir);
     }
 

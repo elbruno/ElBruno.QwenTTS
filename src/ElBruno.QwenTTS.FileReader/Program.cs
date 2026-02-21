@@ -56,7 +56,8 @@ public static class Program
 
         try
         {
-            using var pipeline = new TtsPipeline(modelDir);
+            using var pipeline = await TtsPipeline.CreateAsync(modelDir,
+                progress: new Progress<string>(msg => Console.WriteLine($"  {msg}")));
             var baseName = Path.GetFileNameWithoutExtension(inputFile);
 
             for (int i = 0; i < segments.Count; i++)

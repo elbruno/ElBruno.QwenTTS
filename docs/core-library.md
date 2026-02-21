@@ -134,31 +134,35 @@ Static utility class for downloading and verifying ONNX model files.
 public sealed class ModelDownloader
 ```
 
-#### Constants
+#### Properties
 
 ```csharp
+// Default shared model directory (%LOCALAPPDATA%/ElBruno.QwenTTS/models)
+// All apps share this location to avoid duplicate downloads
+public static string DefaultModelDir { get; }
+
 public const string DefaultRepoId = "elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX";
 ```
 
 #### Methods
 
 ```csharp
-// Check if all model files are present
-public static bool IsModelReady(string modelDir);
+// Check if all model files are present (uses DefaultModelDir if null)
+public static bool IsModelDownloaded(string? modelDir = null);
 
 // Get list of missing files
-public static IReadOnlyList<string> GetMissingFiles(string modelDir);
+public static IReadOnlyList<string> GetMissingFiles(string? modelDir = null);
 
-// Download all missing files from HuggingFace
+// Download with byte-level progress
 public static async Task DownloadModelAsync(
-    string modelDir,
+    string? modelDir = null,
     string repoId = DefaultRepoId,
     IProgress<ModelDownloadProgress>? progress = null,
     CancellationToken cancellationToken = default);
 
 // Ensure models are present (download if needed), return modelDir
 public static async Task<string> EnsureModelAsync(
-    string modelDir,
+    string? modelDir = null,
     string repoId = DefaultRepoId,
     IProgress<ModelDownloadProgress>? progress = null,
     CancellationToken cancellationToken = default);
@@ -167,11 +171,23 @@ public static async Task<string> EnsureModelAsync(
 ### `ModelDownloadProgress`
 
 ```csharp
-public record ModelDownloadProgress(int Current, int Total, string? FileName, string Message)
+public record ModelDownloadProgress(
+    int CurrentFile, int TotalFiles, string? FileName, string Message,
+    long BytesDownloaded, long TotalBytes)
 {
-    public double Percentage { get; } // 0-100
+    public double FilePercentage { get; }  // File-level 0-100
+    public double BytePercentage { get; }  // Byte-level 0-100 for current file
 }
 ```
+
+### Shared Model Directory
+
+All apps using `ElBruno.QwenTTS.Core` share the same default model directory:
+
+- **Windows:** `%LOCALAPPDATA%\ElBruno.QwenTTS\models`
+- **Linux/macOS:** `~/.local/share/ElBruno.QwenTTS/models`
+
+This means models are downloaded once and reused by CLI, Web, Podcast, and any custom app. Override with a custom path if needed.
 
 ## Usage Examples
 

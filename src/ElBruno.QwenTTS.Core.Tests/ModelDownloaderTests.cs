@@ -110,11 +110,13 @@ public class ModelDownloaderTests : IDisposable
     [Fact]
     public void ModelDownloadProgress_Percentage_Calculation()
     {
-        var progress = new ModelDownloadProgress(5, 10, "test.onnx", "Downloading...");
-        Assert.Equal(50.0, progress.Percentage);
+        var progress = new ModelDownloadProgress(5, 10, "test.onnx", "Downloading...", 512_000, 1_024_000);
+        Assert.Equal(50.0, progress.FilePercentage);
+        Assert.Equal(50.0, progress.BytePercentage);
 
-        var empty = new ModelDownloadProgress(0, 0, null, "Done");
-        Assert.Equal(0.0, empty.Percentage);
+        var empty = new ModelDownloadProgress(0, 0, null, "Done", 0, 0);
+        Assert.Equal(0.0, empty.FilePercentage);
+        Assert.Equal(0.0, empty.BytePercentage);
     }
 
     public void Dispose()
