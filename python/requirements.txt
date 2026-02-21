@@ -1,0 +1,9 @@
+qwen-tts
+torch
+transformers>=4.57.3
+optimum[onnx]
+onnx
+onnxruntime
+soundfile
+numpy
+huggingface_hub

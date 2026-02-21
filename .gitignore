@@ -1,0 +1,11 @@
+# Model weights (downloaded, not committed)
+python/models/
+
+# Python
+python/.venv/
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
