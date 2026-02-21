@@ -49,6 +49,54 @@ public sealed class TtsPipelineService : IDisposable
         return $"/generated/{fileName}";
     }
 
+    /// <summary>
+    /// Merges multiple WAV files (from URL paths) into a single WAV and returns the URL.
+    /// </summary>
+    public async Task<string> MergeWavFilesAsync(List<string> wavUrls)
+    {
+        var mergedName = $"{Guid.NewGuid():N}.wav";
+        var mergedPath = Path.Combine(_outputDir, mergedName);
+
+        await Task.Run(() =>
+        {
+            using var output = new FileStream(mergedPath, FileMode.Create);
+            var allSamples = new List<byte>();
+
+            foreach (var url in wavUrls)
+            {
+                // URL is /generated/xxx.wav — resolve to file path
+                var fileName = url.Split('/').Last();
+                var filePath = Path.Combine(_outputDir, fileName);
+                if (!File.Exists(filePath)) continue;
+
+                var bytes = File.ReadAllBytes(filePath);
+                if (bytes.Length <= 44) continue;
+                // Skip 44-byte WAV header, collect raw PCM
+                allSamples.AddRange(bytes.AsSpan(44).ToArray());
+            }
+
+            // Write WAV header + all PCM data
+            var dataLen = allSamples.Count;
+            using var writer = new BinaryWriter(output);
+            writer.Write("RIFF"u8);
+            writer.Write(36 + dataLen);
+            writer.Write("WAVE"u8);
+            writer.Write("fmt "u8);
+            writer.Write(16);           // chunk size
+            writer.Write((short)1);     // PCM
+            writer.Write((short)1);     // mono
+            writer.Write(24000);        // sample rate
+            writer.Write(24000 * 2);    // byte rate
+            writer.Write((short)2);     // block align
+            writer.Write((short)16);    // bits per sample
+            writer.Write("data"u8);
+            writer.Write(dataLen);
+            writer.Write(allSamples.ToArray());
+        });
+
+        return $"/generated/{mergedName}";
+    }
+
     public void Dispose()
     {
         _semaphore.Dispose();
