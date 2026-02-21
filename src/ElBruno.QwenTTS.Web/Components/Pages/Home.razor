@@ -1,0 +1,379 @@
+@page "/"
+@using ElBruno.QwenTTS.Web.Services
+@inject TtsPipelineService Tts
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>Qwen TTS</PageTitle>
+
+<div class="main-content">
+    <div class="row g-3">
+        <!-- Left: Input + Settings -->
+        <div class="col-lg-7">
+            <div class="tts-card">
+                <h3>📝 Input</h3>
+                <div class="mode-toggle">
+                    <button class="@(_inputMode == "text" ? "active" : "")" @onclick='() => _inputMode = "text"'>✏️ Text</button>
+                    <button class="@(_inputMode == "file" ? "active" : "")" @onclick='() => _inputMode = "file"'>📄 File</button>
+                </div>
+                @if (_inputMode == "text")
+                {
+                    <textarea class="form-control" rows="4" placeholder="Enter text to synthesize..."
+                              @bind="_text" style="resize:vertical;"></textarea>
+                }
+                else
+                {
+                    <InputFile class="form-control" OnChange="OnFileSelected" accept=".txt,.srt,.md" />
+                    @if (!string.IsNullOrEmpty(_fileName))
+                    {
+                        <div class="form-text mt-1">📎 @_fileName — @_fileSegments.Count segment(s)</div>
+                    }
+                }
+            </div>
+
+            <!-- Voice + Settings (compact) -->
+            <div class="tts-card">
+                <h3>🎤 Voice</h3>
+                <div class="voice-row mb-2">
+                    @foreach (var s in _speakers)
+                    {
+                        <div class="voice-chip @(s == _speaker ? "selected" : "")" @onclick="() => _speaker = s">@s</div>
+                    }
+                </div>
+                <div class="settings-inline">
+                    <div>
+                        <label class="form-label">Language</label>
+                        <select class="form-select form-select-sm" @bind="_language">
+                            <option value="auto">Auto</option>
+                            <option value="english">English</option>
+                            <option value="spanish">Spanish</option>
+                            <option value="chinese">Chinese</option>
+                            <option value="japanese">Japanese</option>
+                            <option value="korean">Korean</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Instruction</label>
+                        <input class="form-control form-control-sm" placeholder="e.g. speak calmly" @bind="_instruct" />
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary generate-btn" @onclick="GenerateAsync" disabled="@_generating">
+                @if (_generating)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    <span>Generating...</span>
+                }
+                else
+                {
+                    <span>🎙️ Generate Speech</span>
+                }
+            </button>
+
+            <!-- Progress Bar -->
+            @if (_generating && _totalSegments > 0)
+            {
+                <div class="progress-container">
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" style="width: @(_progressPct)%"></div>
+                    </div>
+                    <div class="progress-label">
+                        <span>@_progressStatus</span>
+                        <span>@_completedSegments / @_totalSegments</span>
+                    </div>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <div class="alert alert-danger mt-2">⚠️ @_error</div>
+            }
+        </div>
+
+        <!-- Right: Output -->
+        <div class="col-lg-5">
+            <div class="tts-card">
+                <h3>🔊 Output</h3>
+                @if (_results.Count == 0)
+                {
+                    <div class="output-empty">Generated audio will appear here</div>
+                }
+                else
+                {
+                    <div class="output-panel" id="outputPanel">
+                        @foreach (var result in _results)
+                        {
+                            <div class="audio-result-card">
+                                <audio controls src="@result.Url" preload="auto"></audio>
+                                <div class="audio-meta">
+                                    <span class="label">@(result.Label ?? "Audio")</span>
+                                    <a href="@result.Url" download="@result.FileName" class="download-btn">⬇ WAV</a>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    @if (_results.Count > 1)
+                    {
+                        <div class="download-all-bar">
+                            <button class="download-all-btn" @onclick="DownloadMergedAsync" disabled="@_merging">
+                                @if (_merging)
+                                {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                }
+                                ⬇ Download All as One File
+                            </button>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Docked Console -->
+<div class="console-dock @(_consoleExpanded ? "expanded" : "collapsed")">
+    <div class="console-header" @onclick="ToggleConsole">
+        <span><span class="dot @(_generating ? "active" : "")"></span> Console (@_logs.Count)</span>
+        <div class="console-header-actions">
+            <button @onclick="ClearLogs" @onclick:stopPropagation="true">Clear</button>
+            <button>@(_consoleExpanded ? "▼" : "▲")</button>
+        </div>
+    </div>
+    @if (_consoleExpanded)
+    {
+        <div class="console-body" id="consoleBody">
+            @if (_logs.Count == 0)
+            {
+                <div class="log-line"><span class="ts">--:--:--</span><span class="msg" style="color:var(--text-dim)">Waiting...</span></div>
+            }
+            @foreach (var log in _logs)
+            {
+                <div class="log-line @log.Level">
+                    <span class="ts">@log.Time</span>
+                    <span class="msg">@log.Message</span>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private string _inputMode = "text";
+    private string _text = "";
+    private string _speaker = "ryan";
+    private string _language = "auto";
+    private string _instruct = "";
+    private bool _generating;
+    private bool _merging;
+    private string? _error;
+    private string? _fileName;
+    private bool _consoleExpanded = true;
+    private int _totalSegments;
+    private int _completedSegments;
+    private int _progressPct;
+    private string _progressStatus = "";
+    private List<string> _fileSegments = new();
+    private List<AudioResult> _results = new();
+    private List<string> _speakers = new();
+    private List<LogEntry> _logs = new();
+
+    protected override void OnInitialized()
+    {
+        _speakers = Tts.Speakers.OrderBy(s => s).ToList();
+        if (_speakers.Count > 0 && !_speakers.Contains(_speaker))
+            _speaker = _speakers[0];
+    }
+
+    private void ToggleConsole() => _consoleExpanded = !_consoleExpanded;
+
+    private void Log(string message, string level = "info")
+    {
+        _logs.Add(new LogEntry(DateTime.Now.ToString("HH:mm:ss"), message, level));
+        if (_logs.Count > 300) _logs.RemoveAt(0);
+    }
+
+    private void ClearLogs() => _logs.Clear();
+
+    private async Task ScrollConsole()
+    {
+        await JS.InvokeVoidAsync("eval", "document.getElementById('consoleBody')?.scrollTo(0,999999)");
+    }
+
+    private async Task ScrollOutput()
+    {
+        await JS.InvokeVoidAsync("eval", "document.getElementById('outputPanel')?.scrollTo(0,999999)");
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        _error = null;
+        _fileSegments.Clear();
+        _fileName = null;
+
+        var file = e.File;
+        if (file.Size > 1_000_000)
+        {
+            _error = "File too large (max 1 MB).";
+            Log("File rejected: >1 MB", "error");
+            return;
+        }
+
+        _fileName = file.Name;
+        Log($"Loaded: {file.Name} ({file.Size:N0} bytes)", "info");
+
+        using var reader = new StreamReader(file.OpenReadStream(maxAllowedSize: 1_000_000));
+        var content = await reader.ReadToEndAsync();
+        var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+        _fileSegments = ext == ".srt" ? ParseSrt(content) : ParseText(content);
+        Log($"Parsed {_fileSegments.Count} segments", "success");
+
+        if (_fileSegments.Count == 0)
+            _error = "No text segments found.";
+    }
+
+    private async Task GenerateAsync()
+    {
+        _error = null;
+        _results.Clear();
+        _generating = true;
+        _completedSegments = 0;
+        _progressPct = 0;
+        _progressStatus = "Starting...";
+        StateHasChanged();
+
+        try
+        {
+            var segments = _inputMode == "text"
+                ? new List<string> { _text }
+                : _fileSegments;
+
+            segments = segments.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToList();
+
+            if (segments.Count == 0)
+            {
+                _error = "Please enter text or upload a file.";
+                return;
+            }
+
+            _totalSegments = segments.Count;
+            var instruct = string.IsNullOrWhiteSpace(_instruct) ? null : _instruct;
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+
+            Log($"Generating {segments.Count} segment(s) — speaker={_speaker}, lang={_language}", "step");
+            StateHasChanged();
+            await ScrollConsole();
+
+            for (int i = 0; i < segments.Count; i++)
+            {
+                var seg = segments[i];
+                var preview = seg.Length > 50 ? seg[..50] + "..." : seg;
+                _progressStatus = $"Segment {i + 1}: {preview}";
+                Log($"[{i + 1}/{segments.Count}] \"{preview}\"", "step");
+                StateHasChanged();
+                await ScrollConsole();
+
+                var progress = new Progress<string>(msg =>
+                {
+                    InvokeAsync(() => { Log(msg); StateHasChanged(); ScrollConsole(); });
+                });
+
+                var segSw = System.Diagnostics.Stopwatch.StartNew();
+                var url = await Tts.GenerateAsync(seg, _speaker, _language, instruct, progress);
+                segSw.Stop();
+
+                var fileName = $"qwen_tts_{_speaker}_{i + 1:D3}.wav";
+                var label = segments.Count > 1 ? $"Segment {i + 1}/{segments.Count}" : null;
+                _results.Add(new AudioResult(url, label, fileName));
+                _completedSegments = i + 1;
+                _progressPct = (int)((i + 1) * 100.0 / _totalSegments);
+                Log($"Done ({segSw.Elapsed.TotalSeconds:F1}s)", "success");
+                StateHasChanged();
+                await ScrollOutput();
+                await ScrollConsole();
+            }
+
+            sw.Stop();
+            _progressStatus = "Complete!";
+            _progressPct = 100;
+            Log($"All done — {_results.Count} file(s) in {sw.Elapsed.TotalSeconds:F1}s", "success");
+        }
+        catch (Exception ex)
+        {
+            _error = $"Generation failed: {ex.Message}";
+            Log($"ERROR: {ex.Message}", "error");
+        }
+        finally
+        {
+            _generating = false;
+            StateHasChanged();
+            await ScrollConsole();
+        }
+    }
+
+    private async Task DownloadMergedAsync()
+    {
+        if (_results.Count < 2) return;
+        _merging = true;
+        StateHasChanged();
+
+        try
+        {
+            Log("Merging WAV files...", "step");
+            var mergedUrl = await Tts.MergeWavFilesAsync(_results.Select(r => r.Url).ToList());
+            Log("Merged file ready", "success");
+            await JS.InvokeVoidAsync("eval",
+                $"var a=document.createElement('a');a.href='{mergedUrl}';a.download='qwen_tts_{_speaker}_merged.wav';document.body.appendChild(a);a.click();a.remove();");
+        }
+        catch (Exception ex)
+        {
+            Log($"Merge failed: {ex.Message}", "error");
+        }
+        finally
+        {
+            _merging = false;
+            StateHasChanged();
+        }
+    }
+
+    private static List<string> ParseText(string content) =>
+        content.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(StripMarkdown).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+
+    private static string StripMarkdown(string text)
+    {
+        var line = text.Trim();
+        line = System.Text.RegularExpressions.Regex.Replace(line, @"^#{1,6}\s+", "", System.Text.RegularExpressions.RegexOptions.Multiline);
+        line = System.Text.RegularExpressions.Regex.Replace(line, @"\*\*(.+?)\*\*", "$1");
+        line = System.Text.RegularExpressions.Regex.Replace(line, @"\*(.+?)\*", "$1");
+        line = System.Text.RegularExpressions.Regex.Replace(line, @"\[(.+?)\]\(.+?\)", "$1");
+        line = System.Text.RegularExpressions.Regex.Replace(line, @"^[-*]\s+", "", System.Text.RegularExpressions.RegexOptions.Multiline);
+        return line.Trim();
+    }
+
+    private static List<string> ParseSrt(string content)
+    {
+        var segments = new List<string>();
+        var lines = content.Split('\n');
+        var textLines = new List<string>();
+        foreach (var raw in lines)
+        {
+            var line = raw.Trim();
+            if (string.IsNullOrEmpty(line))
+            {
+                if (textLines.Count > 0) { segments.Add(string.Join(" ", textLines)); textLines.Clear(); }
+                continue;
+            }
+            if (int.TryParse(line, out _)) continue;
+            if (line.Contains("-->")) continue;
+            var stripped = System.Text.RegularExpressions.Regex.Replace(line, @"<[^>]+>", "");
+            if (!string.IsNullOrWhiteSpace(stripped)) textLines.Add(stripped);
+        }
+        if (textLines.Count > 0) segments.Add(string.Join(" ", textLines));
+        return segments;
+    }
+
+    private record LogEntry(string Time, string Message, string Level);
+    private record AudioResult(string Url, string? Label, string FileName);
+}

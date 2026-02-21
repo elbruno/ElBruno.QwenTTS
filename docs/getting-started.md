@@ -36,14 +36,14 @@ python download_onnx_models.py --repo-id your-user/your-repo
 ### 2. Build the C# app
 
 ```bash
-dotnet restore src/QwenTTS/QwenTTS.csproj
-dotnet build src/QwenTTS/QwenTTS.csproj
+dotnet restore src/ElBruno.QwenTTS/ElBruno.QwenTTS.csproj
+dotnet build src/ElBruno.QwenTTS/ElBruno.QwenTTS.csproj
 ```
 
 ### 3. Generate speech
 
 ```bash
-dotnet run --project src/QwenTTS -- --model-dir python/onnx_runtime --text "Hello world" --speaker ryan --language english --output hello.wav
+dotnet run --project src/ElBruno.QwenTTS -- --model-dir python/onnx_runtime --text "Hello world" --speaker ryan --language english --output hello.wav
 ```
 
 ## Model Directory Structure

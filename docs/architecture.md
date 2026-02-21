@@ -30,7 +30,7 @@ Source model: [`Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice`](https://huggingface.co/Qw
 setup_environment.py             # One-command setup (download models + restore .NET)
 QwenTTS.slnx                     # Solution file (all projects)
 
-src/QwenTTS.Core/                # Core library (shared by all apps)
+src/ElBruno.QwenTTS.Core/                # Core library (shared by all apps)
   Pipeline/
     TtsPipeline.cs               # Full TTS orchestrator
   Models/
@@ -42,17 +42,17 @@ src/QwenTTS.Core/                # Core library (shared by all apps)
   Audio/
     WavWriter.cs                 # WAV file writer (24 kHz, 16-bit PCM)
 
-src/QwenTTS/                     # CLI console application
+src/ElBruno.QwenTTS/                     # CLI console application
   Program.cs                     # CLI entry point (references QwenTTS.Core)
 
-src/QwenTTS.FileReader/          # Batch file reader (text/SRT → audio)
+src/ElBruno.QwenTTS.FileReader/          # Batch file reader (text/SRT → audio)
   Program.cs                     # CLI entry point (references QwenTTS.Core)
 
-src/QwenTTS.Web/                 # Blazor web app — single text-to-speech
+src/ElBruno.QwenTTS.Web/                 # Blazor web app — single text-to-speech
   Services/TtsPipelineService.cs # Singleton wrapper with thread-safe access
   Components/Pages/Home.razor    # TTS generation page
 
-src/QwenTTS.Podcast/             # Blazor web app — podcast episode generator
+src/ElBruno.QwenTTS.Podcast/             # Blazor web app — podcast episode generator
   Services/TtsPipelineService.cs # Singleton wrapper with thread-safe access
   Components/Pages/Podcast.razor # Podcast generation page
   Components/Pages/Samples.razor # LLM prompt templates

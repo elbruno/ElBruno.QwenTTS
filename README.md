@@ -16,37 +16,37 @@ python setup_environment.py
 Then generate speech:
 
 ```bash
-dotnet run --project src/QwenTTS -- --model-dir python/onnx_runtime --text "Hello, this is a test." --speaker ryan --language english --output hello.wav
+dotnet run --project src/ElBruno.QwenTTS -- --model-dir python/onnx_runtime --text "Hello, this is a test." --speaker ryan --language english --output hello.wav
 ```
 
 ## More Examples
 
 ```bash
-dotnet run --project src/QwenTTS -- --model-dir python/onnx_runtime --text "Welcome to the future of speech synthesis." --speaker serena --output welcome.wav
-dotnet run --project src/QwenTTS -- --model-dir python/onnx_runtime --text "This is a demo of local text to speech." --speaker vivian --language english --output demo.wav
-dotnet run --project src/QwenTTS -- --model-dir python/onnx_runtime --text "Speaking with excitement and energy!" --speaker aiden --instruct "speak with excitement" --output excited.wav
-dotnet run --project src/QwenTTS -- --model-dir python/onnx_runtime --text "A calm and gentle narration." --speaker ryan --instruct "speak slowly and calmly" --output calm.wav
+dotnet run --project src/ElBruno.QwenTTS -- --model-dir python/onnx_runtime --text "Welcome to the future of speech synthesis." --speaker serena --output welcome.wav
+dotnet run --project src/ElBruno.QwenTTS -- --model-dir python/onnx_runtime --text "This is a demo of local text to speech." --speaker vivian --language english --output demo.wav
+dotnet run --project src/ElBruno.QwenTTS -- --model-dir python/onnx_runtime --text "Speaking with excitement and energy!" --speaker aiden --instruct "speak with excitement" --output excited.wav
+dotnet run --project src/ElBruno.QwenTTS -- --model-dir python/onnx_runtime --text "A calm and gentle narration." --speaker ryan --instruct "speak slowly and calmly" --output calm.wav
 ```
 
 ### Spanish Examples
 
 ```bash
-dotnet run --project src/QwenTTS -- --model-dir python/onnx_runtime --text "Hola, esta es una prueba de texto a voz." --speaker ryan --language spanish --output hola.wav
-dotnet run --project src/QwenTTS -- --model-dir python/onnx_runtime --text "Bienvenidos al futuro de la sintesis de voz." --speaker serena --language spanish --output bienvenidos.wav
+dotnet run --project src/ElBruno.QwenTTS -- --model-dir python/onnx_runtime --text "Hola, esta es una prueba de texto a voz." --speaker ryan --language spanish --output hola.wav
+dotnet run --project src/ElBruno.QwenTTS -- --model-dir python/onnx_runtime --text "Bienvenidos al futuro de la sintesis de voz." --speaker serena --language spanish --output bienvenidos.wav
 ```
 
 ### File Reader (batch audio from text/SRT files)
 
 ```bash
-dotnet run --project src/QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/hello_demo.txt --speaker ryan --language english --output-dir output/hello
-dotnet run --project src/QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/hola_demo.txt --speaker ryan --language spanish --output-dir output/hola
-dotnet run --project src/QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/demo_subtitles.srt --speaker serena --output-dir output/subtitles
+dotnet run --project src/ElBruno.QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/hello_demo.txt --speaker ryan --language english --output-dir output/hello
+dotnet run --project src/ElBruno.QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/hola_demo.txt --speaker ryan --language spanish --output-dir output/hola
+dotnet run --project src/ElBruno.QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/demo_subtitles.srt --speaker serena --output-dir output/subtitles
 ```
 
 ### Web App (browser UI — Text-to-Speech)
 
 ```bash
-dotnet run --project src/QwenTTS.Web
+dotnet run --project src/ElBruno.QwenTTS.Web
 ```
 
 Open [http://localhost:5153](http://localhost:5153) — type text or upload files, pick a voice, and generate speech.
@@ -54,7 +54,7 @@ Open [http://localhost:5153](http://localhost:5153) — type text or upload file
 ### Podcast Generator (browser UI — Multi-speaker episodes)
 
 ```bash
-dotnet run --project src/QwenTTS.Podcast
+dotnet run --project src/ElBruno.QwenTTS.Podcast
 ```
 
 Open [http://localhost:5217](http://localhost:5217) — upload a multi-speaker script file and generate a full podcast episode. See the **Prompts** page for LLM prompt templates to generate scripts.
@@ -67,6 +67,7 @@ Open [http://localhost:5217](http://localhost:5217) — upload a multi-speaker s
 |----------|-------------|
 | [Prerequisites](docs/prerequisites.md) | System requirements (Python, .NET, disk space) |
 | [Getting Started](docs/getting-started.md) | Setup, model download, and first run |
+| [Core Library](docs/core-library.md) | ElBruno.QwenTTS.Core API reference and usage examples |
 | [CLI Reference](docs/cli-reference.md) | All command options, speakers, and examples |
 | [File Reader](docs/file-reader.md) | Batch audio generation from text and SRT files |
 | [Web App](docs/web-app.md) | Blazor web UI for speech generation |

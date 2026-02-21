@@ -26,7 +26,7 @@ from pathlib import Path
 
 DEFAULT_REPO_ID = "elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX"
 DEFAULT_MODEL_DIR = os.path.join("python", "onnx_runtime")
-CSPROJ_PATH = os.path.join("src", "QwenTTS", "QwenTTS.csproj")
+CSPROJ_PATH = os.path.join("src", "ElBruno.QwenTTS", "ElBruno.QwenTTS.csproj")
 
 EXPECTED_FILES = [
     "talker_prefill.onnx",
@@ -205,7 +205,7 @@ def restore_dotnet():
     if result and result.returncode == 0:
         info("NuGet packages restored")
     else:
-        warn("NuGet restore failed — run manually: dotnet restore src/QwenTTS/QwenTTS.csproj")
+        warn("NuGet restore failed — run manually: dotnet restore src/ElBruno.QwenTTS/ElBruno.QwenTTS.csproj")
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
@@ -264,7 +264,7 @@ def main():
     print(f"""
   Run the C# app:
 
-    dotnet run --project src/QwenTTS -- \\
+    dotnet run --project src/ElBruno.QwenTTS -- \\
       --model-dir {model_dir} \\
       --text "Hello, this is a test." \\
       --speaker ryan \\

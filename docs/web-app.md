@@ -1,11 +1,11 @@
 # Web App
 
-The **QwenTTS.Web** Blazor Server application provides a browser-based UI for generating speech with Qwen TTS.
+The **ElBruno.QwenTTS.Web** Blazor Server application provides a browser-based UI for generating speech with Qwen TTS.
 
 ## Quick Start
 
 ```bash
-dotnet run --project src/QwenTTS.Web
+dotnet run --project src/ElBruno.QwenTTS.Web
 ```
 
 Then open [http://localhost:5153](http://localhost:5153) in your browser.
@@ -46,5 +46,5 @@ Relative paths are resolved from the repository root. You can also use an absolu
 ## Running with a Custom Port
 
 ```bash
-dotnet run --project src/QwenTTS.Web -- --urls "http://localhost:8080"
+dotnet run --project src/ElBruno.QwenTTS.Web -- --urls "http://localhost:8080"
 ```

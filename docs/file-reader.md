@@ -1,11 +1,11 @@
 # File Reader
 
-The **QwenTTS.FileReader** console application reads a text or SRT file and generates speech audio for each segment.
+The **ElBruno.QwenTTS.FileReader** console application reads a text or SRT file and generates speech audio for each segment.
 
 ## Usage
 
 ```bash
-dotnet run --project src/QwenTTS.FileReader -- --model-dir python/onnx_runtime --input <file> --speaker <name> [options]
+dotnet run --project src/ElBruno.QwenTTS.FileReader -- --model-dir python/onnx_runtime --input <file> --speaker <name> [options]
 ```
 
 ## Options
@@ -38,29 +38,29 @@ Audio files are saved in the output directory with the naming pattern `{basename
 ### English text file
 
 ```bash
-dotnet run --project src/QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/hello_demo.txt --speaker ryan --language english --output-dir output/hello
+dotnet run --project src/ElBruno.QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/hello_demo.txt --speaker ryan --language english --output-dir output/hello
 ```
 
 ### Spanish text file
 
 ```bash
-dotnet run --project src/QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/hola_demo.txt --speaker ryan --language spanish --output-dir output/hola
+dotnet run --project src/ElBruno.QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/hola_demo.txt --speaker ryan --language spanish --output-dir output/hola
 ```
 
 ### SRT subtitle file
 
 ```bash
-dotnet run --project src/QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/demo_subtitles.srt --speaker serena --language english --output-dir output/subtitles
+dotnet run --project src/ElBruno.QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/demo_subtitles.srt --speaker serena --language english --output-dir output/subtitles
 ```
 
 ### Podcast script in Spanish
 
 ```bash
-dotnet run --project src/QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/NTN_episodio_agentes_IA.md --speaker ryan --language spanish --output-dir output/podcast
+dotnet run --project src/ElBruno.QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/NTN_episodio_agentes_IA.md --speaker ryan --language spanish --output-dir output/podcast
 ```
 
 ### With voice style instruction
 
 ```bash
-dotnet run --project src/QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/hola_demo.txt --speaker ryan --language spanish --instruct "speak slowly and clearly" --output-dir output/slow
+dotnet run --project src/ElBruno.QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/hola_demo.txt --speaker ryan --language spanish --instruct "speak slowly and clearly" --output-dir output/slow
 ```
