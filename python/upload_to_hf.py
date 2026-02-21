@@ -131,8 +131,8 @@ ONNX export of [Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice](https://huggingface.co/Qwe
 
 ```bash
 # Clone the app repo
-git clone https://github.com/elbruno/qwen-labs-cs.git
-cd qwen-labs-cs
+git clone https://github.com/elbruno/ElBruno.QwenTTS.git
+cd ElBruno.QwenTTS
 
 # Download models
 python python/download_onnx_models.py --repo-id {args.repo_id}
