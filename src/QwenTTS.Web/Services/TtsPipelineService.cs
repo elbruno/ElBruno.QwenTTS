@@ -52,7 +52,7 @@ public sealed class TtsPipelineService : IDisposable
     /// <summary>
     /// Merges multiple WAV files (from URL paths) into a single WAV and returns the URL.
     /// </summary>
-    public async Task<string> MergeWavFilesAsync(List<string> wavUrls)
+    public async Task<string> MergeWavFilesAsync(List<string> wavUrls, int silenceMs = 0)
     {
         var mergedName = $"{Guid.NewGuid():N}.wav";
         var mergedPath = Path.Combine(_outputDir, mergedName);
@@ -62,16 +62,24 @@ public sealed class TtsPipelineService : IDisposable
             using var output = new FileStream(mergedPath, FileMode.Create);
             var allSamples = new List<byte>();
 
-            foreach (var url in wavUrls)
+            // Pre-compute silence gap (16-bit PCM mono at 24kHz)
+            byte[] silenceGap = [];
+            if (silenceMs > 0)
+                silenceGap = new byte[24000 * 2 * silenceMs / 1000];
+
+            for (int i = 0; i < wavUrls.Count; i++)
             {
-                // URL is /generated/xxx.wav — resolve to file path
+                var url = wavUrls[i];
                 var fileName = url.Split('/').Last();
                 var filePath = Path.Combine(_outputDir, fileName);
                 if (!File.Exists(filePath)) continue;
 
+                // Add silence between segments (not before first)
+                if (i > 0 && silenceGap.Length > 0)
+                    allSamples.AddRange(silenceGap);
+
                 var bytes = File.ReadAllBytes(filePath);
                 if (bytes.Length <= 44) continue;
-                // Skip 44-byte WAV header, collect raw PCM
                 allSamples.AddRange(bytes.AsSpan(44).ToArray());
             }
 

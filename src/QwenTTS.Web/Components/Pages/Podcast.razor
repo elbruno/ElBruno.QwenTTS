@@ -1,0 +1,363 @@
+@page "/podcast"
+@using QwenTTS.Web.Services
+@inject TtsPipelineService Tts
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>Podcast Generator — Qwen TTS</PageTitle>
+
+<div class="main-content">
+    <div class="top-bar">
+        <div class="top-bar-brand"><span>🎙️</span> Podcast Generator</div>
+        <div class="top-bar-actions">
+            <a href="/" class="theme-btn">← Back to TTS</a>
+        </div>
+    </div>
+
+    <!-- Upload -->
+    <div class="tts-card">
+        <h3>📄 Upload Podcast Script</h3>
+        <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:0.75rem;">
+            Upload a <code>.txt</code> file with segments delimited by <code>--- NN</code>.
+            Each segment needs <code>speaker</code>, <code>language</code>, <code>instructions</code>, and <code>text</code> fields.
+            <a href="/samples/podcast_prompt_template.md" target="_blank" style="color:var(--blue);">See prompt template</a>
+        </p>
+        <InputFile class="form-control" OnChange="OnFileSelected" accept=".txt,.md" />
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="alert alert-danger mt-2">⚠️ @_error</div>
+        }
+    </div>
+
+    <!-- Segment Preview Table -->
+    @if (_segments.Count > 0)
+    {
+        <div class="tts-card">
+            <h3>📋 Episode Preview — @_segments.Count Segments</h3>
+            <div style="max-height:300px;overflow-y:auto;">
+                <table class="segment-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Speaker</th>
+                            <th>Lang</th>
+                            <th>Text</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var seg in _segments)
+                        {
+                            <tr class="@SegmentRowClass(seg)">
+                                <td>@seg.Number</td>
+                                <td><span class="speaker-badge">@seg.Speaker</span></td>
+                                <td>@seg.Language</td>
+                                <td class="text-preview">@Truncate(seg.Text, 80)</td>
+                                <td>
+                                    @switch (seg.Status)
+                                    {
+                                        case SegStatus.Pending:
+                                            <span style="color:var(--text-dim)">⏳</span>
+                                            break;
+                                        case SegStatus.Generating:
+                                            <span class="spinner-border spinner-border-sm" style="color:var(--accent);width:14px;height:14px;"></span>
+                                            break;
+                                        case SegStatus.Done:
+                                            <span style="color:var(--green)">✓ @(seg.Duration > 0 ? $"{seg.Duration:F1}s" : "")</span>
+                                            break;
+                                        case SegStatus.Error:
+                                            <span style="color:var(--red)">✗</span>
+                                            break;
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Generate -->
+        <button class="btn btn-primary generate-btn" @onclick="GenerateAsync" disabled="@_generating">
+            @if (_generating)
+            {
+                <span class="spinner-border spinner-border-sm me-2"></span>
+                <span>Generating Episode...</span>
+            }
+            else
+            {
+                <span>🎙️ Generate Podcast Episode</span>
+            }
+        </button>
+
+        <!-- Progress -->
+        @if (_generating || _completed)
+        {
+            <div class="progress-container">
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" style="width:@(_progressPct)%"></div>
+                </div>
+                <div class="progress-label">
+                    <span>@_progressStatus</span>
+                    <span>@_completedCount / @_segments.Count</span>
+                </div>
+            </div>
+        }
+    }
+
+    <!-- Results -->
+    @if (_completed && _mergedUrl != null)
+    {
+        <div class="tts-card" style="margin-top:0.75rem;">
+            <h3>🎧 Episode Ready</h3>
+            <audio controls src="@_mergedUrl" preload="auto" style="width:100%;height:40px;border-radius:6px;"></audio>
+            <div class="download-all-bar" style="padding-top:0.75rem;">
+                <a href="@_mergedUrl" download="podcast_episode.wav" class="download-all-btn">
+                    ⬇ Download Full Episode
+                </a>
+            </div>
+
+            <!-- Collapsed individual segments -->
+            <details style="margin-top:1rem;">
+                <summary style="color:var(--text-muted);font-size:0.8rem;cursor:pointer;">
+                    Show individual segments (@_segmentUrls.Count files)
+                </summary>
+                <div style="margin-top:0.5rem;">
+                    @for (int i = 0; i < _segmentUrls.Count; i++)
+                    {
+                        var seg = _segments[i];
+                        var url = _segmentUrls[i];
+                        <div class="audio-result-card">
+                            <audio controls src="@url" preload="none"></audio>
+                            <div class="audio-meta">
+                                <span class="label">@seg.Number. @seg.Speaker</span>
+                                <a href="@url" download="podcast_@(seg.Number)_@(seg.Speaker).wav" class="download-btn">⬇ WAV</a>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </details>
+        </div>
+    }
+</div>
+
+<!-- Docked Console -->
+<div class="console-dock @(_consoleExpanded ? "expanded" : "collapsed")">
+    <div class="console-header" @onclick="() => _consoleExpanded = !_consoleExpanded">
+        <span><span class="dot @(_generating ? "active" : "")"></span> Console (@_logs.Count)</span>
+        <div class="console-header-actions">
+            <button @onclick="() => _logs.Clear()" @onclick:stopPropagation="true">Clear</button>
+            <button>@(_consoleExpanded ? "▼" : "▲")</button>
+        </div>
+    </div>
+    @if (_consoleExpanded)
+    {
+        <div class="console-body" id="podcastConsole">
+            @if (_logs.Count == 0)
+            {
+                <div class="log-line"><span class="ts">--:--:--</span><span class="msg" style="color:var(--text-dim)">Upload a podcast script to begin...</span></div>
+            }
+            @foreach (var log in _logs)
+            {
+                <div class="log-line @log.Level">
+                    <span class="ts">@log.Time</span>
+                    <span class="msg">@log.Message</span>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<PodcastSegment> _segments = new();
+    private List<string> _segmentUrls = new();
+    private string? _mergedUrl;
+    private string? _error;
+    private bool _generating;
+    private bool _completed;
+    private bool _consoleExpanded = true;
+    private int _completedCount;
+    private int _progressPct;
+    private string _progressStatus = "";
+    private List<LogEntry> _logs = new();
+
+    private void Log(string msg, string level = "info")
+    {
+        _logs.Add(new LogEntry(DateTime.Now.ToString("HH:mm:ss"), msg, level));
+        if (_logs.Count > 300) _logs.RemoveAt(0);
+    }
+
+    private async Task ScrollConsole() =>
+        await JS.InvokeVoidAsync("eval", "document.getElementById('podcastConsole')?.scrollTo(0,999999)");
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        _error = null;
+        _segments.Clear();
+        _segmentUrls.Clear();
+        _mergedUrl = null;
+        _completed = false;
+
+        var file = e.File;
+        if (file.Size > 1_000_000) { _error = "File too large (max 1 MB)."; return; }
+
+        using var reader = new StreamReader(file.OpenReadStream(maxAllowedSize: 1_000_000));
+        var content = await reader.ReadToEndAsync();
+
+        Log($"Loaded: {file.Name} ({file.Size:N0} bytes)", "info");
+
+        _segments = ParsePodcastScript(content);
+
+        if (_segments.Count == 0)
+        {
+            _error = "No valid segments found. Make sure segments start with '--- NN' and have speaker/text fields.";
+            Log("Parse failed: no segments found", "error");
+        }
+        else
+        {
+            Log($"Parsed {_segments.Count} segments with {_segments.Select(s => s.Speaker).Distinct().Count()} unique speakers", "success");
+        }
+        StateHasChanged();
+        await ScrollConsole();
+    }
+
+    private async Task GenerateAsync()
+    {
+        _generating = true;
+        _completed = false;
+        _completedCount = 0;
+        _progressPct = 0;
+        _segmentUrls.Clear();
+        _mergedUrl = null;
+        _error = null;
+        StateHasChanged();
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        Log($"Starting podcast generation: {_segments.Count} segments", "step");
+        StateHasChanged();
+        await ScrollConsole();
+
+        try
+        {
+            for (int i = 0; i < _segments.Count; i++)
+            {
+                var seg = _segments[i];
+                seg.Status = SegStatus.Generating;
+                _progressStatus = $"Segment {seg.Number}: {seg.Speaker} — {Truncate(seg.Text, 40)}";
+                Log($"[{i + 1}/{_segments.Count}] {seg.Speaker}: \"{Truncate(seg.Text, 50)}\"", "step");
+                StateHasChanged();
+                await ScrollConsole();
+
+                var progress = new Progress<string>(msg =>
+                {
+                    InvokeAsync(() => { Log(msg); StateHasChanged(); ScrollConsole(); });
+                });
+
+                try
+                {
+                    var segSw = System.Diagnostics.Stopwatch.StartNew();
+                    var url = await Tts.GenerateAsync(seg.Text, seg.Speaker, seg.Language, seg.Instructions, progress);
+                    segSw.Stop();
+
+                    _segmentUrls.Add(url);
+                    seg.Status = SegStatus.Done;
+                    seg.Duration = segSw.Elapsed.TotalSeconds;
+                    Log($"Segment {seg.Number} done ({segSw.Elapsed.TotalSeconds:F1}s)", "success");
+                }
+                catch (Exception ex)
+                {
+                    seg.Status = SegStatus.Error;
+                    _segmentUrls.Add("");
+                    Log($"Segment {seg.Number} failed: {ex.Message}", "error");
+                }
+
+                _completedCount = i + 1;
+                _progressPct = (int)((_completedCount) * 100.0 / _segments.Count);
+                StateHasChanged();
+                await ScrollConsole();
+            }
+
+            // Merge with silence gaps
+            Log("Merging segments with 0.5s silence gaps...", "step");
+            StateHasChanged();
+            await ScrollConsole();
+
+            var validUrls = _segmentUrls.Where(u => !string.IsNullOrEmpty(u)).ToList();
+            _mergedUrl = await Tts.MergeWavFilesAsync(validUrls, silenceMs: 500);
+
+            sw.Stop();
+            _progressStatus = "Complete!";
+            _progressPct = 100;
+            _completed = true;
+            Log($"Episode ready! {validUrls.Count} segments merged in {sw.Elapsed.TotalSeconds:F1}s total", "success");
+        }
+        catch (Exception ex)
+        {
+            _error = $"Generation failed: {ex.Message}";
+            Log($"ERROR: {ex.Message}", "error");
+        }
+        finally
+        {
+            _generating = false;
+            StateHasChanged();
+            await ScrollConsole();
+        }
+    }
+
+    private static List<PodcastSegment> ParsePodcastScript(string content)
+    {
+        var segments = new List<PodcastSegment>();
+        // Split on --- followed by a number
+        var parts = System.Text.RegularExpressions.Regex.Split(content, @"^---\s+(\d+)\s*$", System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        // parts: [preamble, "01", block1, "02", block2, ...]
+        for (int i = 1; i + 1 < parts.Length; i += 2)
+        {
+            var number = parts[i].Trim();
+            var block = parts[i + 1];
+
+            var seg = new PodcastSegment { Number = number };
+
+            var speakerMatch = System.Text.RegularExpressions.Regex.Match(block, @"^speaker:\s*(.+)$", System.Text.RegularExpressions.RegexOptions.Multiline);
+            var langMatch = System.Text.RegularExpressions.Regex.Match(block, @"^language:\s*(.+)$", System.Text.RegularExpressions.RegexOptions.Multiline);
+            var instrMatch = System.Text.RegularExpressions.Regex.Match(block, @"^instructions:\s*(.+)$", System.Text.RegularExpressions.RegexOptions.Multiline);
+            var textMatch = System.Text.RegularExpressions.Regex.Match(block, @"^text:\s*(.+(?:\n(?!speaker:|language:|instructions:|---\s).*)*)", System.Text.RegularExpressions.RegexOptions.Multiline);
+
+            if (speakerMatch.Success) seg.Speaker = speakerMatch.Groups[1].Value.Trim();
+            if (langMatch.Success) seg.Language = langMatch.Groups[1].Value.Trim();
+            if (instrMatch.Success) seg.Instructions = instrMatch.Groups[1].Value.Trim();
+            if (textMatch.Success) seg.Text = textMatch.Groups[1].Value.Trim();
+
+            if (!string.IsNullOrWhiteSpace(seg.Text) && !string.IsNullOrWhiteSpace(seg.Speaker))
+                segments.Add(seg);
+        }
+
+        return segments;
+    }
+
+    private static string Truncate(string s, int max) =>
+        s.Length <= max ? s : s[..max] + "...";
+
+    private static string SegmentRowClass(PodcastSegment seg) => seg.Status switch
+    {
+        SegStatus.Generating => "seg-active",
+        SegStatus.Done => "seg-done",
+        SegStatus.Error => "seg-error",
+        _ => ""
+    };
+
+    private record LogEntry(string Time, string Message, string Level);
+
+    private enum SegStatus { Pending, Generating, Done, Error }
+
+    private class PodcastSegment
+    {
+        public string Number { get; set; } = "";
+        public string Speaker { get; set; } = "ryan";
+        public string Language { get; set; } = "english";
+        public string? Instructions { get; set; }
+        public string Text { get; set; } = "";
+        public SegStatus Status { get; set; } = SegStatus.Pending;
+        public double Duration { get; set; }
+    }
+}

@@ -51,6 +51,10 @@ dotnet run --project src/QwenTTS.Web
 
 Open [http://localhost:5123](http://localhost:5123) — type text or upload files, pick a voice, and generate speech.
 
+### Podcast Generator
+
+Open [http://localhost:5123/podcast](http://localhost:5123/podcast) — upload a multi-speaker script file and generate a full podcast episode. See `samples/podcast_prompt_template.md` for an LLM prompt to generate scripts.
+
 ---
 
 ## Documentation
@@ -62,6 +66,7 @@ Open [http://localhost:5123](http://localhost:5123) — type text or upload file
 | [CLI Reference](docs/cli-reference.md) | All command options, speakers, and examples |
 | [File Reader](docs/file-reader.md) | Batch audio generation from text and SRT files |
 | [Web App](docs/web-app.md) | Blazor web UI for speech generation |
+| [Podcast Generator](docs/podcast.md) | Multi-speaker podcast episode generation |
 | [Architecture](docs/architecture.md) | Pipeline design, model components, project structure |
 | [Exporting Models](docs/exporting-models.md) | Re-exporting ONNX models from PyTorch weights |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues and fixes |

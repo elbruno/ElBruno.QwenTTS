@@ -413,3 +413,39 @@ h1:focus { outline: none; }
 
 /* Bottom padding so content isn't hidden behind docked console */
 .main-content { padding-bottom: 220px; }
+
+/* === Podcast Segment Table === */
+.segment-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+.segment-table th {
+    text-align: left;
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.segment-table td {
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+}
+.segment-table tr.seg-active td { background: rgba(124, 58, 237, 0.06); }
+.segment-table tr.seg-done td { opacity: 0.7; }
+.segment-table tr.seg-error td { background: rgba(248, 81, 73, 0.06); }
+.text-preview { color: var(--text-muted); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.speaker-badge {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    border-radius: 10px;
+    background: var(--accent-glow);
+    color: var(--accent-light);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+details summary { outline: none; }
+details summary::-webkit-details-marker { color: var(--text-dim); }
