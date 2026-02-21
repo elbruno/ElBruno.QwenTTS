@@ -53,6 +53,44 @@ Generate 8-12 segments for a ~5 minute podcast episode.
 Topic: [YOUR TOPIC HERE]</div>
     </div>
 
+    <!-- Context-Based Template -->
+    <div class="tts-card">
+        <div class="prompt-header">
+            <h3>📄 Context-Based — Generate from Existing Content</h3>
+            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-context")'>📋 Copy</button>
+        </div>
+        <p class="prompt-desc">Paste this prompt along with an article, document, or any content you already have — the LLM will turn it into a podcast script.</p>
+        <div class="prompt-box" id="prompt-context">Based on this content, generate a podcast conversation script between two or three hosts about this topic.
+
+Rules:
+- Use exactly this format for each segment (the --- separator and field names are required):
+- Available speakers: ryan, serena, vivian, aiden, eric, dylan, uncle_fu, ono_anna, sohee
+- Available languages: english, spanish, chinese, japanese, korean
+- Keep each text segment under 200 words for best audio quality
+- Alternate between speakers naturally
+- Include an intro and outro
+
+Format (copy exactly):
+
+--- 01
+speaker: [speaker_name]
+language: [language]
+instructions: [voice style, e.g. "speak with energy and enthusiasm"]
+text: [what this person says]
+
+--- 02
+speaker: [speaker_name]
+language: [language]
+instructions: [voice style]
+text: [what this person says]
+
+Generate the necessary segments for a ~10 minute podcast episode.
+At the beginning each speaker must introduce themselves.
+
+Content:
+[PASTE YOUR CONTENT HERE]</div>
+    </div>
+
     <!-- English AI Topic -->
     <div class="tts-card">
         <div class="prompt-header">
