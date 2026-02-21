@@ -97,7 +97,20 @@ h1:focus { outline: none; }
 }
 .blazor-error-boundary::after { content: "An error has occurred."; }
 
-/* === Top Bar === */
+/* === App Top Bar (shared layout) === */
+.app-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+/* === Top Bar (page-level, deprecated — kept for compat) === */
 .top-bar {
     display: flex;
     align-items: center;
@@ -224,9 +237,28 @@ h1:focus { outline: none; }
     border-radius: 8px;
 }
 
+/* === Podcast layout === */
+.podcast-top-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: stretch;
+}
+.podcast-action-card {
+    min-width: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+@media (max-width: 640px) { .podcast-top-row { flex-direction: column; } }
+
 /* === Progress Bar === */
 .progress-container {
     margin-top: 0.5rem;
+}
+.console-progress-bar {
+    padding: 0.4rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-card);
 }
 .podcast-progress-sticky {
     position: sticky;

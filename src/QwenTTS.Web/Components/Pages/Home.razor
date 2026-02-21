@@ -7,20 +7,6 @@
 <PageTitle>Qwen TTS</PageTitle>
 
 <div class="main-content">
-    <!-- Top Bar -->
-    <div class="top-bar">
-        <div class="top-bar-brand"><span>🔊</span> Qwen TTS</div>
-        <div class="top-bar-actions">
-            <a href="/" class="nav-pill active">🔊 TTS</a>
-            <a href="/podcast" class="nav-pill">🎙️ Podcast</a>
-            <a href="/samples" class="nav-pill">📋 Prompts</a>
-            <span class="nav-sep"></span>
-            <button class="theme-btn @(_theme == "light" ? "active" : "")" @onclick='() => SetTheme("light")'>☀️</button>
-            <button class="theme-btn @(_theme == "system" ? "active" : "")" @onclick='() => SetTheme("system")'>💻</button>
-            <button class="theme-btn @(_theme == "dark" ? "active" : "")" @onclick='() => SetTheme("dark")'>🌙</button>
-        </div>
-    </div>
-
     <div class="row g-3">
         <!-- Left: Input + Settings -->
         <div class="col-lg-7">
@@ -183,7 +169,6 @@
     private bool _merging;
     private string? _error;
     private string? _fileName;
-    private string _theme = "system";
     private bool _consoleExpanded = true;
     private int _totalSegments;
     private int _completedSegments;
@@ -199,15 +184,6 @@
         _speakers = Tts.Speakers.OrderBy(s => s).ToList();
         if (_speakers.Count > 0 && !_speakers.Contains(_speaker))
             _speaker = _speakers[0];
-    }
-
-    private async Task SetTheme(string theme)
-    {
-        _theme = theme;
-        if (theme == "system")
-            await JS.InvokeVoidAsync("eval", "document.documentElement.removeAttribute('data-theme')");
-        else
-            await JS.InvokeVoidAsync("eval", $"document.documentElement.setAttribute('data-theme','{theme}')");
     }
 
     private void ToggleConsole() => _consoleExpanded = !_consoleExpanded;

@@ -1,6 +1,18 @@
 ﻿@inherits LayoutComponentBase
 
 <div class="page">
+    <div class="app-top-bar">
+        <div class="top-bar-brand"><span>🔊</span> Qwen TTS</div>
+        <div class="top-bar-actions">
+            <a href="/" class="nav-pill">🔊 TTS</a>
+            <a href="/podcast" class="nav-pill">🎙️ Podcast</a>
+            <a href="/samples" class="nav-pill">📋 Prompts</a>
+            <span class="nav-sep"></span>
+            <button class="theme-btn" onclick="setTheme('light')">☀️</button>
+            <button class="theme-btn" onclick="setTheme('system')">💻</button>
+            <button class="theme-btn" onclick="setTheme('dark')">🌙</button>
+        </div>
+    </div>
     <main>
         <article class="content px-4">
             @Body
