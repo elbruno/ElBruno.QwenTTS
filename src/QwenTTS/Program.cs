@@ -4,35 +4,52 @@ namespace QwenTTS;
 
 /// <summary>
 /// CLI entry point for Qwen3-TTS inference.
-/// Usage: QwenTTS --text "Hello" --speaker Ryan --output hello.wav [--instruct "speak happily"]
+/// Usage: QwenTTS --model-dir ./models --text "Hello" --speaker Ryan --output hello.wav [--language english] [--instruct "speak happily"]
 /// </summary>
 public static class Program
 {
     public static async Task<int> Main(string[] args)
     {
+        var modelDir = GetArg(args, "--model-dir");
         var text = GetArg(args, "--text");
         var speaker = GetArg(args, "--speaker") ?? "Ryan";
         var output = GetArg(args, "--output") ?? "output.wav";
+        var language = GetArg(args, "--language") ?? "auto";
         var instruct = GetArg(args, "--instruct");
 
-        if (string.IsNullOrEmpty(text))
+        if (string.IsNullOrEmpty(modelDir))
         {
-            Console.Error.WriteLine("Usage: QwenTTS --text \"Hello\" --speaker Ryan --output hello.wav [--instruct \"speak happily\"]");
+            Console.Error.WriteLine("Error: --model-dir is required");
+            Console.Error.WriteLine("Usage: QwenTTS --model-dir ./models --text \"Hello\" --speaker Ryan --output hello.wav [--language english] [--instruct \"speak happily\"]");
             return 1;
         }
 
-        Console.WriteLine($"Text:    {text}");
-        Console.WriteLine($"Speaker: {speaker}");
-        Console.WriteLine($"Output:  {output}");
+        if (string.IsNullOrEmpty(text))
+        {
+            Console.Error.WriteLine("Error: --text is required");
+            Console.Error.WriteLine("Usage: QwenTTS --model-dir ./models --text \"Hello\" --speaker Ryan --output hello.wav [--language english] [--instruct \"speak happily\"]");
+            return 1;
+        }
+
+        Console.WriteLine($"Model:    {modelDir}");
+        Console.WriteLine($"Text:     {text}");
+        Console.WriteLine($"Speaker:  {speaker}");
+        Console.WriteLine($"Language: {language}");
+        Console.WriteLine($"Output:   {output}");
         if (instruct is not null)
             Console.WriteLine($"Instruct: {instruct}");
 
-        // TODO: Initialize the TTS pipeline with model paths and run inference
-        // var pipeline = new TtsPipeline(modelDir);
-        // await pipeline.SynthesizeAsync(text, speaker, output, instruct);
-
-        Console.WriteLine("Pipeline not yet wired — ONNX models required.");
-        return 0;
+        try
+        {
+            using var pipeline = new TtsPipeline(modelDir);
+            await pipeline.SynthesizeAsync(text, speaker, output, language, instruct);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
     }
 
     private static string? GetArg(string[] args, string name)
