@@ -20,8 +20,8 @@
     <div class="tts-card">
         <h3>📄 Upload Podcast Script</h3>
         <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:0.75rem;">
-            Upload a <code>.txt</code> file with segments delimited by <code>--- NN</code>.
-            Each segment needs <code>speaker</code>, <code>language</code>, <code>instructions</code>, and <code>text</code> fields.
+            Upload a <code>.txt</code> or <code>.md</code> file with segments delimited by <code>--- NN</code> or <code>## Segment NN</code>.
+            Each segment needs <code>speaker</code>, <code>language</code>, and <code>instructions</code> fields — text goes after the metadata.
             <a href="/samples" style="color:var(--blue);">See prompt templates</a>
         </p>
         <InputFile class="form-control" OnChange="OnFileSelected" accept=".txt,.md" />
@@ -212,7 +212,7 @@
 
         if (_segments.Count == 0)
         {
-            _error = "No valid segments found. Make sure segments start with '--- NN' and have speaker/text fields.";
+            _error = "No valid segments found. Use '--- NN' or '## Segment NN' delimiters with speaker and text fields.";
             Log("Parse failed: no segments found", "error");
         }
         else
@@ -308,33 +308,94 @@
 
     private static List<PodcastSegment> ParsePodcastScript(string content)
     {
+        // Detect format: markdown (## Segment NN) or delimiter (--- NN)
+        if (System.Text.RegularExpressions.Regex.IsMatch(content, @"^##\s+Segmento?\s+\d+", System.Text.RegularExpressions.RegexOptions.Multiline))
+            return ParseMarkdownFormat(content);
+
+        return ParseDelimiterFormat(content);
+    }
+
+    private static List<PodcastSegment> ParseDelimiterFormat(string content)
+    {
         var segments = new List<PodcastSegment>();
-        // Split on --- followed by a number
         var parts = System.Text.RegularExpressions.Regex.Split(content, @"^---\s+(\d+)\s*$", System.Text.RegularExpressions.RegexOptions.Multiline);
 
-        // parts: [preamble, "01", block1, "02", block2, ...]
+        for (int i = 1; i + 1 < parts.Length; i += 2)
+        {
+            var number = parts[i].Trim();
+            var block = parts[i + 1];
+            var seg = ParseSegmentBlock(number, block);
+            if (seg != null) segments.Add(seg);
+        }
+        return segments;
+    }
+
+    private static List<PodcastSegment> ParseMarkdownFormat(string content)
+    {
+        var segments = new List<PodcastSegment>();
+        var parts = System.Text.RegularExpressions.Regex.Split(content, @"^##\s+Segmento?\s+(\d+)\s*$", System.Text.RegularExpressions.RegexOptions.Multiline);
+
         for (int i = 1; i + 1 < parts.Length; i += 2)
         {
             var number = parts[i].Trim();
             var block = parts[i + 1];
 
+            // Parse **Key:** value markdown fields
             var seg = new PodcastSegment { Number = number };
-
-            var speakerMatch = System.Text.RegularExpressions.Regex.Match(block, @"^speaker:\s*(.+)$", System.Text.RegularExpressions.RegexOptions.Multiline);
-            var langMatch = System.Text.RegularExpressions.Regex.Match(block, @"^language:\s*(.+)$", System.Text.RegularExpressions.RegexOptions.Multiline);
-            var instrMatch = System.Text.RegularExpressions.Regex.Match(block, @"^instructions:\s*(.+)$", System.Text.RegularExpressions.RegexOptions.Multiline);
-            var textMatch = System.Text.RegularExpressions.Regex.Match(block, @"^text:\s*(.+(?:\n(?!speaker:|language:|instructions:|---\s).*)*)", System.Text.RegularExpressions.RegexOptions.Multiline);
+            var speakerMatch = System.Text.RegularExpressions.Regex.Match(block, @"\*\*Speaker:\*\*\s*(.+)$", System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            var langMatch = System.Text.RegularExpressions.Regex.Match(block, @"\*\*Language:\*\*\s*(.+)$", System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            var instrMatch = System.Text.RegularExpressions.Regex.Match(block, @"\*\*Instructions:\*\*\s*(.+)$", System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
             if (speakerMatch.Success) seg.Speaker = speakerMatch.Groups[1].Value.Trim();
             if (langMatch.Success) seg.Language = langMatch.Groups[1].Value.Trim();
             if (instrMatch.Success) seg.Instructions = instrMatch.Groups[1].Value.Trim();
-            if (textMatch.Success) seg.Text = textMatch.Groups[1].Value.Trim();
+
+            // Text is everything after the last metadata line
+            var lastMeta = new[] { speakerMatch, langMatch, instrMatch }.Where(m => m.Success).MaxBy(m => m.Index + m.Length);
+            if (lastMeta != null)
+            {
+                var textStart = lastMeta.Index + lastMeta.Length;
+                seg.Text = block[textStart..].Trim();
+            }
 
             if (!string.IsNullOrWhiteSpace(seg.Text) && !string.IsNullOrWhiteSpace(seg.Speaker))
                 segments.Add(seg);
         }
-
         return segments;
+    }
+
+    private static PodcastSegment? ParseSegmentBlock(string number, string block)
+    {
+        var seg = new PodcastSegment { Number = number };
+
+        var speakerMatch = System.Text.RegularExpressions.Regex.Match(block, @"^speaker:\s*(.+)$", System.Text.RegularExpressions.RegexOptions.Multiline);
+        var langMatch = System.Text.RegularExpressions.Regex.Match(block, @"^language:\s*(.+)$", System.Text.RegularExpressions.RegexOptions.Multiline);
+        var instrMatch = System.Text.RegularExpressions.Regex.Match(block, @"^instructions:\s*(.+)$", System.Text.RegularExpressions.RegexOptions.Multiline);
+        var textMatch = System.Text.RegularExpressions.Regex.Match(block, @"^text:\s*(.+(?:\n(?!speaker:|language:|instructions:|---\s).*)*)", System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        if (speakerMatch.Success) seg.Speaker = speakerMatch.Groups[1].Value.Trim();
+        if (langMatch.Success) seg.Language = langMatch.Groups[1].Value.Trim();
+        if (instrMatch.Success) seg.Instructions = instrMatch.Groups[1].Value.Trim();
+
+        if (textMatch.Success)
+        {
+            // Explicit text: field (backward compat)
+            seg.Text = textMatch.Groups[1].Value.Trim();
+        }
+        else
+        {
+            // Implicit text: everything after the last metadata line
+            var lastMeta = new[] { speakerMatch, langMatch, instrMatch }.Where(m => m.Success).MaxBy(m => m.Index + m.Length);
+            if (lastMeta != null)
+            {
+                var textStart = lastMeta.Index + lastMeta.Length;
+                seg.Text = block[textStart..].Trim();
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(seg.Text) && !string.IsNullOrWhiteSpace(seg.Speaker))
+            return seg;
+        return null;
     }
 
     private static string Truncate(string s, int max) =>

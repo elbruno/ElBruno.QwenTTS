@@ -28,26 +28,29 @@
         <div class="prompt-box" id="prompt-generic">Generate a podcast conversation script between two hosts about [YOUR TOPIC HERE].
 
 Rules:
-- Use exactly this format for each segment (the --- separator and field names are required):
+- Use exactly this format for each segment (the --- separator and field names are required)
 - Available speakers: ryan, serena, vivian, aiden, eric, dylan, uncle_fu, ono_anna, sohee
 - Available languages: english, spanish, chinese, japanese, korean
 - Keep each text segment under 200 words for best audio quality
 - Alternate between speakers naturally
 - Include an intro and outro
+- At the beginning each speaker must introduce themselves
 
-Format (copy exactly):
+Format (copy exactly — text goes after the metadata fields, no "text:" prefix needed):
 
 --- 01
 speaker: [speaker_name]
 language: [language]
 instructions: [voice style, e.g. "speak with energy and enthusiasm"]
-text: [what this person says]
+
+[What this person says goes here as plain text]
 
 --- 02
 speaker: [speaker_name]
 language: [language]
 instructions: [voice style]
-text: [what this person says]
+
+[What this person says goes here as plain text]
 
 Generate 8-12 segments for a ~5 minute podcast episode.
 Topic: [YOUR TOPIC HERE]</div>
@@ -63,26 +66,28 @@ Topic: [YOUR TOPIC HERE]</div>
         <div class="prompt-box" id="prompt-context">Based on this content, generate a podcast conversation script between two or three hosts about this topic.
 
 Rules:
-- Use exactly this format for each segment (the --- separator and field names are required):
+- Use exactly this format for each segment (the --- separator and field names are required)
 - Available speakers: ryan, serena, vivian, aiden, eric, dylan, uncle_fu, ono_anna, sohee
 - Available languages: english, spanish, chinese, japanese, korean
 - Keep each text segment under 200 words for best audio quality
 - Alternate between speakers naturally
 - Include an intro and outro
 
-Format (copy exactly):
+Format (copy exactly — text goes after the metadata fields, no "text:" prefix needed):
 
 --- 01
 speaker: [speaker_name]
 language: [language]
 instructions: [voice style, e.g. "speak with energy and enthusiasm"]
-text: [what this person says]
+
+[What this person says goes here as plain text]
 
 --- 02
 speaker: [speaker_name]
 language: [language]
 instructions: [voice style]
-text: [what this person says]
+
+[What this person says goes here as plain text]
 
 Generate the necessary segments for a ~10 minute podcast episode.
 At the beginning each speaker must introduce themselves.
@@ -101,26 +106,29 @@ Content:
         <div class="prompt-box" id="prompt-en-ai">Generate a podcast conversation script between two hosts about the future of AI agents in software development.
 
 Rules:
-- Use exactly this format for each segment (the --- separator and field names are required):
+- Use exactly this format for each segment (the --- separator and field names are required)
 - Use speakers "ryan" and "serena" alternating
 - Language: english
 - Keep each text segment under 200 words for best audio quality
 - Include an intro and outro
 - Make it engaging, conversational, and informative
+- At the beginning each speaker must introduce themselves
 
-Format (copy exactly):
+Format (copy exactly — text goes after the metadata fields, no "text:" prefix needed):
 
 --- 01
 speaker: ryan
 language: english
 instructions: speak with energy and enthusiasm
-text: [intro text]
+
+[intro text here]
 
 --- 02
 speaker: serena
 language: english
 instructions: speak naturally and conversationally
-text: [response text]
+
+[response text here]
 
 Generate 10 segments for a ~5 minute podcast episode.
 Topic: The future of AI agents in software development</div>
@@ -136,27 +144,30 @@ Topic: The future of AI agents in software development</div>
         <div class="prompt-box" id="prompt-en-science">Generate a podcast conversation script for a weekly science and technology news roundup.
 
 Rules:
-- Use exactly this format for each segment (the --- separator and field names are required):
+- Use exactly this format for each segment (the --- separator and field names are required)
 - Use speakers "aiden" and "vivian" alternating
 - Language: english
 - Keep each text segment under 200 words for best audio quality
 - Cover 3-4 recent science/tech stories
 - Include an intro, transitions between stories, and an outro
 - Make it fun and accessible for a general audience
+- At the beginning each speaker must introduce themselves
 
-Format (copy exactly):
+Format (copy exactly — text goes after the metadata fields, no "text:" prefix needed):
 
 --- 01
 speaker: aiden
 language: english
 instructions: speak with excitement, like opening a science show
-text: [intro text]
+
+[intro text here]
 
 --- 02
 speaker: vivian
 language: english
 instructions: speak clearly and engagingly
-text: [response text]
+
+[response text here]
 
 Generate 12 segments for a ~6 minute podcast episode.
 Topic: This week in science and technology</div>
@@ -172,26 +183,29 @@ Topic: This week in science and technology</div>
         <div class="prompt-box" id="prompt-es-ai">Genera un guion de podcast conversacional entre dos presentadores sobre inteligencia artificial y su impacto en la sociedad.
 
 Reglas:
-- Usa exactamente este formato para cada segmento:
+- Usa exactamente este formato para cada segmento
 - Usa los presentadores "ryan" y "serena" alternando
 - Idioma: spanish
 - Mantén cada segmento de texto bajo 200 palabras
 - Incluye una intro y un cierre
 - Hazlo conversacional, informativo y entretenido
+- Al inicio cada presentador debe presentarse
 
-Formato (copiar exactamente):
+Formato (copiar exactamente — el texto va después de los campos de metadatos, sin prefijo "text:"):
 
 --- 01
 speaker: ryan
 language: spanish
 instructions: habla con energia y entusiasmo
-text: [texto de intro]
+
+[texto de intro aquí]
 
 --- 02
 speaker: serena
 language: spanish
 instructions: habla de forma natural y conversacional
-text: [texto de respuesta]
+
+[texto de respuesta aquí]
 
 Genera 10 segmentos para un episodio de podcast de ~5 minutos.
 Tema: El impacto de la inteligencia artificial en la vida cotidiana</div>
@@ -207,7 +221,7 @@ Tema: El impacto de la inteligencia artificial en la vida cotidiana</div>
         <div class="prompt-box" id="prompt-en-interview">Generate a podcast script in interview format where a host interviews a guest expert about [YOUR TOPIC HERE].
 
 Rules:
-- Use exactly this format for each segment (the --- separator and field names are required):
+- Use exactly this format for each segment (the --- separator and field names are required)
 - Use "ryan" as the host (curious, asks good questions)
 - Use "serena" as the guest expert (knowledgeable, gives detailed answers)
 - Language: english
@@ -215,20 +229,23 @@ Rules:
 - Start with the host introducing the guest
 - End with a thank you and wrap-up
 - The host should ask follow-up questions based on the guest's answers
+- At the beginning each speaker must introduce themselves
 
-Format (copy exactly):
+Format (copy exactly — text goes after the metadata fields, no "text:" prefix needed):
 
 --- 01
 speaker: ryan
 language: english
 instructions: speak warmly, introducing a guest
-text: [host introduces the guest and topic]
+
+[host introduces the guest and topic]
 
 --- 02
 speaker: serena
 language: english
 instructions: speak confidently as an expert
-text: [guest responds]
+
+[guest responds]
 
 Generate 10-12 segments for a ~5 minute interview.
 Topic: [YOUR TOPIC HERE]</div>
@@ -244,7 +261,7 @@ Topic: [YOUR TOPIC HERE]</div>
         <div class="prompt-box" id="prompt-en-story">Generate a podcast script for a storytelling episode with a single narrator.
 
 Rules:
-- Use exactly this format for each segment (the --- separator and field names are required):
+- Use exactly this format for each segment (the --- separator and field names are required)
 - Use speaker "ryan" for all segments
 - Language: english
 - Keep each text segment under 150 words for natural pacing
@@ -252,19 +269,21 @@ Rules:
 - Use vivid descriptions and engaging narration
 - Include pauses between story beats (separate segments)
 
-Format (copy exactly):
+Format (copy exactly — text goes after the metadata fields, no "text:" prefix needed):
 
 --- 01
 speaker: ryan
 language: english
 instructions: speak slowly and dramatically, setting the scene
-text: [opening narration]
+
+[opening narration]
 
 --- 02
 speaker: ryan
 language: english
 instructions: speak with building tension
-text: [story continues]
+
+[story continues]
 
 Generate 8-10 segments for a ~4 minute story.
 Topic: [YOUR STORY TOPIC HERE]</div>

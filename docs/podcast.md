@@ -12,21 +12,45 @@ The **Podcast Generator** page lets you generate a full podcast episode from a s
 
 ## Script Format
 
-Podcast scripts use `--- NN` delimiters to separate segments. Each segment specifies a speaker, language, voice instructions, and the text to speak:
+The parser accepts two formats. Both support implicit text (everything after metadata fields is the spoken content).
+
+### Format 1: `--- NN` delimiter (recommended)
 
 ```
 --- 01
 speaker: ryan
 language: english
 instructions: speak with energy and enthusiasm
-text: Welcome to the show! Today we're talking about AI agents.
+
+Welcome to the show! Today we're talking about AI agents.
 
 --- 02
 speaker: serena
 language: english
 instructions: speak naturally and conversationally
-text: That's right Ryan. AI agents are transforming software development.
+
+That's right Ryan. AI agents are transforming software development.
 ```
+
+### Format 2: `## Segment NN` markdown
+
+```
+## Segment 01
+**Speaker:** ryan
+**Language:** english
+**Instructions:** speak with energy and enthusiasm
+
+Welcome to the show! Today we're talking about AI agents.
+
+## Segment 02
+**Speaker:** serena
+**Language:** english
+**Instructions:** speak naturally and conversationally
+
+That's right Ryan. AI agents are transforming software development.
+```
+
+> **Backward compatibility:** The explicit `text:` prefix from the original format is still supported.
 
 ### Fields
 
@@ -35,7 +59,7 @@ text: That's right Ryan. AI agents are transforming software development.
 | `speaker` | Yes | Speaker voice name (ryan, serena, vivian, aiden, etc.) |
 | `language` | No | Language (english, spanish, chinese, etc.). Defaults to english |
 | `instructions` | No | Voice style instruction (e.g., "speak calmly") |
-| `text` | Yes | The text for this segment. Keep under 200 words per segment |
+| text (implicit) | Yes | Everything after the metadata fields. Keep under 200 words per segment |
 
 ## Generating Scripts with AI
 
