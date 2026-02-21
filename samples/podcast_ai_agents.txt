@@ -1,83 +1,71 @@
 --- 01
 speaker: ryan
 language: english
-instructions: speak with energy and enthusiasm, like a podcast host opening a show
 
 Welcome to Tech Talk, the podcast where we break down the latest in technology and AI! I'm Ryan, and today we have an incredible topic. We're going to talk about AI agents and how they're changing the way software is built. Serena, great to have you here!
 
 --- 02
 speaker: serena
 language: english
-instructions: speak warmly and conversationally
 
 Thanks Ryan! I'm really excited about this one. AI agents are probably the biggest shift we've seen in software development since the cloud revolution. It's not just about writing code anymore, it's about having AI that can reason, plan, and execute tasks autonomously.
 
 --- 03
 speaker: ryan
 language: english
-instructions: speak with curiosity and interest
 
 Right, and what's fascinating is that we're moving from simple autocomplete to full task completion. Think about it. A year ago, AI could suggest the next line of code. Now it can build entire features, run tests, debug issues, and even deploy. That's a massive leap.
 
 --- 04
 speaker: serena
 language: english
-instructions: speak thoughtfully, like explaining something important
 
 Exactly. And the key innovation is the agent loop. Instead of a single prompt and response, these agents can break down a task, use tools, check their own work, and iterate. It's like having a junior developer that never sleeps and learns incredibly fast.
 
 --- 05
 speaker: ryan
 language: english
-instructions: speak with a slightly skeptical but open tone
 
 Now, some people are worried about this. They say, are we making developers obsolete? I don't think so, but I'd love to hear your take on it, Serena.
 
 --- 06
 speaker: serena
 language: english
-instructions: speak confidently and reassuringly
 
 Not at all. What we're seeing is that developers become more productive, not less necessary. The role is shifting from writing every line of code manually to being an architect who guides AI agents. You still need to understand systems, make design decisions, and verify quality. The craft evolves, but it doesn't disappear.
 
 --- 07
 speaker: ryan
 language: english
-instructions: speak with excitement about a real example
 
 That's a great point. And we're already seeing this in practice. Companies are reporting thirty to fifty percent productivity gains with AI coding assistants. Some teams are shipping features in days that used to take weeks. The speed is incredible.
 
 --- 08
 speaker: serena
 language: english
-instructions: speak with balanced perspective
 
 True, but let's also be honest about the limitations. AI agents can hallucinate, they can make mistakes in complex architectures, and they still struggle with novel problems that require deep domain expertise. The human in the loop isn't optional, it's essential.
 
 --- 09
 speaker: ryan
 language: english
-instructions: speak with forward-looking optimism
 
 Absolutely. So looking ahead, what do you think the next twelve months look like for AI agents in development?
 
 --- 10
 speaker: serena
 language: english
-instructions: speak thoughtfully about the future
 
 I think we'll see agents that can handle end-to-end workflows. Not just coding, but requirements gathering, testing, documentation, and deployment. The tooling around agents will mature significantly. We'll also see better collaboration between multiple specialized agents working together on complex projects.
 
 --- 11
 speaker: ryan
 language: english
-instructions: speak with energy, wrapping up the show
 
 Fascinating stuff. Well, that's all the time we have for today's episode. Thanks so much for tuning in to Tech Talk. If you enjoyed this episode, don't forget to subscribe and share it with your fellow developers. Serena, thanks for the amazing insights!
 
 --- 12
 speaker: serena
 language: english
-instructions: speak warmly, saying goodbye
 
 Thanks Ryan, and thanks everyone for listening! Remember, the future of software development is a collaboration between humans and AI. Stay curious, keep building, and we'll see you next time!

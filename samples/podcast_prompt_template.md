@@ -24,19 +24,17 @@ Rules:
 - Include an intro and outro
 - At the beginning each speaker must introduce themselves
 
-Format (copy exactly — text goes after the metadata fields, no "text:" prefix needed):
+Format (copy exactly — text goes after the metadata fields):
 
 --- 01
 speaker: [speaker_name]
 language: [language]
-instructions: [voice style, e.g. "speak with energy and enthusiasm"]
 
 [What this person says goes here as plain text]
 
 --- 02
 speaker: [speaker_name]
 language: [language]
-instructions: [voice style]
 
 [What this person says goes here as plain text]
 
@@ -59,19 +57,17 @@ Rules:
 - Alternate between speakers naturally
 - Include an intro and outro
 
-Format (copy exactly — text goes after the metadata fields, no "text:" prefix needed):
+Format (copy exactly — text goes after the metadata fields):
 
 --- 01
 speaker: [speaker_name]
 language: [language]
-instructions: [voice style, e.g. "speak with energy and enthusiasm"]
 
 [What this person says goes here as plain text]
 
 --- 02
 speaker: [speaker_name]
 language: [language]
-instructions: [voice style]
 
 [What this person says goes here as plain text]
 
@@ -102,14 +98,12 @@ Format (copy exactly):
 --- 01
 speaker: ryan
 language: english
-instructions: speak with energy and enthusiasm
 
 [intro text here]
 
 --- 02
 speaker: serena
 language: english
-instructions: speak naturally and conversationally
 
 [response text here]
 
@@ -135,14 +129,12 @@ Formato (copiar exactamente):
 --- 01
 speaker: ryan
 language: spanish
-instructions: habla con energia y entusiasmo
 
 [texto de intro aquí]
 
 --- 02
 speaker: serena
 language: spanish
-instructions: habla de forma natural y conversacional
 
 [texto de respuesta aquí]
 

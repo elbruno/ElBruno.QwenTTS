@@ -20,14 +20,12 @@ The parser accepts two formats. Both support implicit text (everything after met
 --- 01
 speaker: ryan
 language: english
-instructions: speak with energy and enthusiasm
 
 Welcome to the show! Today we're talking about AI agents.
 
 --- 02
 speaker: serena
 language: english
-instructions: speak naturally and conversationally
 
 That's right Ryan. AI agents are transforming software development.
 ```
@@ -38,14 +36,12 @@ That's right Ryan. AI agents are transforming software development.
 ## Segment 01
 **Speaker:** ryan
 **Language:** english
-**Instructions:** speak with energy and enthusiasm
 
 Welcome to the show! Today we're talking about AI agents.
 
 ## Segment 02
 **Speaker:** serena
 **Language:** english
-**Instructions:** speak naturally and conversationally
 
 That's right Ryan. AI agents are transforming software development.
 ```

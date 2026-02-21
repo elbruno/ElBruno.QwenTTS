@@ -1,4 +1,5 @@
 using QwenTTS.Pipeline;
+using System.IO.Compression;
 
 namespace QwenTTS.Web.Services;
 
@@ -103,6 +104,31 @@ public sealed class TtsPipelineService : IDisposable
         });
 
         return $"/generated/{mergedName}";
+    }
+
+    /// <summary>
+    /// Creates a zip archive of individual WAV segments and returns the URL.
+    /// </summary>
+    public async Task<string?> CreateSegmentZipAsync(List<string> wavUrls, List<string> fileNames)
+    {
+        var validPairs = wavUrls.Zip(fileNames).Where(p => !string.IsNullOrEmpty(p.First)).ToList();
+        if (validPairs.Count == 0) return null;
+
+        var zipName = $"{Guid.NewGuid():N}.zip";
+        var zipPath = Path.Combine(_outputDir, zipName);
+
+        await Task.Run(() =>
+        {
+            using var zip = System.IO.Compression.ZipFile.Open(zipPath, System.IO.Compression.ZipArchiveMode.Create);
+            foreach (var (url, name) in validPairs)
+            {
+                var srcFile = Path.Combine(_outputDir, url.Split('/').Last());
+                if (File.Exists(srcFile))
+                    zip.CreateEntryFromFile(srcFile, name);
+            }
+        });
+
+        return $"/generated/{zipName}";
     }
 
     public void Dispose()
