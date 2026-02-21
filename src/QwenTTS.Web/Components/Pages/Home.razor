@@ -11,7 +11,10 @@
     <div class="top-bar">
         <div class="top-bar-brand"><span>🔊</span> Qwen TTS</div>
         <div class="top-bar-actions">
-            <a href="/podcast" class="theme-btn">🎙️ Podcast</a>
+            <a href="/" class="nav-pill active">🔊 TTS</a>
+            <a href="/podcast" class="nav-pill">🎙️ Podcast</a>
+            <a href="/samples" class="nav-pill">📋 Prompts</a>
+            <span class="nav-sep"></span>
             <button class="theme-btn @(_theme == "light" ? "active" : "")" @onclick='() => SetTheme("light")'>☀️</button>
             <button class="theme-btn @(_theme == "system" ? "active" : "")" @onclick='() => SetTheme("system")'>💻</button>
             <button class="theme-btn @(_theme == "dark" ? "active" : "")" @onclick='() => SetTheme("dark")'>🌙</button>

@@ -8,9 +8,11 @@
 
 <div class="main-content">
     <div class="top-bar">
-        <div class="top-bar-brand"><span>🎙️</span> Podcast Generator</div>
+        <div class="top-bar-brand"><span>🔊</span> Qwen TTS</div>
         <div class="top-bar-actions">
-            <a href="/" class="theme-btn">← Back to TTS</a>
+            <a href="/" class="nav-pill">🔊 TTS</a>
+            <a href="/podcast" class="nav-pill active">🎙️ Podcast</a>
+            <a href="/samples" class="nav-pill">📋 Prompts</a>
         </div>
     </div>
 
@@ -20,7 +22,7 @@
         <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:0.75rem;">
             Upload a <code>.txt</code> file with segments delimited by <code>--- NN</code>.
             Each segment needs <code>speaker</code>, <code>language</code>, <code>instructions</code>, and <code>text</code> fields.
-            <a href="/samples/podcast_prompt_template.md" target="_blank" style="color:var(--blue);">See prompt template</a>
+            <a href="/samples" style="color:var(--blue);">See prompt templates</a>
         </p>
         <InputFile class="form-control" OnChange="OnFileSelected" accept=".txt,.md" />
         @if (!string.IsNullOrEmpty(_error))
