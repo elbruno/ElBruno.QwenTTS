@@ -1,9 +1,23 @@
 # Copilot Instructions
 
-This is a **Squad-managed** repository (Squad v0.5.2) — an AI team framework where a Coordinator orchestrates specialist agents. No application code exists yet; the repo contains only Squad scaffolding.
+This is a **Squad-managed** repository (Squad v0.5.2) — an AI team framework where a Coordinator orchestrates specialist agents.
+
+## Application
+
+This repo contains a **Qwen3-TTS ONNX Pipeline + C# .NET 10 Console App** for local text-to-speech. Pre-exported ONNX models are hosted on HuggingFace at `elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX`.
+
+## Documentation Convention
+
+- **Only `README.md` and `LICENSE` live at the repo root.** All other documentation goes in the `docs/` folder.
+- Documentation files use kebab-case naming (e.g., `docs/getting-started.md`, `docs/architecture.md`).
+- The main `README.md` should be concise with quick start commands and links to `docs/` for details.
 
 ## Repository Structure
 
+- `docs/` — All documentation (prerequisites, getting started, architecture, exporting, troubleshooting, etc.)
+- `src/QwenTTS/` — C# .NET 10 console application
+- `python/` — ONNX export & download tools
+- `setup_environment.py` — One-command setup script
 - `.squad/` — **User-owned** team state (decisions, identity, ceremonies, skills, logs). Never overwritten by upgrades.
 - `.squad-templates/` — **Squad-owned** templates. Overwritten on upgrade — do not customize here.
 - `.github/agents/squad.agent.md` — Coordinator prompt (Squad-owned).
