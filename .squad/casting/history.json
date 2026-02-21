@@ -1,0 +1,11 @@
+[
+  {
+    "assignment_id": "matrix-001",
+    "universe": "The Matrix",
+    "assigned_at": "2026-02-21T15:38:00Z",
+    "agent_count": 4,
+    "agents": ["Morpheus", "Trinity", "Neo", "Tank"],
+    "project": "qwen-labs-cs",
+    "reason": "ML/AI project with Python-to-C# pipeline — The Matrix resonates with cross-domain boundary crossing"
+  }
+]
