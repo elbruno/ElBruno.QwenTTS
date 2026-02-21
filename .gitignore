@@ -22,6 +22,9 @@ __pycache__/
 src/*/bin/
 src/*/obj/
 
+# Generated audio (web app)
+src/QwenTTS.Web/wwwroot/generated/
+
 # OS
 .DS_Store
 Thumbs.db

@@ -2,5 +2,6 @@
   <Folder Name="/src/">
     <Project Path="src/QwenTTS/QwenTTS.csproj" />
     <Project Path="src/QwenTTS.FileReader/QwenTTS.FileReader.csproj" />
+    <Project Path="src/QwenTTS.Web/QwenTTS.Web.csproj" />
   </Folder>
 </Solution>

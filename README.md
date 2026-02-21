@@ -43,6 +43,14 @@ dotnet run --project src/QwenTTS.FileReader -- --model-dir python/onnx_runtime -
 dotnet run --project src/QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/demo_subtitles.srt --speaker serena --output-dir output/subtitles
 ```
 
+### Web App (browser UI)
+
+```bash
+dotnet run --project src/QwenTTS.Web
+```
+
+Open [http://localhost:5123](http://localhost:5123) — type text or upload files, pick a voice, and generate speech.
+
 ---
 
 ## Documentation
@@ -53,6 +61,7 @@ dotnet run --project src/QwenTTS.FileReader -- --model-dir python/onnx_runtime -
 | [Getting Started](docs/getting-started.md) | Setup, model download, and first run |
 | [CLI Reference](docs/cli-reference.md) | All command options, speakers, and examples |
 | [File Reader](docs/file-reader.md) | Batch audio generation from text and SRT files |
+| [Web App](docs/web-app.md) | Blazor web UI for speech generation |
 | [Architecture](docs/architecture.md) | Pipeline design, model components, project structure |
 | [Exporting Models](docs/exporting-models.md) | Re-exporting ONNX models from PyTorch weights |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues and fixes |

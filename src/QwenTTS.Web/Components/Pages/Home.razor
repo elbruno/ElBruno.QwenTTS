@@ -1,0 +1,262 @@
+﻿@page "/"
+@using QwenTTS.Web.Services
+@inject TtsPipelineService Tts
+@rendermode InteractiveServer
+
+<PageTitle>Qwen TTS</PageTitle>
+
+<h1>🔊 Qwen Text-to-Speech</h1>
+<p>Generate speech from text or files using Qwen3-TTS with ONNX Runtime.</p>
+
+<div class="row">
+    <div class="col-lg-8">
+
+        <!-- Input mode toggle -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Input Mode</label>
+            <div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" id="modeText" value="text"
+                           @onchange="@(() => _inputMode = "text")" checked="@(_inputMode == "text")" />
+                    <label class="form-check-label" for="modeText">Type text</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" id="modeFile" value="file"
+                           @onchange="@(() => _inputMode = "file")" checked="@(_inputMode == "file")" />
+                    <label class="form-check-label" for="modeFile">Upload file</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Text input -->
+        @if (_inputMode == "text")
+        {
+            <div class="mb-3">
+                <label for="textInput" class="form-label">Text</label>
+                <textarea id="textInput" class="form-control" rows="5" placeholder="Enter text to synthesize..."
+                          @bind="_text"></textarea>
+            </div>
+        }
+        else
+        {
+            <div class="mb-3">
+                <label for="fileInput" class="form-label">Upload .txt, .srt, or .md file</label>
+                <InputFile id="fileInput" class="form-control" OnChange="OnFileSelected" accept=".txt,.srt,.md" />
+                @if (!string.IsNullOrEmpty(_fileName))
+                {
+                    <div class="form-text">Selected: @_fileName (@_fileSegments.Count segments)</div>
+                }
+            </div>
+        }
+
+        <!-- Voice settings -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label for="speaker" class="form-label">Speaker</label>
+                <select id="speaker" class="form-select" @bind="_speaker">
+                    @foreach (var s in _speakers)
+                    {
+                        <option value="@s">@s</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="language" class="form-label">Language</label>
+                <select id="language" class="form-select" @bind="_language">
+                    <option value="auto">auto</option>
+                    <option value="english">english</option>
+                    <option value="spanish">spanish</option>
+                    <option value="chinese">chinese</option>
+                    <option value="japanese">japanese</option>
+                    <option value="korean">korean</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="instruct" class="form-label">Voice Instruction (optional)</label>
+                <input id="instruct" class="form-control" placeholder="e.g. speak slowly and calmly"
+                       @bind="_instruct" />
+            </div>
+        </div>
+
+        <!-- Generate button -->
+        <button class="btn btn-primary btn-lg" @onclick="GenerateAsync" disabled="@_generating">
+            @if (_generating)
+            {
+                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                <span>Generating...</span>
+            }
+            else
+            {
+                <span>🎙️ Generate Speech</span>
+            }
+        </button>
+
+        <!-- Error -->
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="alert alert-danger mt-3">@_error</div>
+        }
+
+        <!-- Results -->
+        @if (_results.Count > 0)
+        {
+            <div class="mt-4">
+                <h4>Generated Audio</h4>
+                @foreach (var result in _results)
+                {
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            @if (!string.IsNullOrEmpty(result.Label))
+                            {
+                                <p class="card-text text-muted small mb-2">@result.Label</p>
+                            }
+                            <audio controls src="@result.Url" class="w-100"></audio>
+                            <a href="@result.Url" download class="btn btn-sm btn-outline-secondary mt-2">⬇ Download WAV</a>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string _inputMode = "text";
+    private string _text = "";
+    private string _speaker = "ryan";
+    private string _language = "auto";
+    private string _instruct = "";
+    private bool _generating;
+    private string? _error;
+    private string? _fileName;
+    private List<string> _fileSegments = new();
+    private List<AudioResult> _results = new();
+    private List<string> _speakers = new();
+
+    protected override void OnInitialized()
+    {
+        _speakers = Tts.Speakers.OrderBy(s => s).ToList();
+        if (_speakers.Count > 0 && !_speakers.Contains(_speaker))
+            _speaker = _speakers[0];
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        _error = null;
+        _fileSegments.Clear();
+        _fileName = null;
+
+        var file = e.File;
+        if (file.Size > 1_000_000)
+        {
+            _error = "File too large (max 1 MB).";
+            return;
+        }
+
+        _fileName = file.Name;
+        using var reader = new StreamReader(file.OpenReadStream(maxAllowedSize: 1_000_000));
+        var content = await reader.ReadToEndAsync();
+        var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+
+        _fileSegments = ext == ".srt" ? ParseSrt(content) : ParseText(content);
+
+        if (_fileSegments.Count == 0)
+            _error = "No text segments found in file.";
+    }
+
+    private async Task GenerateAsync()
+    {
+        _error = null;
+        _results.Clear();
+        _generating = true;
+        StateHasChanged();
+
+        try
+        {
+            var segments = _inputMode == "text"
+                ? new List<string> { _text }
+                : _fileSegments;
+
+            if (segments.Count == 0 || segments.All(string.IsNullOrWhiteSpace))
+            {
+                _error = "Please enter text or upload a file.";
+                return;
+            }
+
+            var instruct = string.IsNullOrWhiteSpace(_instruct) ? null : _instruct;
+
+            for (int i = 0; i < segments.Count; i++)
+            {
+                var seg = segments[i].Trim();
+                if (string.IsNullOrWhiteSpace(seg)) continue;
+
+                var label = segments.Count > 1 ? $"Segment {i + 1} of {segments.Count}" : null;
+                var url = await Tts.GenerateAsync(seg, _speaker, _language, instruct);
+                _results.Add(new AudioResult(url, label));
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Generation failed: {ex.Message}";
+        }
+        finally
+        {
+            _generating = false;
+            StateHasChanged();
+        }
+    }
+
+    private static List<string> ParseText(string content)
+    {
+        return content
+            .Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(StripMarkdown)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToList();
+    }
+
+    private static string StripMarkdown(string text)
+    {
+        var line = text.Trim();
+        line = System.Text.RegularExpressions.Regex.Replace(line, @"^#{1,6}\s+", "", System.Text.RegularExpressions.RegexOptions.Multiline);
+        line = System.Text.RegularExpressions.Regex.Replace(line, @"\*\*(.+?)\*\*", "$1");
+        line = System.Text.RegularExpressions.Regex.Replace(line, @"\*(.+?)\*", "$1");
+        line = System.Text.RegularExpressions.Regex.Replace(line, @"\[(.+?)\]\(.+?\)", "$1");
+        line = System.Text.RegularExpressions.Regex.Replace(line, @"^[-*]\s+", "", System.Text.RegularExpressions.RegexOptions.Multiline);
+        return line.Trim();
+    }
+
+    private static List<string> ParseSrt(string content)
+    {
+        var segments = new List<string>();
+        var lines = content.Split('\n');
+        var textLines = new List<string>();
+
+        foreach (var raw in lines)
+        {
+            var line = raw.Trim();
+            if (string.IsNullOrEmpty(line))
+            {
+                if (textLines.Count > 0)
+                {
+                    segments.Add(string.Join(" ", textLines));
+                    textLines.Clear();
+                }
+                continue;
+            }
+            if (int.TryParse(line, out _)) continue;
+            if (line.Contains("-->")) continue;
+
+            var stripped = System.Text.RegularExpressions.Regex.Replace(line, @"<[^>]+>", "");
+            if (!string.IsNullOrWhiteSpace(stripped))
+                textLines.Add(stripped);
+        }
+        if (textLines.Count > 0)
+            segments.Add(string.Join(" ", textLines));
+
+        return segments;
+    }
+
+    private record AudioResult(string Url, string? Label);
+}

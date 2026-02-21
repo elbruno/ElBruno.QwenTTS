@@ -25,6 +25,9 @@ public sealed class TtsPipeline : IDisposable
         _vocoder = new Vocoder(Path.Combine(modelDir, "vocoder.onnx"));
     }
 
+    /// <summary>Available speaker names from the model.</summary>
+    public IReadOnlyCollection<string> Speakers => _embeddings.GetAvailableSpeakers();
+
     public async Task SynthesizeAsync(string text, string speaker, string outputPath, 
                                      string language = "auto", string? instruct = null)
     {

@@ -123,6 +123,11 @@ public sealed class EmbeddingStore : IDisposable
         return id;
     }
 
+    /// <summary>
+    /// Gets the list of available speaker names.
+    /// </summary>
+    public IReadOnlyCollection<string> GetAvailableSpeakers() => _speakerIds.Keys;
+
     public void Dispose()
     {
         // No unmanaged resources
