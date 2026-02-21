@@ -16,7 +16,7 @@ from huggingface_hub import snapshot_download
 
 MODELS = [
     {
-        "repo_id": "Qwen/Qwen3-TTS-0.6B-CustomVoice",
+        "repo_id": "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
         "local_dir": "Qwen3-TTS-0.6B-CustomVoice",
     },
     {

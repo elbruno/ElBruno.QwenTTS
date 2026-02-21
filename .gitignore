@@ -3,7 +3,11 @@ python/models/
 
 # ONNX models (generated, too large for git)
 python/onnx_models/*.onnx
+python/onnx_models/*.onnx.data
 python/onnx_models/embeddings/
+
+# Tokenizer artifacts (extracted, not committed)
+python/tokenizer_artifacts/
 
 # Python
 python/.venv/

@@ -27,7 +27,8 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from transformers import AutoModelForTextToWaveform
+from qwen_tts.core.models.modeling_qwen3_tts import Qwen3TTSForConditionalGeneration
+from qwen_tts.core.models.configuration_qwen3_tts import Qwen3TTSConfig
 
 
 def save_tensor(tensor, path):
@@ -58,10 +59,11 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Loading model from {args.model_dir} ...")
-    model = AutoModelForTextToWaveform.from_pretrained(
+    config = Qwen3TTSConfig.from_pretrained(args.model_dir)
+    model = Qwen3TTSForConditionalGeneration.from_pretrained(
         args.model_dir,
-        torch_dtype=torch.float32,
-        trust_remote_code=True,
+        config=config,
+        dtype=torch.float32,
     )
     model.eval()
 

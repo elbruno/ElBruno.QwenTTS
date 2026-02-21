@@ -40,11 +40,12 @@ DEFAULT_TIMESTEPS = 10
 # ---------------------------------------------------------------------------
 def load_decoder(local_dir: str | None = None):
     """Load the Qwen3-TTS-Tokenizer-12Hz model and extract the decoder."""
-    from transformers import AutoModel
+    from qwen_tts.core import Qwen3TTSTokenizerV2Model, Qwen3TTSTokenizerV2Config
 
     repo = local_dir or TOKENIZER_REPO
     print(f"Loading model from {repo} ...")
-    model = AutoModel.from_pretrained(repo, trust_remote_code=True)
+    config = Qwen3TTSTokenizerV2Config.from_pretrained(repo)
+    model = Qwen3TTSTokenizerV2Model.from_pretrained(repo, config=config)
     decoder = model.decoder
     decoder.eval()
     print(f"  Decoder class: {type(decoder).__name__}")
