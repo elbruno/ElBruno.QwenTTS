@@ -6,6 +6,9 @@ python/onnx_models/*.onnx
 python/onnx_models/*.onnx.data
 python/onnx_models/embeddings/
 
+# Downloaded ONNX runtime models (from HuggingFace)
+python/onnx_runtime/
+
 # Tokenizer artifacts (extracted, not committed)
 python/tokenizer_artifacts/
 
