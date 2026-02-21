@@ -102,3 +102,6 @@ def forward(self, codes):  # (B, 16, T) int64
 **0.6B limitation:** Instruct parameter is forced to None for tts_model_size="0b6"
 
 **Files created:** `python/extract_tokenizer.py`, `python/TOKENIZER.md`, `python/tokenizer_artifacts/` (output dir)
+
+### 2026-02-21: GPU Handoff
+All Python export scripts are written and committed. None have been run yet — they need model weights downloaded first. On the GPU machine, run `download_models.py` first, then export scripts in order: vocoder → LM → embeddings → tokenizer. Watch for attribute path issues in export_lm.py — the model attribute discovery code has fallbacks but may need adjustment.
