@@ -25,6 +25,9 @@ src/*/obj/
 # Generated audio (web app)
 src/QwenTTS.Web/wwwroot/generated/
 
+# Generated audio (root)
+*.wav
+
 # OS
 .DS_Store
 Thumbs.db

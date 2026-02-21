@@ -9,12 +9,13 @@ main {
 }
 
 .sidebar {
-    background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
+    background: linear-gradient(180deg, #0d1117 0%, #161b22 100%);
+    border-right: 1px solid #30363d;
 }
 
 .top-row {
-    background-color: #f7f7f7;
-    border-bottom: 1px solid #d6d5d5;
+    background-color: #161b22;
+    border-bottom: 1px solid #30363d;
     justify-content: flex-end;
     height: 3.5rem;
     display: flex;
@@ -25,10 +26,12 @@ main {
         white-space: nowrap;
         margin-left: 1.5rem;
         text-decoration: none;
+        color: #8b949e;
     }
 
     .top-row ::deep a:hover, .top-row ::deep .btn-link:hover {
         text-decoration: underline;
+        color: #58a6ff;
     }
 
     .top-row ::deep a:first-child {
@@ -77,10 +80,10 @@ main {
 }
 
 #blazor-error-ui {
-    color-scheme: light only;
-    background: lightyellow;
+    color-scheme: dark only;
+    background: #161b22;
     bottom: 0;
-    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.4);
     box-sizing: border-box;
     display: none;
     left: 0;
@@ -88,6 +91,7 @@ main {
     position: fixed;
     width: 100%;
     z-index: 1000;
+    color: #f85149;
 }
 
     #blazor-error-ui .dismiss {

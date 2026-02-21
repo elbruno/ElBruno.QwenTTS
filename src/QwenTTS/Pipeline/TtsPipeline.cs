@@ -29,26 +29,34 @@ public sealed class TtsPipeline : IDisposable
     public IReadOnlyCollection<string> Speakers => _embeddings.GetAvailableSpeakers();
 
     public async Task SynthesizeAsync(string text, string speaker, string outputPath, 
-                                     string language = "auto", string? instruct = null)
+                                     string language = "auto", string? instruct = null,
+                                     IProgress<string>? progress = null)
     {
         // Build prompt using tokenizer
         var tokenIds = _tokenizer.BuildCustomVoicePrompt(text, speaker, language, instruct);
 
+        progress?.Report($"Tokenized input ({tokenIds.Length} tokens)");
         Console.WriteLine($"Generating speech ({tokenIds.Length} input tokens)...");
 
         // Generate audio codes via LM
+        progress?.Report("Running language model inference...");
         var codes = _languageModel.Generate(tokenIds, speaker, language);
         
         int timesteps = codes.GetLength(2);
+        progress?.Report($"Generated {timesteps} audio frames");
         Console.WriteLine($"Generated {timesteps} audio frames");
 
         // Decode to waveform via vocoder
+        progress?.Report("Decoding waveform via vocoder...");
         var waveform = _vocoder.Decode(codes);
 
         // Write WAV file
+        progress?.Report("Writing WAV file...");
         await Task.Run(() => WavWriter.Write(outputPath, waveform, sampleRate: 24000));
 
-        Console.WriteLine($"Saved {outputPath} ({waveform.Length} samples, {waveform.Length / 24000.0:F2}s)");
+        var duration = waveform.Length / 24000.0;
+        progress?.Report($"Saved {Path.GetFileName(outputPath)} ({waveform.Length} samples, {duration:F2}s)");
+        Console.WriteLine($"Saved {outputPath} ({waveform.Length} samples, {duration:F2}s)");
     }
 
     public void Dispose()

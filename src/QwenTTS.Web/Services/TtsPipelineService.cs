@@ -30,7 +30,8 @@ public sealed class TtsPipelineService : IDisposable
     /// <summary>
     /// Generates a WAV file and returns the relative URL path.
     /// </summary>
-    public async Task<string> GenerateAsync(string text, string speaker, string language, string? instruct)
+    public async Task<string> GenerateAsync(string text, string speaker, string language,
+                                            string? instruct, IProgress<string>? progress = null)
     {
         var fileName = $"{Guid.NewGuid():N}.wav";
         var filePath = Path.Combine(_outputDir, fileName);
@@ -38,7 +39,7 @@ public sealed class TtsPipelineService : IDisposable
         await _semaphore.WaitAsync();
         try
         {
-            await _pipeline.SynthesizeAsync(text, speaker, filePath, language, instruct);
+            await _pipeline.SynthesizeAsync(text, speaker, filePath, language, instruct, progress);
         }
         finally
         {

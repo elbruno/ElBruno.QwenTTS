@@ -1,89 +1,80 @@
 ﻿@page "/"
 @using QwenTTS.Web.Services
 @inject TtsPipelineService Tts
+@inject IJSRuntime JS
 @rendermode InteractiveServer
 
 <PageTitle>Qwen TTS</PageTitle>
 
-<h1>🔊 Qwen Text-to-Speech</h1>
-<p>Generate speech from text or files using Qwen3-TTS with ONNX Runtime.</p>
+<!-- Hero -->
+<div class="tts-hero">
+    <h1>Qwen Text-to-Speech</h1>
+    <p>Generate natural speech from text or files · Powered by Qwen3-TTS + ONNX Runtime</p>
+</div>
 
-<div class="row">
-    <div class="col-lg-8">
+<div class="row g-3">
+    <!-- Left column: Input & Settings -->
+    <div class="col-lg-7">
 
-        <!-- Input mode toggle -->
-        <div class="mb-3">
-            <label class="form-label fw-bold">Input Mode</label>
-            <div>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="radio" id="modeText" value="text"
-                           @onchange="@(() => _inputMode = "text")" checked="@(_inputMode == "text")" />
-                    <label class="form-check-label" for="modeText">Type text</label>
-                </div>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="radio" id="modeFile" value="file"
-                           @onchange="@(() => _inputMode = "file")" checked="@(_inputMode == "file")" />
-                    <label class="form-check-label" for="modeFile">Upload file</label>
-                </div>
+        <!-- Input Card -->
+        <div class="tts-card">
+            <h3>📝 Input</h3>
+            <div class="mode-toggle">
+                <button class="@(_inputMode == "text" ? "active" : "")" @onclick='() => _inputMode = "text"'>✏️ Type Text</button>
+                <button class="@(_inputMode == "file" ? "active" : "")" @onclick='() => _inputMode = "file"'>📄 Upload File</button>
             </div>
-        </div>
 
-        <!-- Text input -->
-        @if (_inputMode == "text")
-        {
-            <div class="mb-3">
-                <label for="textInput" class="form-label">Text</label>
-                <textarea id="textInput" class="form-control" rows="5" placeholder="Enter text to synthesize..."
-                          @bind="_text"></textarea>
-            </div>
-        }
-        else
-        {
-            <div class="mb-3">
-                <label for="fileInput" class="form-label">Upload .txt, .srt, or .md file</label>
-                <InputFile id="fileInput" class="form-control" OnChange="OnFileSelected" accept=".txt,.srt,.md" />
+            @if (_inputMode == "text")
+            {
+                <textarea class="form-control" rows="5" placeholder="Enter text to synthesize..."
+                          @bind="_text" style="resize: vertical;"></textarea>
+            }
+            else
+            {
+                <InputFile class="form-control" OnChange="OnFileSelected" accept=".txt,.srt,.md" />
                 @if (!string.IsNullOrEmpty(_fileName))
                 {
-                    <div class="form-text">Selected: @_fileName (@_fileSegments.Count segments)</div>
+                    <div class="form-text mt-2">📎 @_fileName — @_fileSegments.Count segment(s) detected</div>
+                }
+            }
+        </div>
+
+        <!-- Voice Card -->
+        <div class="tts-card">
+            <h3>🎤 Voice</h3>
+            <label class="form-label">Speaker</label>
+            <div class="voice-grid mb-3">
+                @foreach (var s in _speakers)
+                {
+                    <div class="voice-chip @(s == _speaker ? "selected" : "")" @onclick="() => _speaker = s">@s</div>
                 }
             </div>
-        }
 
-        <!-- Voice settings -->
-        <div class="row mb-3">
-            <div class="col-md-4">
-                <label for="speaker" class="form-label">Speaker</label>
-                <select id="speaker" class="form-select" @bind="_speaker">
-                    @foreach (var s in _speakers)
-                    {
-                        <option value="@s">@s</option>
-                    }
-                </select>
-            </div>
-            <div class="col-md-4">
-                <label for="language" class="form-label">Language</label>
-                <select id="language" class="form-select" @bind="_language">
-                    <option value="auto">auto</option>
-                    <option value="english">english</option>
-                    <option value="spanish">spanish</option>
-                    <option value="chinese">chinese</option>
-                    <option value="japanese">japanese</option>
-                    <option value="korean">korean</option>
-                </select>
-            </div>
-            <div class="col-md-4">
-                <label for="instruct" class="form-label">Voice Instruction (optional)</label>
-                <input id="instruct" class="form-control" placeholder="e.g. speak slowly and calmly"
-                       @bind="_instruct" />
+            <div class="settings-row">
+                <div>
+                    <label class="form-label">Language</label>
+                    <select class="form-select" @bind="_language">
+                        <option value="auto">🌐 Auto-detect</option>
+                        <option value="english">🇬🇧 English</option>
+                        <option value="spanish">🇪🇸 Spanish</option>
+                        <option value="chinese">🇨🇳 Chinese</option>
+                        <option value="japanese">🇯🇵 Japanese</option>
+                        <option value="korean">🇰🇷 Korean</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Voice Instruction</label>
+                    <input class="form-control" placeholder="e.g. speak slowly and calmly" @bind="_instruct" />
+                </div>
             </div>
         </div>
 
-        <!-- Generate button -->
-        <button class="btn btn-primary btn-lg" @onclick="GenerateAsync" disabled="@_generating">
+        <!-- Generate -->
+        <button class="btn btn-primary generate-btn" @onclick="GenerateAsync" disabled="@_generating">
             @if (_generating)
             {
-                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                <span>Generating...</span>
+                <span class="spinner-border spinner-border-sm me-2"></span>
+                <span>Generating audio...</span>
             }
             else
             {
@@ -91,32 +82,82 @@
             }
         </button>
 
-        <!-- Error -->
         @if (!string.IsNullOrEmpty(_error))
         {
-            <div class="alert alert-danger mt-3">@_error</div>
+            <div class="alert alert-danger mt-3">⚠️ @_error</div>
         }
+    </div>
+
+    <!-- Right column: Results & Console -->
+    <div class="col-lg-5">
 
         <!-- Results -->
-        @if (_results.Count > 0)
-        {
-            <div class="mt-4">
-                <h4>Generated Audio</h4>
+        <div class="tts-card">
+            <h3>🔊 Output</h3>
+            @if (_results.Count == 0)
+            {
+                <p style="color: #484f58; text-align: center; padding: 2rem 0; font-size: 0.9rem;">
+                    Generated audio will appear here
+                </p>
+            }
+            else
+            {
                 @foreach (var result in _results)
                 {
-                    <div class="card mb-2">
-                        <div class="card-body">
-                            @if (!string.IsNullOrEmpty(result.Label))
-                            {
-                                <p class="card-text text-muted small mb-2">@result.Label</p>
-                            }
-                            <audio controls src="@result.Url" class="w-100"></audio>
-                            <a href="@result.Url" download class="btn btn-sm btn-outline-secondary mt-2">⬇ Download WAV</a>
+                    <div class="audio-result-card">
+                        <audio controls src="@result.Url" preload="auto"></audio>
+                        <div class="audio-meta">
+                            <span class="label">@(result.Label ?? "Generated audio")</span>
+                            <a href="@result.Url" download="@result.FileName" class="download-btn">
+                                ⬇ Download WAV
+                            </a>
                         </div>
                     </div>
                 }
+
+                @if (_results.Count > 1)
+                {
+                    <div style="text-align: center; margin-top: 0.75rem;">
+                        <button class="btn btn-sm" @onclick="PlayAll"
+                                style="background:#21262d;border:1px solid #30363d;color:#c9d1d9;">
+                            ▶️ Play All Sequentially
+                        </button>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- Streaming info -->
+        <div class="tts-card" style="border-color: rgba(63,185,80,0.2);">
+            <h3 style="color: #3fb950;">⚡ Streaming</h3>
+            <p style="color: #8b949e; font-size: 0.85rem; margin: 0;">
+                Real-time audio streaming requires chunked vocoder decoding at the model level.
+                The current Qwen3-TTS architecture generates codec tokens as a complete sequence before vocoder decoding,
+                so audio is delivered as a full WAV after generation completes.
+            </p>
+            <div class="streaming-badge mt-2">● Batch mode — full generation</div>
+        </div>
+
+        <!-- Console -->
+        <div class="console-panel">
+            <div class="console-header">
+                <span><span class="dot"></span> Console</span>
+                <button @onclick="ClearLogs">Clear</button>
             </div>
-        }
+            <div class="console-body" id="consoleBody">
+                @if (_logs.Count == 0)
+                {
+                    <div class="log-line"><span class="ts">--:--:--</span><span class="msg" style="color:#484f58;">Waiting for generation...</span></div>
+                }
+                @foreach (var log in _logs)
+                {
+                    <div class="log-line @log.Level">
+                        <span class="ts">@log.Time</span>
+                        <span class="msg">@log.Message</span>
+                    </div>
+                }
+            </div>
+        </div>
     </div>
 </div>
 
@@ -132,12 +173,31 @@
     private List<string> _fileSegments = new();
     private List<AudioResult> _results = new();
     private List<string> _speakers = new();
+    private List<LogEntry> _logs = new();
 
     protected override void OnInitialized()
     {
         _speakers = Tts.Speakers.OrderBy(s => s).ToList();
         if (_speakers.Count > 0 && !_speakers.Contains(_speaker))
             _speaker = _speakers[0];
+    }
+
+    private void Log(string message, string level = "info")
+    {
+        _logs.Add(new LogEntry(DateTime.Now.ToString("HH:mm:ss"), message, level));
+        // Keep last 200 entries
+        if (_logs.Count > 200)
+            _logs.RemoveAt(0);
+    }
+
+    private void ClearLogs()
+    {
+        _logs.Clear();
+    }
+
+    private async Task ScrollConsole()
+    {
+        await JS.InvokeVoidAsync("eval", "document.getElementById('consoleBody')?.scrollTo(0, 999999)");
     }
 
     private async Task OnFileSelected(InputFileChangeEventArgs e)
@@ -150,15 +210,19 @@
         if (file.Size > 1_000_000)
         {
             _error = "File too large (max 1 MB).";
+            Log("File rejected: exceeds 1 MB limit", "error");
             return;
         }
 
         _fileName = file.Name;
+        Log($"File loaded: {file.Name} ({file.Size:N0} bytes)", "info");
+
         using var reader = new StreamReader(file.OpenReadStream(maxAllowedSize: 1_000_000));
         var content = await reader.ReadToEndAsync();
         var ext = Path.GetExtension(file.Name).ToLowerInvariant();
 
         _fileSegments = ext == ".srt" ? ParseSrt(content) : ParseText(content);
+        Log($"Parsed {_fileSegments.Count} text segments", "success");
 
         if (_fileSegments.Count == 0)
             _error = "No text segments found in file.";
@@ -184,6 +248,11 @@
             }
 
             var instruct = string.IsNullOrWhiteSpace(_instruct) ? null : _instruct;
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+
+            Log($"Starting generation: {segments.Count} segment(s), speaker={_speaker}, language={_language}", "step");
+            StateHasChanged();
+            await ScrollConsole();
 
             for (int i = 0; i < segments.Count; i++)
             {
@@ -191,19 +260,54 @@
                 if (string.IsNullOrWhiteSpace(seg)) continue;
 
                 var label = segments.Count > 1 ? $"Segment {i + 1} of {segments.Count}" : null;
-                var url = await Tts.GenerateAsync(seg, _speaker, _language, instruct);
-                _results.Add(new AudioResult(url, label));
+                var preview = seg.Length > 60 ? seg[..60] + "..." : seg;
+                Log($"[{i + 1}/{segments.Count}] \"{preview}\"", "step");
                 StateHasChanged();
+                await ScrollConsole();
+
+                var progress = new Progress<string>(msg =>
+                {
+                    InvokeAsync(() =>
+                    {
+                        Log(msg);
+                        StateHasChanged();
+                        ScrollConsole();
+                    });
+                });
+
+                var segSw = System.Diagnostics.Stopwatch.StartNew();
+                var url = await Tts.GenerateAsync(seg, _speaker, _language, instruct, progress);
+                segSw.Stop();
+
+                var fileName = $"qwen_tts_{_speaker}_{i + 1:D3}.wav";
+                _results.Add(new AudioResult(url, label, fileName));
+                Log($"Segment {i + 1} complete ({segSw.Elapsed.TotalSeconds:F1}s)", "success");
+                StateHasChanged();
+                await ScrollConsole();
             }
+
+            sw.Stop();
+            Log($"All done! {_results.Count} audio file(s) generated in {sw.Elapsed.TotalSeconds:F1}s", "success");
         }
         catch (Exception ex)
         {
             _error = $"Generation failed: {ex.Message}";
+            Log($"ERROR: {ex.Message}", "error");
         }
         finally
         {
             _generating = false;
             StateHasChanged();
+            await ScrollConsole();
+        }
+    }
+
+    private async Task PlayAll()
+    {
+        foreach (var result in _results)
+        {
+            await JS.InvokeVoidAsync("eval", $"new Audio('{result.Url}').play()");
+            await Task.Delay(500);
         }
     }
 
@@ -258,5 +362,6 @@
         return segments;
     }
 
-    private record AudioResult(string Url, string? Label);
+    private record LogEntry(string Time, string Message, string Level);
+    private record AudioResult(string Url, string? Label, string FileName);
 }
