@@ -1,34 +1,50 @@
 ---
-updated_at: 2026-02-21T16:30:00.000Z
-focus_area: GPU handoff — ONNX export + C# LM implementation
+updated_at: 2026-02-21T17:15:00.000Z
+focus_area: C# LanguageModel implementation
 active_issues: []
 ---
 
 # What We're Focused On
 
-**Handoff in progress.** Moving from non-GPU machine to NVIDIA GPU machine.
+**ONNX export complete.** All models exported and validated on NVIDIA A10 GPU machine.
 
-## Current State (8/12 tasks complete)
+## Current State (10/12 tasks complete)
 
-All Python export SCRIPTS are written but NOT yet run (need model weights downloaded on GPU machine).
-All C# scaffolding is in place — TextTokenizer and Vocoder are fully implemented. LanguageModel and TtsPipeline are skeletons.
+✅ Model weights downloaded (Qwen3-TTS-12Hz-0.6B-CustomVoice + Tokenizer-12Hz)
+✅ Vocoder exported to ONNX (max error 7.97e-06 — PASS)
+✅ Talker LM prefill + decode exported to ONNX (stacked KV interface)
+✅ Code Predictor exported to ONNX (15 groups, legacy trace)
+✅ Embeddings extracted as .npy (text, codec, projections, speaker IDs)
+✅ Tokenizer artifacts extracted (vocab, merges, validation cases)
+✅ C# TextTokenizer and Vocoder implemented
+⚠️ C# LanguageModel.cs — skeleton only
+⚠️ C# TtsPipeline.cs — skeleton only
 
-## Immediate Next Steps (on GPU machine)
+## ONNX Model Summary
 
-1. Run `python/download_models.py` to get model weights
-2. Run all export scripts (vocoder → LM → embeddings → tokenizer)
-3. Validate ONNX outputs match PyTorch
-4. Implement `LanguageModel.cs` — autoregressive inference with KV-cache (40 tensors for Talker, 10 for Code Predictor)
-5. Wire up `TtsPipeline.cs` end-to-end
-6. Test and validate
+| Model | File | Inputs | Outputs | Notes |
+|-------|------|--------|---------|-------|
+| Vocoder | vocoder.onnx | 1 (codes) | 1 (waveform) | 437 MB |
+| Talker Prefill | talker_prefill.onnx | 3 | 58 (logits + hidden + 56 flat KV) | 1.7 GB |
+| Talker Decode | talker_decode.onnx | 5 | 4 (logits + hidden + stacked KV) | 1.7 GB |
+| Code Predictor | code_predictor.onnx | 4 | 3 (logits + stacked KV) | 420 MB |
 
-## Key Architecture Docs
+## Key Architecture Notes (verified from actual model)
 
-- `python/ARCHITECTURE.md` — Full model internals (tensor shapes, KV-cache, M-RoPE)
-- `python/TOKENIZER.md` — BPE format, chat template, special tokens, prompt construction
+- Talker: 28 layers, 16 attn heads, 8 KV heads, head_dim=128, hidden=1024
+- Code Predictor: 5 layers, 16 attn heads, 8 KV heads, head_dim=128, hidden=1024
+- num_code_groups=16 (group 0 = Talker, groups 1-15 = Code Predictor)
+- Decode KV cache uses stacked format: (num_layers, B, num_kv_heads, T, head_dim)
+- Prefill KV cache uses flat format: 56 separate tensors (28 layers × key/value)
 
-## Known Risks
+## Immediate Next Steps
 
-- `export_lm.py` may need attribute path adjustments when running against actual model weights
-- Code Predictor per-group embedding routing may not trace cleanly to ONNX
-- M-RoPE position ID computation not yet implemented in C#
+1. Implement `LanguageModel.cs` — autoregressive inference with KV-cache
+2. Wire up `TtsPipeline.cs` end-to-end
+3. Test and validate
+
+## Known Issues Resolved
+
+- ✅ `export_lm.py` attribute paths fixed (layers[i].keys/values for DynamicCache)
+- ✅ Code Predictor traces cleanly with legacy exporter (15 groups, not 31)
+- ⚠️ M-RoPE position ID computation still not implemented in C#
