@@ -18,6 +18,45 @@
         Copy these prompts into ChatGPT, Claude, Gemini, or any LLM to generate podcast scripts in the correct format for the Podcast Generator.
     </p>
 
+    <!-- Claude Research Template -->
+    <div class="tts-card">
+        <div class="prompt-header">
+            <h3>🔎 Research-Based — Claude / LLM with web access</h3>
+            <button class="copy-btn" @onclick='() => CopyToClipboard("prompt-research")'>📋 Copy</button>
+        </div>
+        <p class="prompt-desc">Best for LLMs that can research topics (Claude with web search, ChatGPT with browsing, Perplexity). The LLM researches the topic first, then generates the script and offers it as a downloadable file.</p>
+        <div class="prompt-box" id="prompt-research">Generate a podcast conversation script between two hosts about the topic that you researched.
+
+Rules:
+- Use exactly this format for each segment (the --- separator and field names are required)
+- Available speakers: ryan, serena, vivian, aiden, eric, dylan, uncle_fu, ono_anna, sohee
+- Available languages: english, spanish, chinese, japanese, korean
+- Keep each text segment under 200 words for best audio quality
+- Alternate between speakers naturally
+- Include an intro and outro
+- At the beginning each speaker must introduce themselves
+
+Format (copy exactly — text goes after the metadata fields, no "text:" prefix needed):
+
+--- 01
+speaker: [speaker_name]
+language: [language]
+instructions: [voice style, e.g. "speak with energy and enthusiasm"]
+
+[What this person says goes here as plain text]
+
+--- 02
+speaker: [speaker_name]
+language: [language]
+instructions: [voice style]
+
+[What this person says goes here as plain text]
+
+Generate the necessary segments for a ~10 minute podcast episode.
+
+At the end present this in plain text and make it available to download as a text file.</div>
+    </div>
+
     <!-- Generic Template -->
     <div class="tts-card">
         <div class="prompt-header">
