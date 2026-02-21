@@ -8,3 +8,32 @@
 ## Learnings
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
+
+### 2026-02-21: Initial .NET 10 scaffold created
+- **Project:** `src/QwenTTS/QwenTTS.csproj` targeting `net10.0`
+- **Solution:** `QwenTTS.sln` at repo root
+- **NuGet packages:** Microsoft.ML.OnnxRuntime 1.24.2, Microsoft.ML.Tokenizers 2.0.0, NAudio 2.2.1
+- **Structure:** `Models/` (TextTokenizer, LanguageModel, Vocoder), `Pipeline/` (TtsPipeline), `Audio/` (WavWriter)
+- **WavWriter** is fully implemented — writes float32 PCM to 16-bit WAV at 24 kHz
+- **CLI** supports `--text`, `--speaker`, `--output`, `--instruct` args with simple array parsing
+- **Prompt format** placeholder: `<speaker>{name}</speaker>[<instruct>{instruct}</instruct>]{text}` — needs verification against actual Qwen3-TTS format
+- .NET 10 SDK 10.0.102 confirmed available on this machine
+
+### 2026-02-21: BPE TextTokenizer + Prompt Builder implemented
+- **File:** `src/QwenTTS/Models/TextTokenizer.cs`
+- **Approach:** Used `Microsoft.ML.Tokenizers.BpeTokenizer` with `BpeOptions(vocabFile, mergesFile)` constructor, `ByteLevel = true`
+- **Pre-tokenizer:** `RegexPreTokenizer` with GPT-2 pattern + all 10 Qwen3-TTS special tokens registered
+- **Special tokens:** All IDs from TOKENIZER.MD exposed as `public const int` fields (ImStartId, ImEndId, TtsPadId, TtsBosId, etc.)
+- **Prompt builder:** `BuildCustomVoicePrompt()` wraps text in the exact chat template from TOKENIZER.MD §3a/§3b
+- **API:** `Encode(text) → int[]`, `Decode(ids) → string`, `BuildCustomVoicePrompt(text, speaker, language, instruct?) → int[]`
+- **Validation:** Needs `vocab.json` + `merges.txt` from extracted tokenizer artifacts to test against `validation_cases.json`
+
+### 2026-02-21: Vocoder ONNX inference implemented
+- **Vocoder.cs** now wraps `InferenceSession` with `GraphOptimizationLevel.ORT_ENABLE_ALL`
+- Input: `long[,,]` codes of shape `(1, 16, T)` — 16 RVQ codebooks × T timesteps
+- Output: flat `float[]` waveform at 24 kHz (model produces `(1, 1, T*1920)`)
+- Input tensor name is auto-detected from ONNX model metadata; falls back to `"codes"`
+- `DenseTensor<long>` used to create ONNX-compatible tensor from managed 3D array
+- `Tensor<float>` iteration (foreach) used to extract output — `CopyTo` not available on `Tensor<T>` in OnnxRuntime 1.24.2
+- **TtsPipeline.cs** updated to reshape `int[]` from LanguageModel into `long[1, 16, T]` before passing to Vocoder
+- **WavWriter.cs** was already fully implemented from scaffold phase — no changes needed

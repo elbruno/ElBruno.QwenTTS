@@ -1,11 +1,24 @@
 # Model weights (downloaded, not committed)
 python/models/
 
+# ONNX models (generated, too large for git)
+python/onnx_models/*.onnx
+python/onnx_models/embeddings/
+
 # Python
 python/.venv/
 __pycache__/
 *.pyc
+*.egg-info/
+
+# .NET build outputs
+src/*/bin/
+src/*/obj/
 
 # OS
 .DS_Store
 Thumbs.db
+
+# IDE
+.vs/
+*.user
