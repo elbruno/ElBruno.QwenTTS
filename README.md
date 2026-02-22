@@ -19,6 +19,7 @@ Pre-exported ONNX models are hosted on HuggingFace:
 - **Automatic Model Download** — Models download from HuggingFace on first run (~5.5 GB)
 - **Multi-Speaker** — 9 built-in voices: ryan, serena, vivian, aiden, eric, dylan, uncle_fu, ono_anna, sohee
 - **Voice Cloning** — Clone any voice from a 3-second audio sample ([docs](docs/voice-cloning.md))
+- **Web UI** — Blazor app with TTS generation and voice cloning pages ([docs](docs/web-app.md))
 - **GPU Acceleration** — Optional CUDA or DirectML support via SessionOptions injection ([docs](docs/gpu-acceleration.md))
 - **Multi-Language** — English, Spanish, Chinese, Japanese, Korean
 - **Voice Control** — Instruction-based style (e.g., "speak with excitement")
@@ -118,7 +119,9 @@ dotnet run --project src/ElBruno.QwenTTS.FileReader -- --model-dir models --inpu
 dotnet run --project src/ElBruno.QwenTTS.Web
 ```
 
-Open [http://localhost:5153](http://localhost:5153) — type text or upload files, pick a voice, and generate speech.
+Open [http://localhost:5153](http://localhost:5153) — two pages:
+- **🔊 TTS** — type text or upload files, pick a voice, and generate speech
+- **🎭 Voice Clone** — record your voice or upload a WAV, then synthesize with your cloned voice
 
 ---
 

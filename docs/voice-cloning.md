@@ -109,3 +109,20 @@ python export_lm.py --model-dir models/Qwen3-TTS-0.6B-Base --output-dir onnx_bas
 # Export embeddings
 python export_embeddings.py --model-dir models/Qwen3-TTS-0.6B-Base --output-dir onnx_base/embeddings
 ```
+
+## Web UI
+
+The Blazor web app includes a **Voice Clone** page with a browser-based interface — no code needed:
+
+```bash
+dotnet run --project src/ElBruno.QwenTTS.Web
+```
+
+Open [http://localhost:5153/voice-clone](http://localhost:5153/voice-clone) to:
+
+1. **Record** your voice directly from the microphone (auto-converted to 24 kHz mono WAV)
+2. **Upload** a previously recorded WAV file
+3. **Preview and download** the reference audio
+4. **Type text** and generate speech with the cloned voice
+
+See [docs/web-app.md](web-app.md) for full web app documentation.
