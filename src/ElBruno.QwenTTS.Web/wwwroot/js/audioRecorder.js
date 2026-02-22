@@ -24,32 +24,37 @@ window.audioRecorder = {
     stopRecording: async function () {
         if (!mediaRecorder || mediaRecorder.state === 'inactive') return null;
 
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             mediaRecorder.onstop = async () => {
-                // Stop all tracks
-                mediaRecorder.stream.getTracks().forEach(t => t.stop());
+                try {
+                    // Stop all tracks
+                    mediaRecorder.stream.getTracks().forEach(t => t.stop());
 
-                const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
-                const arrayBuffer = await blob.arrayBuffer();
-                const audioCtx = new AudioContext();
-                const decoded = await audioCtx.decodeAudioData(arrayBuffer);
-                audioCtx.close();
+                    const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const audioCtx = new AudioContext();
+                    const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+                    audioCtx.close();
 
-                // Resample to 24000 Hz mono
-                const targetSampleRate = 24000;
-                const numSamples = Math.round(decoded.duration * targetSampleRate);
-                const offlineCtx = new OfflineAudioContext(1, numSamples, targetSampleRate);
-                const source = offlineCtx.createBufferSource();
-                source.buffer = decoded;
-                source.connect(offlineCtx.destination);
-                source.start(0);
-                const resampled = await offlineCtx.startRendering();
+                    // Resample to 24000 Hz mono
+                    const targetSampleRate = 24000;
+                    const numSamples = Math.round(decoded.duration * targetSampleRate);
+                    const offlineCtx = new OfflineAudioContext(1, numSamples, targetSampleRate);
+                    const source = offlineCtx.createBufferSource();
+                    source.buffer = decoded;
+                    source.connect(offlineCtx.destination);
+                    source.start(0);
+                    const resampled = await offlineCtx.startRendering();
 
-                // Encode as 16-bit PCM WAV
-                const samples = resampled.getChannelData(0);
-                const wavBytes = encodeWav(samples, targetSampleRate);
-                const base64 = arrayBufferToBase64(wavBytes);
-                resolve(base64);
+                    // Encode as 16-bit PCM WAV
+                    const samples = resampled.getChannelData(0);
+                    const wavBytes = encodeWav(samples, targetSampleRate);
+                    const base64 = arrayBufferToBase64(wavBytes);
+                    resolve(base64);
+                } catch (err) {
+                    console.error('audioRecorder.stopRecording error:', err);
+                    reject(err);
+                }
             };
             mediaRecorder.stop();
         });
