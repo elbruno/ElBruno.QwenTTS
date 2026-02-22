@@ -7,7 +7,7 @@ namespace ElBruno.QwenTTS.Models;
 /// Loads NumPy .npy files (format v1.0/v2.0) into C# arrays.
 /// Supports float32 and int64 dtypes, 1D and 2D arrays only.
 /// </summary>
-public static class NpyReader
+internal static class NpyReader
 {
     public static float[] ReadFloat1D(string path)
     {
