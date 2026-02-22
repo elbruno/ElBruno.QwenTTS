@@ -21,6 +21,8 @@ public sealed class VoiceClonePipelineService : IDisposable
     public bool IsInitializing => _isInitializing;
     public bool IsModelDownloaded => VoiceCloningDownloader.IsModelDownloaded(_modelDir);
 
+    public string ModelDirectory => _modelDir;
+
     public event Action<ModelDownloadProgress>? OnDownloadProgress;
 
     public VoiceClonePipelineService(IConfiguration config, IWebHostEnvironment env)

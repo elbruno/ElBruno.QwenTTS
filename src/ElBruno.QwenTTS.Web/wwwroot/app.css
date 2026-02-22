@@ -617,3 +617,16 @@ details summary::-webkit-details-marker { color: var(--text-dim); }
     50% { margin-left: 70%; }
     100% { margin-left: 0%; }
 }
+/* === Settings Page === */
+.settings-field { margin-bottom: 1.2rem; }
+.settings-field .form-control { margin-bottom: 0.4rem; }
+.settings-meta { font-size: 0.78rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; margin-top: 0.25rem; }
+.settings-meta code { font-size: 0.75rem; color: var(--blue); background: var(--bg); padding: 0.1rem 0.4rem; border-radius: 4px; word-break: break-all; }
+.label-muted { color: var(--text-dim); font-size: 0.75rem; font-weight: 600; min-width: 60px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.status-dot.ready { background: var(--green); }
+.status-dot.pending { background: var(--text-dim); }
+.settings-actions { display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem; }
+.settings-table { width: 100%; font-size: 0.85rem; }
+.settings-table td { padding: 0.4rem 0; border-bottom: 1px solid var(--border); }
+.settings-table td:first-child { width: 200px; font-weight: 600; color: var(--text-muted); }

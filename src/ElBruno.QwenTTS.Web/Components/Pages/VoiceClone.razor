@@ -29,6 +29,20 @@
                 <div style="color:var(--red);font-size:0.88rem;">@_initError</div>
                 <button class="btn btn-sm btn-primary mt-2" @onclick="InitializeModel">Retry</button>
             }
+            else if (!Vc.IsModelDownloaded && !Vc.IsInitializing)
+            {
+                <h3>📦 Voice Cloning Model Not Found</h3>
+                <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.5rem;">
+                    The Base model with speaker encoder (~5.5 GB) needs to be downloaded from HuggingFace before you can clone voices.
+                </div>
+                <div class="settings-meta" style="margin-bottom:0.75rem;">
+                    <span class="label-muted">Location:</span>
+                    <code>@Vc.ModelDirectory</code>
+                </div>
+                <button class="btn btn-primary" @onclick="InitializeModel">
+                    ⬇️ Download Model
+                </button>
+            }
             else
             {
                 <h3>⏳ Loading Voice Cloning Model...</h3>
@@ -234,7 +248,10 @@
     protected override async Task OnInitializedAsync()
     {
         Vc.OnDownloadProgress += OnDownloadProgressUpdate;
-        await InitializeModel();
+        if (Vc.IsModelDownloaded || Vc.IsReady)
+        {
+            await InitializeModel();
+        }
     }
 
     public void Dispose()

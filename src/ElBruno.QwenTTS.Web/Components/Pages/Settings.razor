@@ -1,0 +1,317 @@
+@page "/settings"
+@using ElBruno.QwenTTS.Web.Services
+@using ElBruno.QwenTTS.Pipeline
+@using ElBruno.QwenTTS.VoiceCloning.Pipeline
+@inject TtsPipelineService Tts
+@inject VoiceClonePipelineService Vc
+@inject IConfiguration Config
+@inject IWebHostEnvironment Env
+@implements IDisposable
+@rendermode InteractiveServer
+
+<PageTitle>Settings — Qwen TTS</PageTitle>
+
+<div class="main-content">
+    <div class="tts-card">
+        <h3>⚙️ Model Directories</h3>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">
+            Configure where ONNX models are stored. Leave empty to use the default shared location.
+            Changes are saved to <code>appsettings.json</code> and take effect after restarting the app.
+        </p>
+
+        <!-- TTS Model Directory -->
+        <div class="settings-field">
+            <label class="form-label">TTS Model Directory (CustomVoice)</label>
+            <input class="form-control" placeholder="@_ttsDefault" @bind="_ttsModelDir" />
+            <div class="settings-meta">
+                <span class="label-muted">Active:</span>
+                <code>@Tts.ModelDirectory</code>
+                <span class="status-dot @(Tts.IsReady ? "ready" : "pending")"></span>
+                <span style="font-size:0.78rem;color:var(--text-muted);">@(Tts.IsReady ? "Loaded" : "Not loaded")</span>
+            </div>
+            <div class="settings-meta">
+                <span class="label-muted">Default:</span>
+                <code>@_ttsDefault</code>
+            </div>
+
+            @if (!Tts.IsReady)
+            {
+                @if (_ttsDownloadProgress != null)
+                {
+                    <div class="download-progress-bar">
+                        <div class="progress-bar-track" style="margin-top:0.5rem;">
+                            <div class="progress-bar-fill" style="width:@(_ttsDownloadProgress.FilePercentage)%"></div>
+                        </div>
+                        <div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.25rem;">
+                            [@_ttsDownloadProgress.CurrentFile/@_ttsDownloadProgress.TotalFiles] @_ttsDownloadProgress.Message
+                        </div>
+                    </div>
+                }
+                else if (Tts.IsModelDownloaded)
+                {
+                    <button class="btn btn-sm btn-primary mt-2" @onclick="LoadTtsModel" disabled="@_ttsLoading">
+                        @if (_ttsLoading) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        🔄 Load Model
+                    </button>
+                }
+                else
+                {
+                    <button class="btn btn-sm btn-primary mt-2" @onclick="LoadTtsModel" disabled="@_ttsLoading">
+                        @if (_ttsLoading) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        ⬇️ Download & Load (~5.5 GB)
+                    </button>
+                }
+
+                @if (_ttsError != null)
+                {
+                    <div style="color:var(--red);font-size:0.82rem;margin-top:0.3rem;">@_ttsError</div>
+                }
+            }
+        </div>
+
+        <!-- Voice Clone Model Directory -->
+        <div class="settings-field">
+            <label class="form-label">Voice Clone Model Directory (Base)</label>
+            <input class="form-control" placeholder="@_vcDefault" @bind="_vcModelDir" />
+            <div class="settings-meta">
+                <span class="label-muted">Active:</span>
+                <code>@Vc.ModelDirectory</code>
+                <span class="status-dot @(Vc.IsReady ? "ready" : "pending")"></span>
+                <span style="font-size:0.78rem;color:var(--text-muted);">@(Vc.IsReady ? "Loaded" : "Not loaded")</span>
+            </div>
+            <div class="settings-meta">
+                <span class="label-muted">Default:</span>
+                <code>@_vcDefault</code>
+            </div>
+
+            @if (!Vc.IsReady)
+            {
+                @if (_vcDownloadProgress != null)
+                {
+                    <div class="download-progress-bar">
+                        <div class="progress-bar-track" style="margin-top:0.5rem;">
+                            <div class="progress-bar-fill" style="width:@(_vcDownloadProgress.FilePercentage)%"></div>
+                        </div>
+                        <div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.25rem;">
+                            [@_vcDownloadProgress.CurrentFile/@_vcDownloadProgress.TotalFiles] @_vcDownloadProgress.Message
+                        </div>
+                    </div>
+                }
+                else if (Vc.IsModelDownloaded)
+                {
+                    <button class="btn btn-sm btn-primary mt-2" @onclick="LoadVcModel" disabled="@_vcLoading">
+                        @if (_vcLoading) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        🔄 Load Model
+                    </button>
+                }
+                else
+                {
+                    <button class="btn btn-sm btn-primary mt-2" @onclick="LoadVcModel" disabled="@_vcLoading">
+                        @if (_vcLoading) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        ⬇️ Download & Load (~5.5 GB)
+                    </button>
+                }
+
+                @if (_vcError != null)
+                {
+                    <div style="color:var(--red);font-size:0.82rem;margin-top:0.3rem;">@_vcError</div>
+                }
+            }
+        </div>
+
+        <div class="settings-actions">
+            <button class="btn btn-primary" @onclick="SaveSettings" disabled="@_saving">
+                @if (_saving)
+                {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                💾 Save Settings
+            </button>
+            <button class="btn-clear" @onclick="ResetToDefaults">Reset to Defaults</button>
+        </div>
+
+        @if (_saved)
+        {
+            <div class="alert alert-success mt-2" style="font-size:0.85rem;">
+                ✅ Settings saved to <code>appsettings.json</code>. Restart the app for changes to take effect.
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(_saveError))
+        {
+            <div class="alert alert-danger mt-2" style="font-size:0.85rem;">⚠️ @_saveError</div>
+        }
+    </div>
+
+    <!-- Status Card -->
+    <div class="tts-card">
+        <h3>📋 Current Status</h3>
+        <table class="settings-table">
+            <tr>
+                <td class="label-muted">TTS Pipeline</td>
+                <td>@(Tts.IsReady ? "✅ Ready" : Tts.IsInitializing ? "⏳ Initializing..." : "⬜ Not initialized")</td>
+            </tr>
+            <tr>
+                <td class="label-muted">TTS Models Downloaded</td>
+                <td>@(Tts.IsModelDownloaded ? "✅ Yes" : "❌ No")</td>
+            </tr>
+            <tr>
+                <td class="label-muted">Voice Clone Pipeline</td>
+                <td>@(Vc.IsReady ? "✅ Ready" : Vc.IsInitializing ? "⏳ Initializing..." : "⬜ Not initialized")</td>
+            </tr>
+            <tr>
+                <td class="label-muted">Voice Clone Models Downloaded</td>
+                <td>@(Vc.IsModelDownloaded ? "✅ Yes" : "❌ No")</td>
+            </tr>
+            <tr>
+                <td class="label-muted">Environment</td>
+                <td>@Env.EnvironmentName</td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+@code {
+    // Settings fields
+    private string _ttsModelDir = "";
+    private string _vcModelDir = "";
+    private readonly string _ttsDefault = ModelDownloader.DefaultModelDir;
+    private readonly string _vcDefault = VoiceCloningDownloader.DefaultModelDir;
+    private bool _saving;
+    private bool _saved;
+    private string? _saveError;
+
+    // TTS download state
+    private bool _ttsLoading;
+    private string? _ttsError;
+    private ModelDownloadProgress? _ttsDownloadProgress;
+
+    // VC download state
+    private bool _vcLoading;
+    private string? _vcError;
+    private ModelDownloadProgress? _vcDownloadProgress;
+
+    protected override void OnInitialized()
+    {
+        _ttsModelDir = Config["TTS:ModelDir"] ?? "";
+        _vcModelDir = Config["VoiceClone:ModelDir"] ?? "";
+        Tts.OnDownloadProgress += OnTtsProgress;
+        Vc.OnDownloadProgress += OnVcProgress;
+    }
+
+    public void Dispose()
+    {
+        Tts.OnDownloadProgress -= OnTtsProgress;
+        Vc.OnDownloadProgress -= OnVcProgress;
+    }
+
+    private void OnTtsProgress(ModelDownloadProgress p) =>
+        InvokeAsync(() => { _ttsDownloadProgress = p; StateHasChanged(); });
+
+    private void OnVcProgress(ModelDownloadProgress p) =>
+        InvokeAsync(() => { _vcDownloadProgress = p; StateHasChanged(); });
+
+    // --- Download / Load ---
+
+    private async Task LoadTtsModel()
+    {
+        _ttsLoading = true;
+        _ttsError = null;
+        _ttsDownloadProgress = null;
+        StateHasChanged();
+
+        try
+        {
+            await Tts.InitializeAsync();
+        }
+        catch (Exception ex)
+        {
+            _ttsError = ex.Message;
+        }
+        finally
+        {
+            _ttsLoading = false;
+            _ttsDownloadProgress = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadVcModel()
+    {
+        _vcLoading = true;
+        _vcError = null;
+        _vcDownloadProgress = null;
+        StateHasChanged();
+
+        try
+        {
+            await Vc.InitializeAsync();
+        }
+        catch (Exception ex)
+        {
+            _vcError = ex.Message;
+        }
+        finally
+        {
+            _vcLoading = false;
+            _vcDownloadProgress = null;
+            StateHasChanged();
+        }
+    }
+
+    // --- Save Settings ---
+
+    private async Task SaveSettings()
+    {
+        _saving = true;
+        _saved = false;
+        _saveError = null;
+        StateHasChanged();
+
+        try
+        {
+            var settingsPath = Path.Combine(Env.ContentRootPath, "appsettings.json");
+            var json = await File.ReadAllTextAsync(settingsPath);
+            var doc = System.Text.Json.JsonDocument.Parse(json);
+            var root = new Dictionary<string, object>();
+
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                root[prop.Name] = System.Text.Json.JsonSerializer.Deserialize<object>(prop.Value.GetRawText())!;
+            }
+
+            var ttsSection = new Dictionary<string, string?>();
+            if (!string.IsNullOrWhiteSpace(_ttsModelDir))
+                ttsSection["ModelDir"] = _ttsModelDir.Trim();
+            root["TTS"] = ttsSection;
+
+            var vcSection = new Dictionary<string, string?>();
+            if (!string.IsNullOrWhiteSpace(_vcModelDir))
+                vcSection["ModelDir"] = _vcModelDir.Trim();
+            root["VoiceClone"] = vcSection;
+
+            var options = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
+            var output = System.Text.Json.JsonSerializer.Serialize(root, options);
+            await File.WriteAllTextAsync(settingsPath, output);
+
+            _saved = true;
+        }
+        catch (Exception ex)
+        {
+            _saveError = $"Failed to save: {ex.Message}";
+        }
+        finally
+        {
+            _saving = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ResetToDefaults()
+    {
+        _ttsModelDir = "";
+        _vcModelDir = "";
+        _saved = false;
+        _saveError = null;
+    }
+}
