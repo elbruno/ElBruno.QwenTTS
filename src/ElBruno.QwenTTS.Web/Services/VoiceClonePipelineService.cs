@@ -14,6 +14,7 @@ public sealed class VoiceClonePipelineService : IDisposable
     private readonly string _outputDir;
     private readonly string _referenceDir;
     private readonly string _modelDir;
+    private readonly ILogger<VoiceClonePipelineService> _logger;
     private bool _isInitializing;
     private bool _isReady;
 
@@ -25,8 +26,10 @@ public sealed class VoiceClonePipelineService : IDisposable
 
     public event Action<ModelDownloadProgress>? OnDownloadProgress;
 
-    public VoiceClonePipelineService(IConfiguration config, IWebHostEnvironment env)
+    public VoiceClonePipelineService(IConfiguration config, IWebHostEnvironment env,
+                                      ILogger<VoiceClonePipelineService> logger)
     {
+        _logger = logger;
         var modelDir = config["VoiceClone:ModelDir"];
         if (string.IsNullOrEmpty(modelDir))
         {
@@ -46,6 +49,7 @@ public sealed class VoiceClonePipelineService : IDisposable
         _referenceDir = Path.Combine(env.WebRootPath, "references");
         Directory.CreateDirectory(_outputDir);
         Directory.CreateDirectory(_referenceDir);
+        _logger.LogInformation("VoiceClone model dir: {ModelDir}", _modelDir);
     }
 
     /// <summary>
@@ -58,10 +62,18 @@ public sealed class VoiceClonePipelineService : IDisposable
 
         try
         {
+            _logger.LogInformation("Initializing voice clone pipeline (models downloaded: {Downloaded})",
+                IsModelDownloaded);
             var progress = new Progress<ModelDownloadProgress>(p => OnDownloadProgress?.Invoke(p));
             _pipeline = await VoiceClonePipeline.CreateAsync(_modelDir, progress,
                 cancellationToken: cancellationToken);
             _isReady = true;
+            _logger.LogInformation("Voice clone pipeline ready");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Voice clone pipeline initialization failed");
+            throw;
         }
         finally
         {
@@ -77,6 +89,7 @@ public sealed class VoiceClonePipelineService : IDisposable
         var fileName = $"ref_{Guid.NewGuid():N}.wav";
         var filePath = Path.Combine(_referenceDir, fileName);
         await File.WriteAllBytesAsync(filePath, wavBytes);
+        _logger.LogInformation("Reference audio saved: {Path} ({Bytes} bytes)", filePath, wavBytes.Length);
         return (filePath, $"/references/{fileName}");
     }
 
@@ -88,10 +101,18 @@ public sealed class VoiceClonePipelineService : IDisposable
         if (!_isReady)
             throw new InvalidOperationException("Pipeline not initialized. Call InitializeAsync first.");
 
+        _logger.LogInformation("Extracting speaker embedding from {Path}", wavPath);
         await _semaphore.WaitAsync();
         try
         {
-            return await Task.Run(() => _pipeline!.ExtractSpeakerEmbedding(wavPath));
+            var embedding = await Task.Run(() => _pipeline!.ExtractSpeakerEmbedding(wavPath));
+            _logger.LogInformation("Speaker embedding extracted ({Dims} dimensions)", embedding.Length);
+            return embedding;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Speaker embedding extraction failed for {Path}", wavPath);
+            throw;
         }
         finally
         {
@@ -111,16 +132,29 @@ public sealed class VoiceClonePipelineService : IDisposable
         var fileName = $"{Guid.NewGuid():N}.wav";
         var filePath = Path.Combine(_outputDir, fileName);
 
+        _logger.LogInformation("Voice clone generation starting — text length: {Len}, language: {Lang}",
+            text.Length, language);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
         await _semaphore.WaitAsync();
         try
         {
             await Task.Run(async () =>
                 await _pipeline!.SynthesizeWithEmbeddingAsync(text, embedding, filePath, language, progress));
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Voice clone generation failed after {Elapsed}s", sw.Elapsed.TotalSeconds);
+            throw;
+        }
         finally
         {
             _semaphore.Release();
         }
+
+        var fi = new FileInfo(filePath);
+        _logger.LogInformation("Voice clone generation complete — {File} ({Bytes} bytes) in {Elapsed:F1}s",
+            fileName, fi.Length, sw.Elapsed.TotalSeconds);
 
         return $"/generated/{fileName}";
     }
