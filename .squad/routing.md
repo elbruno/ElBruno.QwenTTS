@@ -7,6 +7,7 @@ How to decide who handles what.
 | Work Type | Route To | Examples |
 |-----------|----------|----------|
 | GitHub Issues (bugs, features) | Switch | Fix crash, implement feature request, resolve reported bug |
+| Releases, versioning, NuGet | Cypher | New release, version bump, changelog update, NuGet publish |
 | Architecture, scope, decisions | Morpheus | Model selection, pipeline design, ONNX export strategy |
 | Python, ML, ONNX export | Trinity | PyTorch model analysis, ONNX conversion, tokenizer export |
 | C#, .NET, ONNX Runtime | Neo | Console app, ONNX inference, BPE tokenizer in C# |
