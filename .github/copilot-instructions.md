@@ -4,25 +4,56 @@ This is a **Squad-managed** repository (Squad v0.5.2) — an AI team framework w
 
 ## Application
 
-This repo contains a **Qwen3-TTS ONNX Pipeline + C# .NET 10 Console App** for local text-to-speech. Pre-exported ONNX models are hosted on HuggingFace at `elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX`.
+This repo contains **ElBruno.QwenTTS** — a C# .NET library and tools for running Qwen3-TTS text-to-speech locally using ONNX Runtime. The Core library is published to NuGet as `ElBruno.QwenTTS`. Pre-exported ONNX models are hosted on HuggingFace at `elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX`.
+
+## Build & Test
+
+```bash
+dotnet build          # Build all 5 projects
+dotnet test           # Run xUnit tests (ElBruno.QwenTTS.Core.Tests)
+dotnet pack src/ElBruno.QwenTTS.Core/ElBruno.QwenTTS.Core.csproj -c Release -o artifacts  # Create NuGet package
+```
+
+## Project Structure
+
+```
+ElBruno.QwenTTS.slnx                    # Solution file (5 projects)
+src/ElBruno.QwenTTS.Core/               # Core library (NuGet: ElBruno.QwenTTS, targets net8.0+net10.0)
+  Pipeline/TtsPipeline.cs               # Full TTS orchestrator + CreateAsync factory
+  Pipeline/ModelDownloader.cs            # Auto-download models from HuggingFace (~5.5 GB)
+  Models/                               # TextTokenizer, LanguageModel, Vocoder, EmbeddingStore
+  Audio/WavWriter.cs                    # WAV file writer (24 kHz, 16-bit PCM)
+src/ElBruno.QwenTTS/                    # CLI console application
+src/ElBruno.QwenTTS.FileReader/         # Batch file reader (text/SRT → audio)
+src/ElBruno.QwenTTS.Web/               # Blazor web app — text-to-speech UI (port 5153)
+src/ElBruno.QwenTTS.Core.Tests/        # xUnit unit tests
+docs/                                   # All documentation
+python/                                 # ONNX export & HuggingFace download tools (optional)
+images/nuget_01.png                     # NuGet package icon (512x512)
+```
+
+## Key Technical Details
+
+- **Shared model directory**: `ModelDownloader.DefaultModelDir` → `%LOCALAPPDATA%/ElBruno.QwenTTS/models` (Windows), `~/.local/share/ElBruno.QwenTTS/models` (Linux/macOS). All apps share this.
+- **TtsPipeline.CreateAsync()**: Factory method that auto-downloads models if missing, with byte-level progress reporting.
+- **ModelDownloadProgress**: Record with `CurrentFile`, `TotalFiles`, `FileName`, `BytesDownloaded`, `TotalBytes`, percentage properties.
+- **33 model files**: 7 ONNX (+.data), 15 CP codec embeddings, 8 other embeddings/config, 2 tokenizer files, 1 speaker_ids.json.
+- **HuggingFace URL pattern**: `https://huggingface.co/{repoId}/resolve/main/{filename}` — no API token needed for public repos.
+- **Web app async init**: `TtsPipelineService` has `InitializeAsync()` called from page `OnInitializedAsync()`. Uses `IDisposable` to unsubscribe from events.
+- **TTS inference offloaded**: `TtsPipelineService.GenerateAsync` wraps `SynthesizeAsync` in `Task.Run()` to keep Blazor UI responsive.
+
+## NuGet Publishing
+
+- **Package name**: `ElBruno.QwenTTS` (PackageId in Core csproj, distinct from CLI project name)
+- **Workflow**: `.github/workflows/publish.yml` — triggered on GitHub release or manual dispatch
+- **Authentication**: OIDC via `NuGet/login@v1`, requires `NUGET_USER` secret in `release` environment
+- **Version**: Determined from release tag (`v1.0.0` → `1.0.0`), manual input, or csproj fallback
 
 ## Documentation Convention
 
-- **Only `README.md` and `LICENSE` live at the repo root.** All other documentation goes in the `docs/` folder.
-- Documentation files use kebab-case naming (e.g., `docs/getting-started.md`, `docs/architecture.md`).
+- **Only `README.md`, `LICENSE`, and `CHANGELOG.md` live at the repo root.** All other documentation goes in `docs/`.
+- Documentation files use kebab-case naming (e.g., `docs/getting-started.md`, `docs/core-library.md`).
 - The main `README.md` should be concise with quick start commands and links to `docs/` for details.
-
-## Repository Structure
-
-- `docs/` — All documentation (prerequisites, getting started, architecture, exporting, troubleshooting, etc.)
-- `src/QwenTTS/` — C# .NET 10 console application
-- `python/` — ONNX export & download tools
-- `setup_environment.py` — One-command setup script
-- `.squad/` — **User-owned** team state (decisions, identity, ceremonies, skills, logs). Never overwritten by upgrades.
-- `.squad-templates/` — **Squad-owned** templates. Overwritten on upgrade — do not customize here.
-- `.github/agents/squad.agent.md` — Coordinator prompt (Squad-owned).
-- `.github/workflows/` — Squad CI/CD workflows (triage, heartbeat, label sync, release pipeline).
-- `.copilot/mcp-config.json` — MCP server configuration.
 
 ## Key Conventions
 
@@ -41,17 +72,3 @@ Squad distinguishes **user-owned** files (`.squad/`) from **Squad-owned** files 
 ### Branch Naming
 
 Squad branches follow: `squad/{issue-number}-{kebab-case-slug}` (e.g., `squad/42-fix-login-validation`).
-
-### Decision Flow
-
-Agents write decisions to `.squad/decisions/inbox/{agent-name}-{slug}.md`. The Scribe merges them into `.squad/decisions.md`.
-
-## Squad Skills
-
-Read `.squad/skills/squad-conventions/SKILL.md` for the full conventions reference. Key points:
-
-- **Zero runtime dependencies** — Node.js built-ins only (`fs`, `path`, `os`, `child_process`). Never add packages to `dependencies`.
-- **Tests** — `node:test` and `node:assert/strict`. Run with `npm test` (`node --test test/`).
-- **Error handling** — All user-facing errors go through `fatal(msg)` (red `✗` prefix, exit 1). No raw stack traces.
-- **ANSI colors** — Use constants (`GREEN`, `RED`, `DIM`, `BOLD`, `RESET`). Never inline escape codes.
-- **Windows compatibility** — Always use `path.join()`. Never hardcode `/` or `\` separators.
