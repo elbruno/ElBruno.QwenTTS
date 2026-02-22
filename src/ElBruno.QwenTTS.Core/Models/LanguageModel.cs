@@ -43,8 +43,20 @@ internal sealed class LanguageModel : IDisposable
                              int topK = 50, float topP = 1.0f,
                              float repetitionPenalty = 1.05f)
     {
-        var cfg = _embeddings.Config;
         var speakerId = _embeddings.GetSpeakerId(speaker.ToLowerInvariant());
+        return GenerateWithSpeakerId(tokenIds, speakerId, language, maxNewTokens, temperature, topK, topP, repetitionPenalty);
+    }
+
+    /// <summary>
+    /// Generate audio codes using an explicit speaker ID. Pass -1 to omit the speaker token
+    /// from the codec prefix (used by the Base model where voice identity comes from a speaker embedding).
+    /// </summary>
+    public long[,,] GenerateWithSpeakerId(int[] tokenIds, int speakerId, string language,
+                             int maxNewTokens = 2048, float temperature = 0.9f,
+                             int topK = 50, float topP = 1.0f,
+                             float repetitionPenalty = 1.05f)
+    {
+        var cfg = _embeddings.Config;
         
         // Build prefill embedding
         var (inputsEmbeds, trailingTextHidden) = BuildPrefillEmbedding(tokenIds, speakerId, language, cfg);
@@ -264,7 +276,9 @@ internal sealed class LanguageModel : IDisposable
             codecPrefix.Add(cfg.talker.codec_think_eos_id);
         }
         
-        codecPrefix.Add(speakerId);
+        // Speaker token: only add when speakerId >= 0 (Base model has no speakers)
+        if (speakerId >= 0)
+            codecPrefix.Add(speakerId);
         codecPrefix.Add(cfg.talker.codec_pad_id);
         codecPrefix.Add(cfg.talker.codec_bos_id);
 
