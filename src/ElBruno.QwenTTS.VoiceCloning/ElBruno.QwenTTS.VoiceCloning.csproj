@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>CS1591</NoWarn>
+    <PackageId>ElBruno.QwenTTS.VoiceCloning</PackageId>
+    <Description>Voice cloning extension for ElBruno.QwenTTS. Clone any voice from a 3-second audio sample using the Qwen3-TTS Base model with ECAPA-TDNN speaker encoder.</Description>
+    <Authors>Bruno Capuano</Authors>
+    <RepositoryUrl>https://github.com/elbruno/ElBruno.QwenTTS</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/elbruno/ElBruno.QwenTTS</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>nuget_01.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>tts;text-to-speech;voice-cloning;qwen;onnx;ai;local;speech-synthesis;ecapa-tdnn;speaker-encoder</PackageTags>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ElBruno.QwenTTS.Core\ElBruno.QwenTTS.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.24.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\images\nuget_01.png" Pack="true" PackagePath="\" Link="nuget_01.png" />
+  </ItemGroup>
+
+</Project>

@@ -5,5 +5,7 @@
     <Project Path="src/ElBruno.QwenTTS.FileReader/ElBruno.QwenTTS.FileReader.csproj" />
     <Project Path="src/ElBruno.QwenTTS.Web/ElBruno.QwenTTS.Web.csproj" />
     <Project Path="src/ElBruno.QwenTTS.Core.Tests/ElBruno.QwenTTS.Core.Tests.csproj" />
+    <Project Path="src/ElBruno.QwenTTS.VoiceCloning/ElBruno.QwenTTS.VoiceCloning.csproj" />
+    <Project Path="src/ElBruno.QwenTTS.VoiceCloning.Tests/ElBruno.QwenTTS.VoiceCloning.Tests.csproj" />
   </Folder>
 </Solution>
