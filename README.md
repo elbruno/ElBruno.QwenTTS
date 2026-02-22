@@ -10,16 +10,18 @@
 Run **Qwen3-TTS** text-to-speech locally from C# using ONNX Runtime — no Python needed at inference time. Models are downloaded automatically on first run.
 
 Pre-exported ONNX models are hosted on HuggingFace:
-[**elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX**](https://huggingface.co/elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX)
+[**elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX**](https://huggingface.co/elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX) (preset voices) |
+[**elbruno/Qwen3-TTS-12Hz-0.6B-Base-ONNX**](https://huggingface.co/elbruno/Qwen3-TTS-12Hz-0.6B-Base-ONNX) (voice cloning)
 
 ## Features
 
 - **Local TTS Inference** — Run Qwen3-TTS entirely on your machine using ONNX Runtime
 - **Automatic Model Download** — Models download from HuggingFace on first run (~5.5 GB)
 - **Multi-Speaker** — 9 built-in voices: ryan, serena, vivian, aiden, eric, dylan, uncle_fu, ono_anna, sohee
+- **Voice Cloning** — Clone any voice from a 3-second audio sample ([docs](docs/voice-cloning.md))
 - **Multi-Language** — English, Spanish, Chinese, Japanese, Korean
 - **Voice Control** — Instruction-based style (e.g., "speak with excitement")
-- **Shared Model Cache** — Models stored once in `%LOCALAPPDATA%/ElBruno.QwenTTS/models`, shared across all apps
+- **Shared Model Cache** — Models stored once in `%LOCALAPPDATA%/ElBruno/QwenTTS`, shared across all apps
 - **24 kHz WAV Output** — High-quality mono audio
 
 ---
@@ -49,6 +51,23 @@ dotnet run --project src/ElBruno.QwenTTS -- --model-dir models --text "Hello, th
 ```
 
 Models are downloaded automatically if not present in the `--model-dir` directory.
+
+### Voice Cloning
+
+Clone any voice from a 3-second audio sample using the `ElBruno.QwenTTS.VoiceCloning` package:
+
+```bash
+dotnet add package ElBruno.QwenTTS.VoiceCloning
+```
+
+```csharp
+using ElBruno.QwenTTS.VoiceCloning.Pipeline;
+
+var cloner = await VoiceClonePipeline.CreateAsync();
+await cloner.SynthesizeAsync("Hello world!", "reference_speaker.wav", "output.wav", "english");
+```
+
+See [docs/voice-cloning.md](docs/voice-cloning.md) for full documentation.
 
 ## More Examples
 
