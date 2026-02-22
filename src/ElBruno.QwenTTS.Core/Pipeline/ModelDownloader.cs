@@ -13,13 +13,13 @@ public sealed class ModelDownloader
     private const string HfApiBase = "https://huggingface.co/api/models";
 
     /// <summary>
-    /// Default shared model directory: %LOCALAPPDATA%/ElBruno.QwenTTS/models (Windows)
-    /// or ~/.local/share/ElBruno.QwenTTS/models (Linux/macOS).
+    /// Default shared model directory: %LOCALAPPDATA%/ElBruno/QwenTTS (Windows)
+    /// or ~/.local/share/ElBruno/QwenTTS (Linux/macOS).
     /// All apps using the Core library share this location to avoid duplicate downloads.
     /// </summary>
     public static string DefaultModelDir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                     "ElBruno.QwenTTS", "models");
+                     "ElBruno", "QwenTTS");
 
     private static readonly string[] ExpectedFiles =
     [
