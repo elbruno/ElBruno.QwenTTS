@@ -8,7 +8,7 @@ namespace ElBruno.QwenTTS.Models;
 /// Converts discrete audio codes (16 RVQ codebooks) to PCM waveform at 24 kHz.
 /// Input shape: (1, 16, T) int64 — Output shape: (1, 1, T*1920) float32.
 /// </summary>
-public sealed class Vocoder : IDisposable
+internal sealed class Vocoder : IDisposable
 {
     private InferenceSession? _session;
     private string? _inputName;

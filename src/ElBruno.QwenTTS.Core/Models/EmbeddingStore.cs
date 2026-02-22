@@ -6,7 +6,7 @@ namespace ElBruno.QwenTTS.Models;
 /// Loads and provides access to all embedding matrices (.npy files).
 /// Includes text embeddings, projection layers, codec embeddings, and speaker IDs.
 /// </summary>
-public sealed class EmbeddingStore : IDisposable
+internal sealed class EmbeddingStore : IDisposable
 {
     private readonly float[,] _textEmbedding;           // (vocab_size, 2048)
     private readonly float[,] _fc1Weight;               // (2048, 2048)
@@ -157,7 +157,7 @@ public sealed class EmbeddingStore : IDisposable
 /// <summary>
 /// Model configuration loaded from config.json
 /// </summary>
-public sealed class ModelConfig
+internal sealed class ModelConfig
 {
     public TalkerConfig talker { get; set; } = new();
     public CodePredictorConfig code_predictor { get; set; } = new();
@@ -166,7 +166,7 @@ public sealed class ModelConfig
     public Dictionary<string, object> speaker_dialect { get; set; } = new();
 }
 
-public sealed class TalkerConfig
+internal sealed class TalkerConfig
 {
     public int codec_eos_token_id { get; set; }
     public int codec_pad_id { get; set; }
@@ -184,7 +184,7 @@ public sealed class TalkerConfig
     public int vocab_size { get; set; }
 }
 
-public sealed class CodePredictorConfig
+internal sealed class CodePredictorConfig
 {
     public int num_hidden_layers { get; set; }
     public int num_key_value_heads { get; set; }
@@ -192,7 +192,7 @@ public sealed class CodePredictorConfig
     public int vocab_size { get; set; }
 }
 
-public sealed class TtsConfig
+internal sealed class TtsConfig
 {
     public int tts_bos_token_id { get; set; }
     public int tts_eos_token_id { get; set; }

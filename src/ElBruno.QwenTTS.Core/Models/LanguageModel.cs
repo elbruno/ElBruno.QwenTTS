@@ -8,7 +8,7 @@ namespace ElBruno.QwenTTS.Models;
 /// Runs autoregressive inference with KV-cache to generate audio codes
 /// from tokenized text input.
 /// </summary>
-public sealed class LanguageModel : IDisposable
+internal sealed class LanguageModel : IDisposable
 {
     private InferenceSession? _prefillSession;
     private InferenceSession? _decodeSession;

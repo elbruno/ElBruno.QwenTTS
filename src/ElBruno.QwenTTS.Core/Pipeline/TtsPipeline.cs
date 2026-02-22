@@ -7,7 +7,7 @@ namespace ElBruno.QwenTTS.Pipeline;
 /// <summary>
 /// Orchestrates the full TTS pipeline: text → tokenize → LM → vocoder → WAV.
 /// </summary>
-public sealed class TtsPipeline : IDisposable
+public sealed class TtsPipeline : ITtsPipeline
 {
     private readonly TextTokenizer _tokenizer;
     private readonly LanguageModel _languageModel;
@@ -65,6 +65,14 @@ public sealed class TtsPipeline : IDisposable
         progress?.Report($"Saved {Path.GetFileName(outputPath)} ({waveform.Length} samples, {duration:F2}s)");
         Console.WriteLine($"Saved {outputPath} ({waveform.Length} samples, {duration:F2}s)");
     }
+
+    /// <summary>
+    /// Synthesizes speech using a strongly-typed voice preset.
+    /// </summary>
+    public Task SynthesizeAsync(string text, QwenVoicePreset speaker, string outputPath,
+                                string language = "auto", string? instruct = null,
+                                IProgress<string>? progress = null)
+        => SynthesizeAsync(text, speaker.ToSpeakerName(), outputPath, language, instruct, progress);
 
     /// <summary>
     /// Creates a TtsPipeline, automatically downloading model files if they are missing.

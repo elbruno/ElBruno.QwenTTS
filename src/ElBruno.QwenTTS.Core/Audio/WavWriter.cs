@@ -4,7 +4,7 @@ namespace ElBruno.QwenTTS.Audio;
 /// Writes float32 PCM samples to a standard WAV file.
 /// Produces 16-bit PCM WAV at the specified sample rate (default 24 kHz).
 /// </summary>
-public static class WavWriter
+internal static class WavWriter
 {
     /// <summary>
     /// Writes float32 samples to a WAV file as 16-bit PCM.

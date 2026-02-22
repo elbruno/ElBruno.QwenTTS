@@ -8,7 +8,7 @@ namespace ElBruno.QwenTTS.Models;
 /// Loads vocab.json and merges.txt to produce token IDs identical to
 /// the Python HuggingFace tokenizer (Qwen2Tokenizer).
 /// </summary>
-public sealed class TextTokenizer : IDisposable
+internal sealed class TextTokenizer : IDisposable
 {
     // --- Special token IDs (from model config / tokenizer_config.json) ---
     public const int EndOfTextId = 151643;
