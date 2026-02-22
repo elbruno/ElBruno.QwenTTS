@@ -51,8 +51,6 @@ src/ElBruno.QwenTTS.FileReader/          # Batch file reader (text/SRT → audio
 
 src/ElBruno.QwenTTS.Web/                 # Blazor web app — single text-to-speech
 
-src/ElBruno.QwenTTS.Podcast/             # Blazor web app — podcast episode generator
-
 docs/                            # Documentation
 python/                          # ONNX export & download tools (optional)
 samples/                         # Sample text files and podcast scripts

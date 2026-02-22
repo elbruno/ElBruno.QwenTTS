@@ -10,7 +10,7 @@ dotnet run --project src/ElBruno.QwenTTS.Web
 
 Then open [http://localhost:5153](http://localhost:5153) in your browser.
 
-> **Note:** The Podcast Generator is a separate app — see [Podcast Generator](podcast.md).
+> **Note:** The Podcast Generator has moved to its own repository: [ElBruno.Podcast.TTS](https://github.com/elbruno/ElBruno.Podcast.TTS)
 
 ## Features
 

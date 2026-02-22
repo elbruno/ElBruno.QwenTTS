@@ -4,7 +4,6 @@
     <Project Path="src/ElBruno.QwenTTS/ElBruno.QwenTTS.csproj" />
     <Project Path="src/ElBruno.QwenTTS.FileReader/ElBruno.QwenTTS.FileReader.csproj" />
     <Project Path="src/ElBruno.QwenTTS.Web/ElBruno.QwenTTS.Web.csproj" />
-    <Project Path="src/ElBruno.QwenTTS.Podcast/ElBruno.QwenTTS.Podcast.csproj" />
     <Project Path="src/ElBruno.QwenTTS.Core.Tests/ElBruno.QwenTTS.Core.Tests.csproj" />
   </Folder>
 </Solution>

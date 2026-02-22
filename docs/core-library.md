@@ -187,7 +187,7 @@ All apps using `ElBruno.QwenTTS.Core` share the same default model directory:
 - **Windows:** `%LOCALAPPDATA%\ElBruno.QwenTTS\models`
 - **Linux/macOS:** `~/.local/share/ElBruno.QwenTTS/models`
 
-This means models are downloaded once and reused by CLI, Web, Podcast, and any custom app. Override with a custom path if needed.
+This means models are downloaded once and reused by CLI, Web, and any custom app. Override with a custom path if needed.
 
 ## Usage Examples
 

@@ -65,13 +65,9 @@ dotnet run --project src/ElBruno.QwenTTS.Web
 
 Open [http://localhost:5153](http://localhost:5153) — type text or upload files, pick a voice, and generate speech.
 
-### Podcast Generator (browser UI — Multi-speaker episodes)
+### Podcast Generator
 
-```bash
-dotnet run --project src/ElBruno.QwenTTS.Podcast
-```
-
-Open [http://localhost:5217](http://localhost:5217) — upload a multi-speaker script file and generate a full podcast episode. See the **Prompts** page for LLM prompt templates to generate scripts.
+The podcast generator has moved to its own repository: [**ElBruno.Podcast.TTS**](https://github.com/elbruno/ElBruno.Podcast.TTS)
 
 ---
 
@@ -85,7 +81,6 @@ Open [http://localhost:5217](http://localhost:5217) — upload a multi-speaker s
 | [CLI Reference](docs/cli-reference.md) | All command options, speakers, and examples |
 | [File Reader](docs/file-reader.md) | Batch audio generation from text and SRT files |
 | [Web App](docs/web-app.md) | Blazor web UI for speech generation |
-| [Podcast Generator](docs/podcast.md) | Multi-speaker podcast episode generation |
 | [Architecture](docs/architecture.md) | Pipeline design, model components, project structure |
 | [Exporting Models](docs/exporting-models.md) | Re-exporting ONNX models from PyTorch weights |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues and fixes |
