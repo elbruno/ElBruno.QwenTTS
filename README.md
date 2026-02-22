@@ -70,6 +70,24 @@ await cloner.SynthesizeAsync("Hello world!", "reference_speaker.wav", "output.wa
 
 See [docs/voice-cloning.md](docs/voice-cloning.md) for full documentation.
 
+### GPU Acceleration
+
+Pass a `sessionOptionsFactory` to use CUDA or DirectML instead of CPU:
+
+```csharp
+using ElBruno.QwenTTS.Pipeline;
+
+// CUDA (NVIDIA) — requires Microsoft.ML.OnnxRuntime.Gpu NuGet package
+var tts = await TtsPipeline.CreateAsync(
+    sessionOptionsFactory: OrtSessionHelper.CreateCudaOptions);
+
+// DirectML (any GPU on Windows) — requires Microsoft.ML.OnnxRuntime.DirectML NuGet package
+var tts = await TtsPipeline.CreateAsync(
+    sessionOptionsFactory: OrtSessionHelper.CreateDirectMlOptions);
+```
+
+See [docs/gpu-acceleration.md](docs/gpu-acceleration.md) for full setup instructions.
+
 ## More Examples
 
 ```bash
