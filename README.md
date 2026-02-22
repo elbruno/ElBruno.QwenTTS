@@ -88,7 +88,7 @@ var tts = await TtsPipeline.CreateAsync(
     vocoderSessionOptionsFactory: OrtSessionHelper.CreateCpuOptions);
 ```
 
-> **DirectML note:** Models must be patched first with `python python/patch_models_for_dml.py <model_dir>`. See [docs/gpu-acceleration.md](docs/gpu-acceleration.md) for details.
+See [docs/gpu-acceleration.md](docs/gpu-acceleration.md) for full setup instructions.
 
 ## More Examples
 
