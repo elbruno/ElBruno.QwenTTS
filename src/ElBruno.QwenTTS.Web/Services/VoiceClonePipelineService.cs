@@ -59,10 +59,8 @@ public sealed class VoiceClonePipelineService : IDisposable
         try
         {
             var progress = new Progress<ModelDownloadProgress>(p => OnDownloadProgress?.Invoke(p));
-            _pipeline = await VoiceClonePipeline.CreateAsync(_modelDir, progress: new Progress<string>(msg =>
-            {
-                // Bridge string progress to download progress event
-            }), cancellationToken: cancellationToken);
+            _pipeline = await VoiceClonePipeline.CreateAsync(_modelDir, progress,
+                cancellationToken: cancellationToken);
             _isReady = true;
         }
         finally

@@ -141,6 +141,22 @@ public sealed class VoiceClonePipeline : IDisposable
         return new VoiceClonePipeline(modelDir, sessionOptionsFactory);
     }
 
+    /// <summary>
+    /// Creates a VoiceClonePipeline with detailed download progress reporting.
+    /// </summary>
+    public static async Task<VoiceClonePipeline> CreateAsync(
+        string? modelDir,
+        IProgress<ModelDownloadProgress> downloadProgress,
+        string repoId = VoiceCloningDownloader.DefaultRepoId,
+        Func<SessionOptions>? sessionOptionsFactory = null,
+        CancellationToken cancellationToken = default)
+    {
+        modelDir ??= VoiceCloningDownloader.DefaultModelDir;
+        if (!VoiceCloningDownloader.IsModelDownloaded(modelDir))
+            await VoiceCloningDownloader.DownloadModelAsync(modelDir, repoId, downloadProgress, cancellationToken);
+        return new VoiceClonePipeline(modelDir, sessionOptionsFactory);
+    }
+
     public void Dispose()
     {
         _tokenizer.Dispose();
