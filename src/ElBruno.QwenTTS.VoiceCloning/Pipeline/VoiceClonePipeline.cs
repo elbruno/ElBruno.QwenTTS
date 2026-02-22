@@ -85,16 +85,16 @@ public sealed class VoiceClonePipeline : IDisposable
     public async Task SynthesizeWithEmbeddingAsync(string text, float[] speakerEmbedding, string outputPath,
                                                     string language = "auto", IProgress<string>? progress = null)
     {
-        // Build prompt tokens (use "default" speaker — embedding replaces speaker identity)
-        var tokenIds = _tokenizer.BuildCustomVoicePrompt(text, "default", language, instruct: null);
+        // Use first available speaker as placeholder — voice identity comes from the ECAPA-TDNN embedding
+        var placeholderSpeaker = _embeddings.GetAvailableSpeakers().First();
+
+        var tokenIds = _tokenizer.BuildCustomVoicePrompt(text, placeholderSpeaker, language, instruct: null);
         progress?.Report($"Tokenized input ({tokenIds.Length} tokens)");
         Console.WriteLine($"Generating speech ({tokenIds.Length} input tokens)...");
 
         // Generate audio codes via LM
-        // Note: For the Base model, the speaker identity comes from the ECAPA-TDNN embedding,
-        // not from the speaker name. We pass "default" as a placeholder.
         progress?.Report("Running language model inference...");
-        var codes = _languageModel.Generate(tokenIds, "default", language);
+        var codes = _languageModel.Generate(tokenIds, placeholderSpeaker, language);
 
         int timesteps = codes.GetLength(2);
         progress?.Report($"Generated {timesteps} audio frames");
