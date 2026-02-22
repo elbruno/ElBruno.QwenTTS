@@ -13,16 +13,21 @@
     <link rel="icon" type="image/png" href="favicon.png" />
     <HeadOutlet />
     <script>
-        // Theme management
+        // Theme management — persists via localStorage, respects system preference
         function setTheme(theme) {
+            localStorage.setItem('qwen-theme', theme);
+            applyTheme(theme);
+        }
+
+        function applyTheme(theme) {
             if (theme === 'system') {
-                document.documentElement.removeAttribute('data-theme');
-                localStorage.removeItem('qwen-theme');
+                // Follow OS preference
+                var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
             } else {
                 document.documentElement.setAttribute('data-theme', theme);
-                localStorage.setItem('qwen-theme', theme);
             }
-            // Update active state on buttons
+            // Update active state on theme buttons
             document.querySelectorAll('.theme-btn').forEach(function(btn) {
                 btn.classList.remove('active');
             });
@@ -30,29 +35,38 @@
             var btns = document.querySelectorAll('.theme-btn');
             if (btns[labels[theme]]) btns[labels[theme]].classList.add('active');
         }
-        // Restore persisted theme
-        (function() {
-            var saved = localStorage.getItem('qwen-theme');
-            if (saved && saved !== 'system') {
-                document.documentElement.setAttribute('data-theme', saved);
-            } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-                document.documentElement.removeAttribute('data-theme');
-            }
-            // Highlight active nav pill on load
-            document.addEventListener('DOMContentLoaded', function() {
-                var path = window.location.pathname;
-                document.querySelectorAll('.app-top-bar .nav-pill').forEach(function(a) {
-                    var href = a.getAttribute('href');
-                    if (path === href || (href === '/' && path === '/')) a.classList.add('active');
-                    else a.classList.remove('active');
-                });
-                // Set active theme button
-                var theme = saved || 'system';
-                var labels = {'light':0,'system':1,'dark':2};
-                var btns = document.querySelectorAll('.theme-btn');
-                if (btns[labels[theme]]) btns[labels[theme]].classList.add('active');
+
+        function initThemeAndNav() {
+            var theme = localStorage.getItem('qwen-theme') || 'system';
+            applyTheme(theme);
+            // Highlight active nav pill
+            var path = window.location.pathname;
+            document.querySelectorAll('.app-top-bar .nav-pill').forEach(function(a) {
+                var href = a.getAttribute('href');
+                if (path === href || (href === '/' && path === '/')) a.classList.add('active');
+                else a.classList.remove('active');
             });
+        }
+
+        // Restore immediately (before paint) to prevent flash
+        (function() {
+            var theme = localStorage.getItem('qwen-theme') || 'system';
+            if (theme === 'system') {
+                var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+            } else {
+                document.documentElement.setAttribute('data-theme', theme);
+            }
         })();
+
+        // Re-apply on DOMContentLoaded + Blazor enhanced navigation
+        document.addEventListener('DOMContentLoaded', initThemeAndNav);
+
+        // Listen for OS theme changes when in system mode
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+            var theme = localStorage.getItem('qwen-theme') || 'system';
+            if (theme === 'system') applyTheme('system');
+        });
     </script>
 </head>
 
@@ -61,6 +75,10 @@
     <ReconnectModal />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script src="js/audioRecorder.js"></script>
+    <script>
+        // Re-apply theme and nav state after Blazor enhanced navigation
+        Blazor.addEventListener('enhancedload', initThemeAndNav);
+    </script>
 </body>
 
 </html>
