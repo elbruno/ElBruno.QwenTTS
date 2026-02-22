@@ -1,10 +1,18 @@
-# ElBruno.QwenTTS.Core — Library Reference
+# ElBruno.QwenTTS — Library Reference
 
-The **ElBruno.QwenTTS.Core** library provides the complete Qwen3-TTS inference pipeline for .NET applications. It handles tokenization, language model inference (via ONNX Runtime), vocoder decoding, and WAV file generation — all running locally with no external API calls.
+[![NuGet](https://img.shields.io/nuget/v/ElBruno.QwenTTS.svg)](https://www.nuget.org/packages/ElBruno.QwenTTS)
+
+The **ElBruno.QwenTTS** library provides the complete Qwen3-TTS inference pipeline for .NET applications. It handles tokenization, language model inference (via ONNX Runtime), vocoder decoding, and WAV file generation — all running locally with no external API calls.
 
 ## Installation
 
-Add a project reference to `ElBruno.QwenTTS.Core`:
+### NuGet Package (recommended)
+
+```bash
+dotnet add package ElBruno.QwenTTS
+```
+
+### Project Reference (for source-level development)
 
 ```xml
 <ProjectReference Include="..\ElBruno.QwenTTS.Core\ElBruno.QwenTTS.Core.csproj" />

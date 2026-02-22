@@ -1,4 +1,7 @@
-# Qwen3-TTS ONNX Pipeline + C# .NET 10
+# Qwen3-TTS ONNX Pipeline + C# .NET
+
+[![NuGet](https://img.shields.io/nuget/v/ElBruno.QwenTTS.svg)](https://www.nuget.org/packages/ElBruno.QwenTTS)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/ElBruno.QwenTTS.svg)](https://www.nuget.org/packages/ElBruno.QwenTTS)
 
 Run **Qwen3-TTS** text-to-speech locally from C# using ONNX Runtime — no Python needed at inference time. Models are downloaded automatically on first run.
 
@@ -8,6 +11,12 @@ Pre-exported ONNX models are hosted on HuggingFace:
 ---
 
 ## Quick Start
+
+### Install via NuGet
+
+```bash
+dotnet add package ElBruno.QwenTTS
+```
 
 ### Option 1: C# (recommended — no Python needed)
 
