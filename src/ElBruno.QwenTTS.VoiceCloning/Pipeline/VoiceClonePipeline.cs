@@ -1,3 +1,4 @@
+using Microsoft.ML.OnnxRuntime;
 using ElBruno.QwenTTS.Audio;
 using ElBruno.QwenTTS.Models;
 using ElBruno.QwenTTS.Pipeline;
@@ -20,7 +21,12 @@ public sealed class VoiceClonePipeline : IDisposable
     private readonly EmbeddingStore _embeddings;
     private readonly SpeakerEncoder _speakerEncoder;
 
-    public VoiceClonePipeline(string modelDir)
+    /// <summary>
+    /// Creates a VoiceClonePipeline from a local model directory.
+    /// </summary>
+    /// <param name="modelDir">Directory containing ONNX models, embeddings, and tokenizer.</param>
+    /// <param name="sessionOptionsFactory">Optional factory for ONNX Runtime session options (e.g., for GPU acceleration). When null, uses CPU with max optimization.</param>
+    public VoiceClonePipeline(string modelDir, Func<SessionOptions>? sessionOptionsFactory = null)
     {
         var tokenizerDir = Path.Combine(modelDir, "tokenizer");
         var embeddingsDir = Path.Combine(modelDir, "embeddings");
@@ -34,9 +40,9 @@ public sealed class VoiceClonePipeline : IDisposable
 
         _tokenizer = new TextTokenizer(tokenizerDir);
         _embeddings = new EmbeddingStore(embeddingsDir, configPath);
-        _languageModel = new LanguageModel(modelDir, _embeddings);
-        _vocoder = new Vocoder(Path.Combine(modelDir, "vocoder.onnx"));
-        _speakerEncoder = new SpeakerEncoder(speakerEncoderPath);
+        _languageModel = new LanguageModel(modelDir, _embeddings, sessionOptionsFactory);
+        _vocoder = new Vocoder(Path.Combine(modelDir, "vocoder.onnx"), sessionOptionsFactory);
+        _speakerEncoder = new SpeakerEncoder(speakerEncoderPath, sessionOptionsFactory);
     }
 
     /// <summary>
@@ -110,10 +116,16 @@ public sealed class VoiceClonePipeline : IDisposable
     /// <summary>
     /// Creates a VoiceClonePipeline, automatically downloading Base model files if missing.
     /// </summary>
+    /// <param name="modelDir">Directory to store/load model files. Defaults to shared location in LocalAppData.</param>
+    /// <param name="repoId">HuggingFace repository ID.</param>
+    /// <param name="progress">Optional progress callback for download status.</param>
+    /// <param name="sessionOptionsFactory">Optional factory for ONNX Runtime session options (e.g., for GPU acceleration).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public static async Task<VoiceClonePipeline> CreateAsync(
         string? modelDir = null,
         string repoId = VoiceCloningDownloader.DefaultRepoId,
         IProgress<string>? progress = null,
+        Func<SessionOptions>? sessionOptionsFactory = null,
         CancellationToken cancellationToken = default)
     {
         modelDir ??= VoiceCloningDownloader.DefaultModelDir;
@@ -126,7 +138,7 @@ public sealed class VoiceClonePipeline : IDisposable
             await VoiceCloningDownloader.DownloadModelAsync(modelDir, repoId, downloadProgress, cancellationToken);
             progress?.Report("Model download complete.");
         }
-        return new VoiceClonePipeline(modelDir);
+        return new VoiceClonePipeline(modelDir, sessionOptionsFactory);
     }
 
     public void Dispose()

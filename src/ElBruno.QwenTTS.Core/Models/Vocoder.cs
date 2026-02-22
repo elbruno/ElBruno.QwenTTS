@@ -13,26 +13,31 @@ public sealed class Vocoder : IDisposable
     private InferenceSession? _session;
     private string? _inputName;
     private readonly string _modelPath;
+    private readonly Func<SessionOptions> _sessionOptionsFactory;
 
     public int SampleRate => 24000;
 
     /// <summary>
     /// Creates a vocoder wrapper. Session is loaded lazily on first Decode call.
     /// </summary>
-    public Vocoder(string modelPath)
+    /// <param name="modelPath">Path to the vocoder ONNX model.</param>
+    /// <param name="sessionOptionsFactory">Optional factory for ONNX Runtime session options (e.g., for GPU acceleration).</param>
+    public Vocoder(string modelPath, Func<SessionOptions>? sessionOptionsFactory = null)
     {
         _modelPath = modelPath;
+        _sessionOptionsFactory = sessionOptionsFactory ?? CreateDefaultOptions;
     }
+
+    private static SessionOptions CreateDefaultOptions() => new()
+    {
+        GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
+    };
 
     private InferenceSession GetSession()
     {
         if (_session is null)
         {
-            var options = new SessionOptions
-            {
-                GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
-            };
-            _session = new InferenceSession(_modelPath, options);
+            _session = new InferenceSession(_modelPath, _sessionOptionsFactory());
             _inputName = _session.InputMetadata.Keys.FirstOrDefault() ?? "codes";
         }
         return _session;

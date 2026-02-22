@@ -1,3 +1,4 @@
+using Microsoft.ML.OnnxRuntime;
 using ElBruno.QwenTTS.Audio;
 using ElBruno.QwenTTS.Models;
 
@@ -13,7 +14,12 @@ public sealed class TtsPipeline : IDisposable
     private readonly Vocoder _vocoder;
     private readonly EmbeddingStore _embeddings;
 
-    public TtsPipeline(string modelDir)
+    /// <summary>
+    /// Creates a TtsPipeline from a local model directory.
+    /// </summary>
+    /// <param name="modelDir">Directory containing ONNX models, embeddings, and tokenizer.</param>
+    /// <param name="sessionOptionsFactory">Optional factory for ONNX Runtime session options (e.g., for GPU acceleration). When null, uses CPU with max optimization.</param>
+    public TtsPipeline(string modelDir, Func<SessionOptions>? sessionOptionsFactory = null)
     {
         var tokenizerDir = Path.Combine(modelDir, "tokenizer");
         var embeddingsDir = Path.Combine(modelDir, "embeddings");
@@ -21,8 +27,8 @@ public sealed class TtsPipeline : IDisposable
 
         _tokenizer = new TextTokenizer(tokenizerDir);
         _embeddings = new EmbeddingStore(embeddingsDir, configPath);
-        _languageModel = new LanguageModel(modelDir, _embeddings);
-        _vocoder = new Vocoder(Path.Combine(modelDir, "vocoder.onnx"));
+        _languageModel = new LanguageModel(modelDir, _embeddings, sessionOptionsFactory);
+        _vocoder = new Vocoder(Path.Combine(modelDir, "vocoder.onnx"), sessionOptionsFactory);
     }
 
     /// <summary>Available speaker names from the model.</summary>
@@ -65,11 +71,13 @@ public sealed class TtsPipeline : IDisposable
     /// <param name="modelDir">Directory to store/load model files. Defaults to shared location in LocalAppData.</param>
     /// <param name="repoId">HuggingFace repository ID (default: elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX).</param>
     /// <param name="progress">Optional progress callback for download status.</param>
+    /// <param name="sessionOptionsFactory">Optional factory for ONNX Runtime session options (e.g., for GPU acceleration).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     public static async Task<TtsPipeline> CreateAsync(
         string? modelDir = null,
         string repoId = ModelDownloader.DefaultRepoId,
         IProgress<string>? progress = null,
+        Func<SessionOptions>? sessionOptionsFactory = null,
         CancellationToken cancellationToken = default)
     {
         modelDir ??= ModelDownloader.DefaultModelDir;
@@ -82,7 +90,7 @@ public sealed class TtsPipeline : IDisposable
             await ModelDownloader.DownloadModelAsync(modelDir, repoId, downloadProgress, cancellationToken);
             progress?.Report("Model download complete.");
         }
-        return new TtsPipeline(modelDir);
+        return new TtsPipeline(modelDir, sessionOptionsFactory);
     }
 
     /// <summary>
@@ -92,12 +100,13 @@ public sealed class TtsPipeline : IDisposable
         string? modelDir,
         IProgress<ModelDownloadProgress> downloadProgress,
         string repoId = ModelDownloader.DefaultRepoId,
+        Func<SessionOptions>? sessionOptionsFactory = null,
         CancellationToken cancellationToken = default)
     {
         modelDir ??= ModelDownloader.DefaultModelDir;
         if (!ModelDownloader.IsModelDownloaded(modelDir))
             await ModelDownloader.DownloadModelAsync(modelDir, repoId, downloadProgress, cancellationToken);
-        return new TtsPipeline(modelDir);
+        return new TtsPipeline(modelDir, sessionOptionsFactory);
     }
 
     public void Dispose()

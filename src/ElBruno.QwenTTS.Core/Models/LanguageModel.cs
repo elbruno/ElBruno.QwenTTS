@@ -15,26 +15,28 @@ public sealed class LanguageModel : IDisposable
     private InferenceSession? _cpSession;
     private readonly EmbeddingStore _embeddings;
     private readonly string _modelDir;
+    private readonly Func<SessionOptions> _sessionOptionsFactory;
 
-    public LanguageModel(string modelDir, EmbeddingStore embeddings)
+    public LanguageModel(string modelDir, EmbeddingStore embeddings, Func<SessionOptions>? sessionOptionsFactory = null)
     {
         _embeddings = embeddings;
         _modelDir = modelDir;
+        _sessionOptionsFactory = sessionOptionsFactory ?? CreateDefaultOptions;
     }
 
-    private static SessionOptions CreateOptions() => new()
+    private static SessionOptions CreateDefaultOptions() => new()
     {
         GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
     };
 
     private InferenceSession GetPrefillSession()
-        => _prefillSession ??= new InferenceSession(Path.Combine(_modelDir, "talker_prefill.onnx"), CreateOptions());
+        => _prefillSession ??= new InferenceSession(Path.Combine(_modelDir, "talker_prefill.onnx"), _sessionOptionsFactory());
 
     private InferenceSession GetDecodeSession()
-        => _decodeSession ??= new InferenceSession(Path.Combine(_modelDir, "talker_decode.onnx"), CreateOptions());
+        => _decodeSession ??= new InferenceSession(Path.Combine(_modelDir, "talker_decode.onnx"), _sessionOptionsFactory());
 
     private InferenceSession GetCpSession()
-        => _cpSession ??= new InferenceSession(Path.Combine(_modelDir, "code_predictor.onnx"), CreateOptions());
+        => _cpSession ??= new InferenceSession(Path.Combine(_modelDir, "code_predictor.onnx"), _sessionOptionsFactory());
 
     public long[,,] Generate(int[] tokenIds, string speaker, string language,
                              int maxNewTokens = 2048, float temperature = 0.9f,
