@@ -124,6 +124,11 @@
                 <h3>📝 Text to Synthesize</h3>
                 <textarea class="form-control" rows="4" placeholder="Enter text to synthesize with the cloned voice..."
                           @bind="_text" style="resize:vertical;"></textarea>
+                <div class="mt-2" style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                    <button class="btn btn-outline-secondary btn-sm" @onclick='() => _text = "Hello! This is a test of the cloned voice. How does it sound?"'>🔤 English sample</button>
+                    <button class="btn btn-outline-secondary btn-sm" @onclick='() => _text = "¡Hola! Esta es una prueba de la voz clonada. ¿Cómo suena?"'>🔤 Spanish sample</button>
+                    <button class="btn btn-outline-secondary btn-sm" @onclick='() => _text = "The quick brown fox jumps over the lazy dog near the riverbank."'>🔤 Pangram</button>
+                </div>
                 <div class="settings-inline mt-2">
                     <div>
                         <label class="form-label">Language</label>
