@@ -45,46 +45,39 @@
         </div>
     }
 
-    <!-- Sticky Progress Bar (visible during generation) -->
-    @if (_generating || _completed)
-    {
-        <div class="podcast-progress-sticky">
-            <div class="progress-bar-track">
-                <div class="progress-bar-fill" style="width:@(_progressPct)%"></div>
-            </div>
-            <div class="progress-label">
-                <span>@_progressStatus</span>
-                <span>
-                    @_completedCount / @_segments.Count
+    <!-- Upload + Generate (side by side) -->
+    <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:stretch;">
+        <div class="tts-card" style="flex:1;min-width:280px;">
+            <h3>📄 Upload Podcast Script</h3>
+            <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:0.75rem;">
+                Upload a <code>.txt</code> or <code>.md</code> file with segments delimited by <code>--- NN</code> or <code>## Segment NN</code>.
+                <a href="/samples" style="color:var(--blue);">See prompt templates</a>
+            </p>
+            <InputFile class="form-control" OnChange="OnFileSelected" accept=".txt,.md" />
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <div class="alert alert-danger mt-2">⚠️ @_error</div>
+            }
+        </div>
+        @if (_segments.Count > 0)
+        {
+            <div class="tts-card" style="display:flex;flex-direction:column;justify-content:center;gap:0.5rem;min-width:200px;">
+                <button class="btn btn-primary generate-btn" @onclick="GenerateAsync" disabled="@(_generating || !Tts.IsReady || SelectedCount == 0)">
                     @if (_generating)
                     {
-                        <span style="margin-left:0.5rem;">⏱ @FormatElapsed(_elapsed)</span>
-                        @if (_estimatedRemaining != null)
-                        {
-                            <span style="margin-left:0.5rem;color:var(--text-dim);">~@FormatElapsed(_estimatedRemaining.Value) left</span>
-                        }
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Generating...</span>
                     }
-                    @if (_completed)
+                    else
                     {
-                        <span style="margin-left:0.5rem;color:var(--green);">✔ @FormatElapsed(_elapsed)</span>
+                        <span>🎙️ Generate (@SelectedCount segments)</span>
                     }
-                </span>
+                </button>
+                @if (_generating)
+                {
+                    <button class="btn btn-outline-danger" @onclick="StopGeneration">🛑 Stop</button>
+                }
             </div>
-        </div>
-    }
-
-    <!-- Upload -->
-    <div class="tts-card">
-        <h3>📄 Upload Podcast Script</h3>
-        <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:0.75rem;">
-            Upload a <code>.txt</code> or <code>.md</code> file with segments delimited by <code>--- NN</code> or <code>## Segment NN</code>.
-            Each segment needs <code>speaker</code> and <code>language</code> fields — text goes after the metadata.
-            <a href="/samples" style="color:var(--blue);">See prompt templates</a>
-        </p>
-        <InputFile class="form-control" OnChange="OnFileSelected" accept=".txt,.md" />
-        @if (!string.IsNullOrEmpty(_error))
-        {
-            <div class="alert alert-danger mt-2">⚠️ @_error</div>
         }
     </div>
 
@@ -92,11 +85,14 @@
     @if (_segments.Count > 0)
     {
         <div class="tts-card">
-            <h3>📋 Episode Preview — @_segments.Count Segments</h3>
+            <h3>📋 Episode Preview — @_segments.Count Segments (@SelectedCount selected)</h3>
             <div id="segmentTableContainer" style="max-height:300px;overflow-y:auto;">
                 <table class="segment-table">
                     <thead>
                         <tr>
+                            <th style="width:36px;text-align:center;">
+                                <input type="checkbox" checked="@_allSelected" @onchange="ToggleSelectAll" />
+                            </th>
                             <th>#</th>
                             <th>Speaker</th>
                             <th>Lang</th>
@@ -108,6 +104,9 @@
                         @foreach (var seg in _segments)
                         {
                             <tr class="@SegmentRowClass(seg)" id="seg-row-@seg.Number">
+                                <td style="text-align:center;">
+                                    <input type="checkbox" checked="@seg.Selected" @onchange="() => seg.Selected = !seg.Selected" disabled="@_generating" />
+                                </td>
                                 <td>@seg.Number</td>
                                 <td><span class="speaker-badge">@seg.Speaker</span></td>
                                 <td>@seg.Language</td>
@@ -127,6 +126,9 @@
                                         case SegStatus.Error:
                                             <span style="color:var(--red)">✘ @(seg.Retries > 0 ? $"(retry {seg.Retries}/3)" : "")</span>
                                             break;
+                                        case SegStatus.Skipped:
+                                            <span style="color:var(--text-dim)">—</span>
+                                            break;
                                     }
                                 </td>
                             </tr>
@@ -135,19 +137,6 @@
                 </table>
             </div>
         </div>
-
-        <!-- Generate -->
-        <button class="btn btn-primary generate-btn" @onclick="GenerateAsync" disabled="@_generating">
-            @if (_generating)
-            {
-                <span class="spinner-border spinner-border-sm me-2"></span>
-                <span>Generating Episode...</span>
-            }
-            else
-            {
-                <span>🎙️ Generate Podcast Episode</span>
-            }
-        </button>
     }
 
     <!-- Results -->
@@ -195,6 +184,27 @@
     }
 </div>
 
+<!-- Progress Bar (stacked on top of console, only during generation) -->
+@if (_generating)
+{
+    <div class="podcast-progress-sticky">
+        <div class="progress-bar-track">
+            <div class="progress-bar-fill" style="width:@(_progressPct)%"></div>
+        </div>
+        <div class="progress-label">
+            <span>@_progressStatus</span>
+            <span>
+                @_completedCount / @_selectedSegments.Count
+                <span style="margin-left:0.5rem;">⏱ @FormatElapsed(_elapsed)</span>
+                @if (_estimatedRemaining != null)
+                {
+                    <span style="margin-left:0.5rem;color:var(--text-dim);">~@FormatElapsed(_estimatedRemaining.Value) left</span>
+                }
+            </span>
+        </div>
+    </div>
+}
+
 <!-- Docked Console -->
 <div class="console-dock @(_consoleExpanded ? "expanded" : "collapsed")">
     <div class="console-header" @onclick="() => _consoleExpanded = !_consoleExpanded">
@@ -224,12 +234,14 @@
 
 @code {
     private List<PodcastSegment> _segments = new();
+    private List<PodcastSegment> _selectedSegments = new();
     private List<string> _segmentUrls = new();
     private string? _mergedUrl;
     private string? _zipUrl;
     private string? _error;
     private bool _generating;
     private bool _completed;
+    private bool _stopRequested;
     private bool _consoleExpanded = true;
     private int _completedCount;
     private int _progressPct;
@@ -242,6 +254,9 @@
     private const int MaxRetries = 3;
     private ModelDownloadProgress? _downloadProgress;
     private string? _initError;
+
+    private int SelectedCount => _segments.Count(s => s.Selected);
+    private bool _allSelected => _segments.Count > 0 && _segments.All(s => s.Selected);
 
     protected override async Task OnInitializedAsync()
     {
@@ -275,6 +290,18 @@
             _downloadProgress = progress;
             StateHasChanged();
         });
+    }
+
+    private void ToggleSelectAll(ChangeEventArgs e)
+    {
+        var val = (bool)(e.Value ?? false);
+        foreach (var seg in _segments) seg.Selected = val;
+    }
+
+    private void StopGeneration()
+    {
+        _stopRequested = true;
+        Log("Stop requested — will stop after current segment completes", "step");
     }
 
     private void Log(string msg, string level = "info")
@@ -328,6 +355,7 @@
     {
         _generating = true;
         _completed = false;
+        _stopRequested = false;
         _completedCount = 0;
         _progressPct = 0;
         _segmentUrls.Clear();
@@ -336,7 +364,15 @@
         _error = null;
         _elapsed = TimeSpan.Zero;
         _estimatedRemaining = null;
-        foreach (var s in _segments) { s.Status = SegStatus.Pending; s.Duration = 0; s.Retries = 0; }
+
+        // Build selected segments list
+        _selectedSegments = _segments.Where(s => s.Selected).ToList();
+        foreach (var s in _segments)
+        {
+            s.Duration = 0;
+            s.Retries = 0;
+            s.Status = s.Selected ? SegStatus.Pending : SegStatus.Skipped;
+        }
         StateHasChanged();
 
         _stopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -344,34 +380,42 @@
         _elapsedTimer.Elapsed += (_, _) => InvokeAsync(() =>
         {
             _elapsed = _stopwatch.Elapsed;
-            // Estimate remaining based on average segment time
             if (_completedCount > 0)
             {
                 var avgPerSeg = _elapsed.TotalSeconds / _completedCount;
-                var remaining = avgPerSeg * (_segments.Count - _completedCount);
+                var remaining = avgPerSeg * (_selectedSegments.Count - _completedCount);
                 _estimatedRemaining = TimeSpan.FromSeconds(remaining);
             }
             StateHasChanged();
         });
         _elapsedTimer.Start();
 
-        Log($"Starting podcast generation: {_segments.Count} segments", "step");
+        Log($"Starting podcast generation: {_selectedSegments.Count} of {_segments.Count} segments selected", "step");
         StateHasChanged();
         await ScrollConsole();
 
-        // Initialize URL slots
+        // Initialize URL slots for ALL segments (keeps index alignment)
         for (int i = 0; i < _segments.Count; i++)
             _segmentUrls.Add("");
 
         try
         {
-            for (int i = 0; i < _segments.Count; i++)
+            for (int si = 0; si < _selectedSegments.Count; si++)
             {
-                var seg = _segments[i];
+                if (_stopRequested)
+                {
+                    Log("Generation stopped by user", "step");
+                    break;
+                }
+
+                var seg = _selectedSegments[si];
+                var globalIndex = _segments.IndexOf(seg);
                 var success = false;
 
                 for (int attempt = 0; attempt <= MaxRetries && !success; attempt++)
                 {
+                    if (_stopRequested) break;
+
                     if (attempt > 0)
                     {
                         seg.Retries = attempt;
@@ -381,7 +425,7 @@
                     seg.Status = SegStatus.Generating;
                     _progressStatus = $"Segment {seg.Number}: {seg.Speaker} — {Truncate(seg.Text, 40)}";
                     if (attempt == 0)
-                        Log($"[{i + 1}/{_segments.Count}] {seg.Speaker}: \"{Truncate(seg.Text, 50)}\"", "step");
+                        Log($"[{si + 1}/{_selectedSegments.Count}] {seg.Speaker}: \"{Truncate(seg.Text, 50)}\"", "step");
                     StateHasChanged();
                     await ScrollToSegment(seg.Number);
                     await ScrollConsole();
@@ -397,7 +441,7 @@
                         var url = await Tts.GenerateAsync(seg.Text, seg.Speaker, seg.Language, seg.Instructions, progress);
                         segSw.Stop();
 
-                        _segmentUrls[i] = url;
+                        _segmentUrls[globalIndex] = url;
                         seg.Status = SegStatus.Done;
                         seg.Duration = segSw.Elapsed.TotalSeconds;
                         Log($"Segment {seg.Number} done ({segSw.Elapsed.TotalSeconds:F1}s)", "success");
@@ -413,41 +457,49 @@
                         }
                         else
                         {
-                            await Task.Delay(500); // Brief pause before retry
+                            await Task.Delay(500);
                         }
                     }
                 }
 
-                _completedCount = i + 1;
-                _progressPct = (int)((_completedCount) * 100.0 / _segments.Count);
+                _completedCount = si + 1;
+                _progressPct = (int)((_completedCount) * 100.0 / _selectedSegments.Count);
                 StateHasChanged();
                 await ScrollConsole();
             }
 
-            // Merge with silence gaps
-            Log("Merging segments with 0.5s silence gaps...", "step");
-            StateHasChanged();
-            await ScrollConsole();
+            if (!_stopRequested)
+            {
+                // Merge with silence gaps
+                Log("Merging segments with 0.5s silence gaps...", "step");
+                StateHasChanged();
+                await ScrollConsole();
 
-            var validUrls = _segmentUrls.Where(u => !string.IsNullOrEmpty(u)).ToList();
-            _mergedUrl = await Tts.MergeWavFilesAsync(validUrls, silenceMs: 500);
+                var validUrls = _segmentUrls.Where(u => !string.IsNullOrEmpty(u)).ToList();
+                _mergedUrl = await Tts.MergeWavFilesAsync(validUrls, silenceMs: 500);
 
-            // Create zip of individual segments
-            Log("Creating zip archive of individual segments...", "step");
-            StateHasChanged();
-            _zipUrl = await Tts.CreateSegmentZipAsync(_segmentUrls, _segments.Select(s => $"podcast_{s.Number}_{s.Speaker}.wav").ToList());
+                // Create zip of individual segments
+                Log("Creating zip archive of individual segments...", "step");
+                StateHasChanged();
+                _zipUrl = await Tts.CreateSegmentZipAsync(_segmentUrls, _segments.Select(s => $"podcast_{s.Number}_{s.Speaker}.wav").ToList());
+
+                _completed = true;
+                Log($"Episode ready! {validUrls.Count} segments merged in {_stopwatch.Elapsed.TotalSeconds:F1}s total", "success");
+            }
 
             _stopwatch.Stop();
             _elapsedTimer.Stop();
             _elapsed = _stopwatch.Elapsed;
             _estimatedRemaining = null;
-            _progressStatus = "Complete!";
-            _progressPct = 100;
-            _completed = true;
-            Log($"Episode ready! {validUrls.Count} segments merged in {_elapsed.TotalSeconds:F1}s total", "success");
+            _progressStatus = _stopRequested ? "Stopped" : "Complete!";
+            _progressPct = _stopRequested ? _progressPct : 100;
             StateHasChanged();
-            await Task.Delay(100); // let the audio element render
-            await JS.InvokeVoidAsync("eval", "document.getElementById('episodePlayer')?.play()");
+
+            if (_completed)
+            {
+                await Task.Delay(100);
+                await JS.InvokeVoidAsync("eval", "document.getElementById('episodePlayer')?.play()");
+            }
         }
         catch (Exception ex)
         {
@@ -457,6 +509,7 @@
         finally
         {
             _generating = false;
+            _stopRequested = false;
             _elapsedTimer?.Stop();
             _elapsedTimer?.Dispose();
             StateHasChanged();
@@ -534,7 +587,6 @@
         }
         else
         {
-            // Implicit text: everything after the last metadata line
             var lastMeta = new[] { speakerMatch, langMatch, instrMatch }.Where(m => m.Success).MaxBy(m => m.Index + m.Length);
             if (lastMeta != null)
                 seg.Text = block[(lastMeta.Index + lastMeta.Length)..].Trim();
@@ -558,7 +610,7 @@
 
     private record LogEntry(string Time, string Message, string Level);
 
-    private enum SegStatus { Pending, Generating, Done, Error }
+    private enum SegStatus { Pending, Generating, Done, Error, Skipped }
 
     private class PodcastSegment
     {
@@ -567,6 +619,7 @@
         public string Language { get; set; } = "english";
         public string? Instructions { get; set; }
         public string Text { get; set; } = "";
+        public bool Selected { get; set; } = true;
         public SegStatus Status { get; set; } = SegStatus.Pending;
         public double Duration { get; set; }
         public int Retries { get; set; }
