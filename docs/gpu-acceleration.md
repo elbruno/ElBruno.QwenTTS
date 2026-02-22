@@ -73,34 +73,37 @@ var cloner = await VoiceClonePipeline.CreateAsync(
     sessionOptionsFactory: OrtSessionHelper.CreateCudaOptions);
 ```
 
-## DirectML: Model Patching Required
+## DirectML: Hybrid Mode
 
-DirectML has limitations with certain ONNX operations:
-- **Reshape with `-1`** (inferred dimensions) combined with dynamic Shape ops
-- **1D ConvTranspose** in the vocoder model
+DirectML has limitations with certain ONNX operations in the vocoder model (dynamic padding). The ONNX models on HuggingFace are **pre-patched** for DirectML compatibility — no manual patching required.
 
-A Python patch script resolves these issues:
+However, the vocoder still requires CPU execution due to dynamic padding operations that DirectML cannot handle. Use the `vocoderSessionOptionsFactory` parameter to run the vocoder on CPU while keeping the language model on DirectML GPU:
 
-```bash
-# Patch models for DirectML compatibility
-python python/patch_models_for_dml.py <model_directory>
-
-# Or patch to a separate output directory
-python python/patch_models_for_dml.py <model_directory> --output <output_directory>
+```csharp
+var tts = await TtsPipeline.CreateAsync(
+    sessionOptionsFactory: OrtSessionHelper.CreateDirectMlOptions,
+    vocoderSessionOptionsFactory: OrtSessionHelper.CreateCpuOptions);
 ```
 
-The script applies these transformations:
-1. **Resolves `-1` in Reshape shapes** — traces MatMul weights to compute Q/K/V head counts and merge dimensions
-2. **Converts 1D ConvTranspose to 2D** — wraps with Unsqueeze/Squeeze for DML compatibility
-3. **Replaces `Reshape([-1,1])` with `Unsqueeze`** — optimizes causal mask construction
+Or with the options pattern:
 
-> **Note:** Even with patched models, the vocoder requires CPU execution due to dynamic padding operations. Use the `vocoderSessionOptionsFactory` parameter to run the vocoder on CPU while keeping the language model on DirectML GPU:
->
-> ```csharp
-> var tts = new TtsPipeline(modelDir,
->     sessionOptionsFactory: OrtSessionHelper.CreateDirectMlOptions,
->     vocoderSessionOptionsFactory: OrtSessionHelper.CreateCpuOptions);
-> ```
+```csharp
+builder.Services.AddQwenTts(options =>
+{
+    options.ExecutionProvider = ExecutionProvider.DirectML;
+});
+// DirectML hybrid mode is applied automatically
+```
+
+### Advanced: Re-patching models manually
+
+If you have custom or older ONNX models that aren't pre-patched, a Python script is included in the repository:
+
+```bash
+python python/patch_models_for_dml.py <model_directory>
+```
+
+The script applies: Reshape `-1` resolution, 1D ConvTranspose → 2D conversion, and causal mask optimization.
 
 ## Helper Methods
 
@@ -139,7 +142,7 @@ Install `Microsoft.ML.OnnxRuntime.Gpu` instead of `Microsoft.ML.OnnxRuntime`, an
 Install `Microsoft.ML.OnnxRuntime.DirectML` instead of `Microsoft.ML.OnnxRuntime`.
 
 ### DirectML Reshape crash
-Run `python python/patch_models_for_dml.py <model_dir>` to patch models, and use `vocoderSessionOptionsFactory: OrtSessionHelper.CreateCpuOptions` for the vocoder.
+Delete your local model cache and re-download to get the pre-patched models. Also ensure you use `vocoderSessionOptionsFactory: OrtSessionHelper.CreateCpuOptions` for the vocoder. If using older models, run `python python/patch_models_for_dml.py <model_dir>` to patch them manually.
 
 ### Mixed package errors
 Only one ORT package can be referenced per project. Remove conflicting packages:
