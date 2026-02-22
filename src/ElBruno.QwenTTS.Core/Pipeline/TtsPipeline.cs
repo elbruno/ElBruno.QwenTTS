@@ -19,7 +19,8 @@ public sealed class TtsPipeline : IDisposable
     /// </summary>
     /// <param name="modelDir">Directory containing ONNX models, embeddings, and tokenizer.</param>
     /// <param name="sessionOptionsFactory">Optional factory for ONNX Runtime session options (e.g., for GPU acceleration). When null, uses CPU with max optimization.</param>
-    public TtsPipeline(string modelDir, Func<SessionOptions>? sessionOptionsFactory = null)
+    /// <param name="vocoderSessionOptionsFactory">Optional separate factory for the vocoder model. Useful when GPU EP doesn't support vocoder ops (e.g., DirectML). When null, uses sessionOptionsFactory.</param>
+    public TtsPipeline(string modelDir, Func<SessionOptions>? sessionOptionsFactory = null, Func<SessionOptions>? vocoderSessionOptionsFactory = null)
     {
         var tokenizerDir = Path.Combine(modelDir, "tokenizer");
         var embeddingsDir = Path.Combine(modelDir, "embeddings");
@@ -28,7 +29,7 @@ public sealed class TtsPipeline : IDisposable
         _tokenizer = new TextTokenizer(tokenizerDir);
         _embeddings = new EmbeddingStore(embeddingsDir, configPath);
         _languageModel = new LanguageModel(modelDir, _embeddings, sessionOptionsFactory);
-        _vocoder = new Vocoder(Path.Combine(modelDir, "vocoder.onnx"), sessionOptionsFactory);
+        _vocoder = new Vocoder(Path.Combine(modelDir, "vocoder.onnx"), vocoderSessionOptionsFactory ?? sessionOptionsFactory);
     }
 
     /// <summary>Available speaker names from the model.</summary>
@@ -72,12 +73,14 @@ public sealed class TtsPipeline : IDisposable
     /// <param name="repoId">HuggingFace repository ID (default: elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX).</param>
     /// <param name="progress">Optional progress callback for download status.</param>
     /// <param name="sessionOptionsFactory">Optional factory for ONNX Runtime session options (e.g., for GPU acceleration).</param>
+    /// <param name="vocoderSessionOptionsFactory">Optional separate factory for the vocoder model (e.g., CPU fallback for DirectML).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     public static async Task<TtsPipeline> CreateAsync(
         string? modelDir = null,
         string repoId = ModelDownloader.DefaultRepoId,
         IProgress<string>? progress = null,
         Func<SessionOptions>? sessionOptionsFactory = null,
+        Func<SessionOptions>? vocoderSessionOptionsFactory = null,
         CancellationToken cancellationToken = default)
     {
         modelDir ??= ModelDownloader.DefaultModelDir;
@@ -90,7 +93,7 @@ public sealed class TtsPipeline : IDisposable
             await ModelDownloader.DownloadModelAsync(modelDir, repoId, downloadProgress, cancellationToken);
             progress?.Report("Model download complete.");
         }
-        return new TtsPipeline(modelDir, sessionOptionsFactory);
+        return new TtsPipeline(modelDir, sessionOptionsFactory, vocoderSessionOptionsFactory);
     }
 
     /// <summary>
@@ -101,12 +104,13 @@ public sealed class TtsPipeline : IDisposable
         IProgress<ModelDownloadProgress> downloadProgress,
         string repoId = ModelDownloader.DefaultRepoId,
         Func<SessionOptions>? sessionOptionsFactory = null,
+        Func<SessionOptions>? vocoderSessionOptionsFactory = null,
         CancellationToken cancellationToken = default)
     {
         modelDir ??= ModelDownloader.DefaultModelDir;
         if (!ModelDownloader.IsModelDownloaded(modelDir))
             await ModelDownloader.DownloadModelAsync(modelDir, repoId, downloadProgress, cancellationToken);
-        return new TtsPipeline(modelDir, sessionOptionsFactory);
+        return new TtsPipeline(modelDir, sessionOptionsFactory, vocoderSessionOptionsFactory);
     }
 
     public void Dispose()

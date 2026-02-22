@@ -82,11 +82,13 @@ var tts = await TtsPipeline.CreateAsync(
     sessionOptionsFactory: OrtSessionHelper.CreateCudaOptions);
 
 // DirectML (any GPU on Windows) — requires Microsoft.ML.OnnxRuntime.DirectML NuGet package
+// Uses GPU for language model, CPU for vocoder (hybrid mode)
 var tts = await TtsPipeline.CreateAsync(
-    sessionOptionsFactory: OrtSessionHelper.CreateDirectMlOptions);
+    sessionOptionsFactory: OrtSessionHelper.CreateDirectMlOptions,
+    vocoderSessionOptionsFactory: OrtSessionHelper.CreateCpuOptions);
 ```
 
-See [docs/gpu-acceleration.md](docs/gpu-acceleration.md) for full setup instructions.
+> **DirectML note:** Models must be patched first with `python python/patch_models_for_dml.py <model_dir>`. See [docs/gpu-acceleration.md](docs/gpu-acceleration.md) for details.
 
 ## More Examples
 
