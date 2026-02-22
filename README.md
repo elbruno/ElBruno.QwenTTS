@@ -19,6 +19,7 @@ Pre-exported ONNX models are hosted on HuggingFace:
 - **Automatic Model Download** — Models download from HuggingFace on first run (~5.5 GB)
 - **Multi-Speaker** — 9 built-in voices: ryan, serena, vivian, aiden, eric, dylan, uncle_fu, ono_anna, sohee
 - **Voice Cloning** — Clone any voice from a 3-second audio sample ([docs](docs/voice-cloning.md))
+- **GPU Acceleration** — Optional CUDA or DirectML support via SessionOptions injection ([docs](docs/gpu-acceleration.md))
 - **Multi-Language** — English, Spanish, Chinese, Japanese, Korean
 - **Voice Control** — Instruction-based style (e.g., "speak with excitement")
 - **Shared Model Cache** — Models stored once in `%LOCALAPPDATA%/ElBruno/QwenTTS`, shared across all apps
@@ -113,6 +114,8 @@ Open [http://localhost:5153](http://localhost:5153) — type text or upload file
 | [Web App](docs/web-app.md) | Blazor web UI for speech generation |
 | [Architecture](docs/architecture.md) | Pipeline design, model components, project structure |
 | [Exporting Models](docs/exporting-models.md) | Re-exporting ONNX models from PyTorch weights |
+| [Voice Cloning](docs/voice-cloning.md) | Clone any voice from a 3-second reference audio |
+| [GPU Acceleration](docs/gpu-acceleration.md) | CUDA, DirectML, and CPU configuration |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues and fixes |
 | [Detailed Architecture](python/ARCHITECTURE.md) | Full tensor shapes, KV-cache, codebook structure |
 | [Changelog](CHANGELOG.md) | Versioned summary of notable changes |

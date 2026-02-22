@@ -13,6 +13,7 @@ public sealed class SpeakerEncoder : IDisposable
 {
     private InferenceSession? _session;
     private readonly string _modelPath;
+    private readonly Func<SessionOptions> _sessionOptionsFactory;
 
     /// <summary>Embedding dimension (1024 for ECAPA-TDNN in Qwen3-TTS).</summary>
     public int EmbeddingDim => 1024;
@@ -20,20 +21,22 @@ public sealed class SpeakerEncoder : IDisposable
     /// <summary>Expected number of mel bins.</summary>
     public int MelDim => 128;
 
-    public SpeakerEncoder(string modelPath)
+    public SpeakerEncoder(string modelPath, Func<SessionOptions>? sessionOptionsFactory = null)
     {
         _modelPath = modelPath;
+        _sessionOptionsFactory = sessionOptionsFactory ?? CreateDefaultOptions;
     }
+
+    private static SessionOptions CreateDefaultOptions() => new()
+    {
+        GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
+    };
 
     private InferenceSession GetSession()
     {
         if (_session is null)
         {
-            var options = new SessionOptions
-            {
-                GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
-            };
-            _session = new InferenceSession(_modelPath, options);
+            _session = new InferenceSession(_modelPath, _sessionOptionsFactory());
         }
         return _session;
     }
