@@ -9,6 +9,12 @@ python/onnx_models/embeddings/
 # Downloaded ONNX runtime models (from HuggingFace)
 python/onnx_runtime/
 
+# Patched models for DirectML (generated locally)
+python/onnx_runtime_dml/
+
+# Base model ONNX exports (generated locally)
+python/onnx_base/
+
 # Tokenizer artifacts (extracted, not committed)
 python/tokenizer_artifacts/
 
@@ -21,6 +27,8 @@ __pycache__/
 # .NET build outputs
 src/*/bin/
 src/*/obj/
+tests/*/bin/
+tests/*/obj/
 
 # Generated audio (web app)
 src/QwenTTS.Web/wwwroot/generated/

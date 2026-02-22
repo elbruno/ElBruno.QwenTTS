@@ -27,12 +27,19 @@ public static class OrtSessionHelper
     }
 
     /// <summary>
+    /// Creates SessionOptions for CUDA GPU execution on the default device (GPU 0).
+    /// Requires the <c>Microsoft.ML.OnnxRuntime.Gpu</c> NuGet package and CUDA Toolkit + cuDNN installed.
+    /// Falls back to CPU if CUDA is unavailable.
+    /// </summary>
+    public static SessionOptions CreateCudaOptions() => CreateCudaOptions(0);
+
+    /// <summary>
     /// Creates SessionOptions for CUDA GPU execution.
     /// Requires the <c>Microsoft.ML.OnnxRuntime.Gpu</c> NuGet package and CUDA Toolkit + cuDNN installed.
     /// Falls back to CPU if CUDA is unavailable.
     /// </summary>
-    /// <param name="deviceId">GPU device ID (default: 0).</param>
-    public static SessionOptions CreateCudaOptions(int deviceId = 0)
+    /// <param name="deviceId">GPU device ID.</param>
+    public static SessionOptions CreateCudaOptions(int deviceId)
     {
         var options = new SessionOptions
         {
@@ -44,16 +51,35 @@ public static class OrtSessionHelper
     }
 
     /// <summary>
+    /// Creates SessionOptions for DirectML GPU execution on the default device (GPU 0).
+    /// Requires the <c>Microsoft.ML.OnnxRuntime.DirectML</c> NuGet package.
+    /// Falls back to CPU if DirectML is unavailable.
+    /// </summary>
+    /// <remarks>
+    /// Memory pattern optimization is disabled because the autoregressive language model uses
+    /// dynamic KV-cache shapes that grow each decode step, which is incompatible with DML's
+    /// memory pattern assumptions. Sequential execution mode is used for stability.
+    /// </remarks>
+    public static SessionOptions CreateDirectMlOptions() => CreateDirectMlOptions(0);
+
+    /// <summary>
     /// Creates SessionOptions for DirectML GPU execution (Windows 10/11 — supports NVIDIA, AMD, and Intel GPUs).
     /// Requires the <c>Microsoft.ML.OnnxRuntime.DirectML</c> NuGet package.
     /// Falls back to CPU if DirectML is unavailable.
     /// </summary>
-    /// <param name="deviceId">GPU device ID (default: 0).</param>
-    public static SessionOptions CreateDirectMlOptions(int deviceId = 0)
+    /// <remarks>
+    /// Memory pattern optimization is disabled because the autoregressive language model uses
+    /// dynamic KV-cache shapes that grow each decode step, which is incompatible with DML's
+    /// memory pattern assumptions. Sequential execution mode is used for stability.
+    /// </remarks>
+    /// <param name="deviceId">GPU device ID.</param>
+    public static SessionOptions CreateDirectMlOptions(int deviceId)
     {
         var options = new SessionOptions
         {
-            GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
+            GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
+            EnableMemoryPattern = false,
+            ExecutionMode = ExecutionMode.ORT_SEQUENTIAL
         };
         options.AppendExecutionProvider_DML(deviceId);
         options.AppendExecutionProvider_CPU();
