@@ -97,7 +97,8 @@ public sealed class TtsPipelineService : IDisposable
         await _semaphore.WaitAsync();
         try
         {
-            await _pipeline!.SynthesizeAsync(text, speaker, filePath, language, instruct, progress);
+            await Task.Run(async () =>
+                await _pipeline!.SynthesizeAsync(text, speaker, filePath, language, instruct, progress));
         }
         finally
         {

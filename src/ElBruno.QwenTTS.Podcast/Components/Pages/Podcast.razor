@@ -82,6 +82,27 @@
         }
     </div>
 
+    <!-- Progress Bar (between upload and segment table, visible during generation) -->
+    @if (_generating || _progressPct == 100)
+    {
+        <div class="tts-card" style="padding:0.6rem 0.85rem;">
+            <div class="progress-bar-track">
+                <div class="progress-bar-fill" style="width:@(_progressPct)%"></div>
+            </div>
+            <div class="progress-label">
+                <span>@_progressStatus</span>
+                <span>
+                    @_completedCount / @(_selectedSegments?.Count ?? 0)
+                    <span style="margin-left:0.5rem;">⏱ @FormatElapsed(_elapsed)</span>
+                    @if (_estimatedRemaining != null)
+                    {
+                        <span style="margin-left:0.5rem;color:var(--text-dim);">~@FormatElapsed(_estimatedRemaining.Value) left</span>
+                    }
+                </span>
+            </div>
+        </div>
+    }
+
     <!-- Segment Preview Table -->
     @if (_segments.Count > 0)
     {
@@ -184,27 +205,6 @@
         </div>
     }
 </div>
-
-<!-- Progress Bar (stacked on top of console, only during generation) -->
-@if (_generating)
-{
-    <div class="podcast-progress-sticky">
-        <div class="progress-bar-track">
-            <div class="progress-bar-fill" style="width:@(_progressPct)%"></div>
-        </div>
-        <div class="progress-label">
-            <span>@_progressStatus</span>
-            <span>
-                @_completedCount / @_selectedSegments.Count
-                <span style="margin-left:0.5rem;">⏱ @FormatElapsed(_elapsed)</span>
-                @if (_estimatedRemaining != null)
-                {
-                    <span style="margin-left:0.5rem;color:var(--text-dim);">~@FormatElapsed(_estimatedRemaining.Value) left</span>
-                }
-            </span>
-        </div>
-    </div>
-}
 
 <!-- Docked Console -->
 <div class="console-dock @(_consoleExpanded ? "expanded" : "collapsed")">
