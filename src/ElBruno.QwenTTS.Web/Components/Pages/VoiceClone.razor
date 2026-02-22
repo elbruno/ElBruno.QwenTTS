@@ -1,0 +1,452 @@
+@page "/voice-clone"
+@using ElBruno.QwenTTS.Web.Services
+@using ElBruno.QwenTTS.Pipeline
+@inject VoiceClonePipelineService Vc
+@inject IJSRuntime JS
+@implements IDisposable
+@rendermode InteractiveServer
+
+<PageTitle>Voice Clone — Qwen TTS</PageTitle>
+
+<div class="main-content">
+    <!-- Model Status Banner -->
+    @if (!Vc.IsReady)
+    {
+        <div class="tts-card" style="border-left:4px solid var(--accent);">
+            @if (_downloadProgress != null)
+            {
+                <h3>⬇️ Downloading Voice Cloning Model</h3>
+                <div class="progress-bar-track" style="margin-bottom:0.5rem;">
+                    <div class="progress-bar-fill" style="width:@(_downloadProgress.FilePercentage)%"></div>
+                </div>
+                <div style="font-size:0.82rem;color:var(--text-muted);">
+                    [@_downloadProgress.CurrentFile/@_downloadProgress.TotalFiles] @_downloadProgress.Message
+                </div>
+            }
+            else if (_initError != null)
+            {
+                <h3>⚠️ Model Error</h3>
+                <div style="color:var(--red);font-size:0.88rem;">@_initError</div>
+                <button class="btn btn-sm btn-primary mt-2" @onclick="InitializeModel">Retry</button>
+            }
+            else
+            {
+                <h3>⏳ Loading Voice Cloning Model...</h3>
+                <div style="font-size:0.82rem;color:var(--text-muted);">
+                    @if (Vc.IsModelDownloaded)
+                    {
+                        <span>Model files found — loading ONNX sessions...</span>
+                    }
+                    else
+                    {
+                        <span>Preparing to download Base model from HuggingFace (~5.5 GB)...</span>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    <div class="row g-3">
+        <!-- Left: Reference Voice + Text Input -->
+        <div class="col-lg-7">
+            <!-- Reference Voice Card -->
+            <div class="tts-card">
+                <h3>🎤 Reference Voice</h3>
+                <div class="mode-toggle">
+                    <button class="@(_voiceMode == "record" ? "active" : "")" @onclick='() => _voiceMode = "record"'>🎙️ Record</button>
+                    <button class="@(_voiceMode == "upload" ? "active" : "")" @onclick='() => _voiceMode = "upload"'>📁 Upload</button>
+                </div>
+
+                @if (_voiceMode == "record")
+                {
+                    <div class="record-section">
+                        <div class="record-controls">
+                            @if (!_recording)
+                            {
+                                <button class="record-btn" @onclick="StartRecording" disabled="@(!Vc.IsReady)">
+                                    <span class="record-icon">🎙️</span>
+                                </button>
+                                <div class="record-hint">Click to start recording</div>
+                            }
+                            else
+                            {
+                                <button class="record-btn recording" @onclick="StopRecording">
+                                    <span class="record-icon">⏹️</span>
+                                </button>
+                                <div class="recording-timer">🔴 Recording... @(_recordingSeconds.ToString("F1"))s</div>
+                            }
+                        </div>
+                        <div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.5rem;">
+                            Recommended: 3+ seconds of clear speech
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <InputFile class="form-control" OnChange="OnFileSelected" accept=".wav" />
+                    <div class="form-text mt-1">Upload a WAV file (any sample rate — will be converted to 24 kHz mono)</div>
+                }
+
+                <!-- Voice Status -->
+                @if (_hasVoice)
+                {
+                    <div class="voice-status captured">
+                        <span>✓ Voice captured (@(_voiceDuration.ToString("F1"))s)</span>
+                        <div class="voice-actions">
+                            <audio controls src="@_voiceUrl" preload="auto" style="height:32px;"></audio>
+                            <a href="@_voiceUrl" download="reference_voice.wav" class="download-btn">⬇ WAV</a>
+                            <button class="btn-clear" @onclick="ClearVoice">✕</button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="voice-status empty">No voice reference yet</div>
+                }
+            </div>
+
+            <!-- Text Input Card -->
+            <div class="tts-card">
+                <h3>📝 Text to Synthesize</h3>
+                <textarea class="form-control" rows="4" placeholder="Enter text to synthesize with the cloned voice..."
+                          @bind="_text" style="resize:vertical;"></textarea>
+                <div class="settings-inline mt-2">
+                    <div>
+                        <label class="form-label">Language</label>
+                        <select class="form-select form-select-sm" @bind="_language">
+                            <option value="auto">Auto</option>
+                            <option value="english">English</option>
+                            <option value="spanish">Spanish</option>
+                            <option value="chinese">Chinese</option>
+                            <option value="japanese">Japanese</option>
+                            <option value="korean">Korean</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary generate-btn" @onclick="GenerateAsync"
+                    disabled="@(!_hasVoice || string.IsNullOrWhiteSpace(_text) || _generating || !Vc.IsReady)">
+                @if (_generating)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    <span>Generating...</span>
+                }
+                else
+                {
+                    <span>🎭 Generate Cloned Speech</span>
+                }
+            </button>
+
+            @if (_generating)
+            {
+                <div class="progress-container">
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill indeterminate"></div>
+                    </div>
+                    <div class="progress-label"><span>@_progressStatus</span></div>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <div class="alert alert-danger mt-2">⚠️ @_error</div>
+            }
+        </div>
+
+        <!-- Right: Output -->
+        <div class="col-lg-5">
+            <div class="tts-card">
+                <h3>🔊 Output</h3>
+                @if (_result == null)
+                {
+                    <div class="output-empty">Cloned speech will appear here</div>
+                }
+                else
+                {
+                    <div class="audio-result-card">
+                        <audio controls src="@_result.Url" preload="auto"></audio>
+                        <div class="audio-meta">
+                            <span class="label">Cloned Voice Output</span>
+                            <a href="@_result.Url" download="@_result.FileName" class="download-btn">⬇ WAV</a>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Docked Console -->
+<div class="console-dock @(_consoleExpanded ? "expanded" : "collapsed")">
+    <div class="console-header" @onclick="ToggleConsole">
+        <span><span class="dot @(_generating ? "active" : "")"></span> Console (@_logs.Count)</span>
+        <div class="console-header-actions">
+            <button @onclick="ClearLogs" @onclick:stopPropagation="true">Clear</button>
+            <button>@(_consoleExpanded ? "▼" : "▲")</button>
+        </div>
+    </div>
+    @if (_consoleExpanded)
+    {
+        <div class="console-body" id="consoleBody">
+            @if (_logs.Count == 0)
+            {
+                <div class="log-line"><span class="ts">--:--:--</span><span class="msg" style="color:var(--text-dim)">Waiting...</span></div>
+            }
+            @foreach (var log in _logs)
+            {
+                <div class="log-line @log.Level">
+                    <span class="ts">@log.Time</span>
+                    <span class="msg">@log.Message</span>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private string _voiceMode = "record";
+    private string _text = "";
+    private string _language = "auto";
+    private bool _generating;
+    private bool _recording;
+    private double _recordingSeconds;
+    private string? _error;
+    private bool _consoleExpanded = true;
+    private string _progressStatus = "";
+
+    // Voice reference state
+    private bool _hasVoice;
+    private string? _voiceUrl;
+    private string? _voicePath;
+    private double _voiceDuration;
+    private float[]? _speakerEmbedding;
+
+    // Output
+    private AudioResult? _result;
+
+    // Logs + download progress
+    private List<LogEntry> _logs = new();
+    private ModelDownloadProgress? _downloadProgress;
+    private string? _initError;
+    private System.Timers.Timer? _recordingTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Vc.OnDownloadProgress += OnDownloadProgressUpdate;
+        await InitializeModel();
+    }
+
+    public void Dispose()
+    {
+        Vc.OnDownloadProgress -= OnDownloadProgressUpdate;
+        _recordingTimer?.Dispose();
+    }
+
+    private async Task InitializeModel()
+    {
+        _initError = null;
+        _downloadProgress = null;
+        StateHasChanged();
+
+        try
+        {
+            await Vc.InitializeAsync();
+            Log("Voice cloning model loaded and ready", "success");
+        }
+        catch (Exception ex)
+        {
+            _initError = ex.Message;
+            Log($"Model initialization failed: {ex.Message}", "error");
+        }
+        StateHasChanged();
+    }
+
+    private void OnDownloadProgressUpdate(ModelDownloadProgress progress)
+    {
+        InvokeAsync(() =>
+        {
+            _downloadProgress = progress;
+            StateHasChanged();
+        });
+    }
+
+    // --- Recording ---
+
+    private async Task StartRecording()
+    {
+        _error = null;
+        try
+        {
+            await JS.InvokeVoidAsync("audioRecorder.startRecording");
+            _recording = true;
+            _recordingSeconds = 0;
+
+            _recordingTimer = new System.Timers.Timer(100);
+            _recordingTimer.Elapsed += async (s, e) =>
+            {
+                _recordingSeconds += 0.1;
+                await InvokeAsync(StateHasChanged);
+            };
+            _recordingTimer.Start();
+
+            Log("Recording started...", "step");
+        }
+        catch (Exception ex)
+        {
+            _error = $"Microphone access denied: {ex.Message}";
+            Log($"Recording failed: {ex.Message}", "error");
+        }
+        StateHasChanged();
+    }
+
+    private async Task StopRecording()
+    {
+        _recordingTimer?.Stop();
+        _recordingTimer?.Dispose();
+        _recordingTimer = null;
+        _recording = false;
+        StateHasChanged();
+
+        try
+        {
+            Log("Processing recording...", "step");
+            var base64Wav = await JS.InvokeAsync<string>("audioRecorder.stopRecording");
+            if (string.IsNullOrEmpty(base64Wav))
+            {
+                _error = "Recording failed — no audio captured.";
+                Log("No audio captured", "error");
+                return;
+            }
+
+            var wavBytes = Convert.FromBase64String(base64Wav);
+            Log($"Recorded {_recordingSeconds:F1}s ({wavBytes.Length:N0} bytes, 24 kHz mono WAV)", "info");
+
+            await ProcessVoiceBytes(wavBytes);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Recording error: {ex.Message}";
+            Log($"Error: {ex.Message}", "error");
+        }
+        StateHasChanged();
+    }
+
+    // --- Upload ---
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        _error = null;
+        var file = e.File;
+        if (file.Size > 10_000_000)
+        {
+            _error = "File too large (max 10 MB).";
+            Log("File rejected: >10 MB", "error");
+            return;
+        }
+
+        Log($"Uploaded: {file.Name} ({file.Size:N0} bytes)", "info");
+
+        using var ms = new MemoryStream();
+        await file.OpenReadStream(maxAllowedSize: 10_000_000).CopyToAsync(ms);
+        var wavBytes = ms.ToArray();
+
+        await ProcessVoiceBytes(wavBytes);
+        StateHasChanged();
+    }
+
+    // --- Shared voice processing ---
+
+    private async Task ProcessVoiceBytes(byte[] wavBytes)
+    {
+        var (filePath, url) = await Vc.SaveReferenceAudioAsync(wavBytes);
+        _voicePath = filePath;
+        _voiceUrl = url;
+
+        // Calculate duration from WAV header (24 kHz, 16-bit, mono)
+        int dataSize = wavBytes.Length - 44;
+        _voiceDuration = dataSize / (24000.0 * 2);
+
+        Log("Extracting speaker embedding...", "step");
+        _speakerEmbedding = await Vc.ExtractEmbeddingAsync(filePath);
+        _hasVoice = true;
+        Log($"Speaker embedding extracted (1024 dimensions)", "success");
+
+        if (_voiceDuration < 3.0)
+            Log("⚠️ Short recording (<3s) — quality may be lower. 3+ seconds recommended.", "warn");
+    }
+
+    private void ClearVoice()
+    {
+        _hasVoice = false;
+        _voiceUrl = null;
+        _voicePath = null;
+        _voiceDuration = 0;
+        _speakerEmbedding = null;
+        _result = null;
+        Log("Voice reference cleared", "info");
+    }
+
+    // --- Generate ---
+
+    private async Task GenerateAsync()
+    {
+        if (!_hasVoice || _speakerEmbedding == null || string.IsNullOrWhiteSpace(_text)) return;
+
+        _error = null;
+        _result = null;
+        _generating = true;
+        _progressStatus = "Generating cloned speech...";
+        StateHasChanged();
+
+        try
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            Log($"Generating — lang={_language}, text=\"{(_text.Length > 60 ? _text[..60] + "..." : _text)}\"", "step");
+            await ScrollConsole();
+
+            var progress = new Progress<string>(msg =>
+            {
+                InvokeAsync(() => { Log(msg); StateHasChanged(); ScrollConsole(); });
+            });
+
+            var url = await Vc.GenerateAsync(_text, _speakerEmbedding, _language, progress);
+            sw.Stop();
+
+            _result = new AudioResult(url, $"clone_{Guid.NewGuid():N}.wav");
+            _progressStatus = "Complete!";
+            Log($"Done in {sw.Elapsed.TotalSeconds:F1}s", "success");
+        }
+        catch (Exception ex)
+        {
+            _error = $"Generation failed: {ex.Message}";
+            Log($"ERROR: {ex.Message}", "error");
+        }
+        finally
+        {
+            _generating = false;
+            StateHasChanged();
+            await ScrollConsole();
+        }
+    }
+
+    // --- Helpers ---
+
+    private void ToggleConsole() => _consoleExpanded = !_consoleExpanded;
+
+    private void Log(string message, string level = "info")
+    {
+        _logs.Add(new LogEntry(DateTime.Now.ToString("HH:mm:ss"), message, level));
+        if (_logs.Count > 300) _logs.RemoveAt(0);
+    }
+
+    private void ClearLogs() => _logs.Clear();
+
+    private async Task ScrollConsole()
+    {
+        await JS.InvokeVoidAsync("eval", "document.getElementById('consoleBody')?.scrollTo(0,999999)");
+    }
+
+    private record LogEntry(string Time, string Message, string Level);
+    private record AudioResult(string Url, string FileName);
+}

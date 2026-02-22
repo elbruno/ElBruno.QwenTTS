@@ -7,6 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddSingleton<TtsPipelineService>();
+builder.Services.AddSingleton<VoiceClonePipelineService>();
 
 var app = builder.Build();
 

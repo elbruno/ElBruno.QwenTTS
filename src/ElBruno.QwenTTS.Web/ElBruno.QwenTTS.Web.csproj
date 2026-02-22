@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ElBruno.QwenTTS.Core\ElBruno.QwenTTS.Core.csproj" />
+    <ProjectReference Include="..\ElBruno.QwenTTS.VoiceCloning\ElBruno.QwenTTS.VoiceCloning.csproj" />
   </ItemGroup>
 
 </Project>

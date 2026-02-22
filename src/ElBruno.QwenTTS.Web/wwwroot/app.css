@@ -567,3 +567,53 @@ details summary::-webkit-details-marker { color: var(--text-dim); }
     white-space: nowrap;
 }
 .copy-btn:hover { border-color: var(--accent); background: var(--accent-glow); color: var(--accent-light); }
+/* === Voice Clone Page === */
+.record-section { text-align: center; padding: 1rem 0; }
+.record-controls { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+.record-btn {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    border: 3px solid var(--border);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 2rem; transition: all 0.2s; color: #fff;
+}
+.record-btn:hover:not(:disabled) { transform: scale(1.08); box-shadow: 0 0 20px var(--accent-glow); border-color: var(--accent); }
+.record-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.record-btn.recording {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    border-color: var(--red);
+    animation: pulse-record 1.2s ease-in-out infinite;
+}
+@keyframes pulse-record {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+    50% { box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); }
+}
+.record-hint { color: var(--text-muted); font-size: 0.82rem; }
+.recording-timer { color: var(--red); font-weight: 600; font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+
+.voice-status {
+    margin-top: 0.75rem; padding: 0.6rem 0.85rem;
+    border-radius: 8px; font-size: 0.85rem;
+}
+.voice-status.empty { background: var(--bg); border: 1px dashed var(--border); color: var(--text-dim); text-align: center; }
+.voice-status.captured {
+    background: var(--bg); border: 1px solid var(--green);
+    display: flex; flex-direction: column; gap: 0.5rem;
+}
+.voice-status.captured > span { color: var(--green); font-weight: 600; }
+.voice-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.voice-actions audio { flex: 1; min-width: 120px; }
+.btn-clear {
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text-muted); padding: 0.2rem 0.5rem; cursor: pointer; font-size: 0.8rem;
+}
+.btn-clear:hover { border-color: var(--red); color: var(--red); }
+
+.progress-bar-fill.indeterminate {
+    width: 30%; animation: indeterminate 1.5s ease-in-out infinite;
+}
+@keyframes indeterminate {
+    0% { margin-left: 0%; }
+    50% { margin-left: 70%; }
+    100% { margin-left: 0%; }
+}
