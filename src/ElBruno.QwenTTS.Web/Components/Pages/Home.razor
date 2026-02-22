@@ -3,6 +3,7 @@
 @using ElBruno.QwenTTS.Pipeline
 @inject TtsPipelineService Tts
 @inject IJSRuntime JS
+@implements IDisposable
 @rendermode InteractiveServer
 
 <PageTitle>Qwen TTS</PageTitle>
@@ -223,6 +224,11 @@
     {
         Tts.OnDownloadProgress += OnDownloadProgressUpdate;
         await InitializeModel();
+    }
+
+    public void Dispose()
+    {
+        Tts.OnDownloadProgress -= OnDownloadProgressUpdate;
     }
 
     private async Task InitializeModel()

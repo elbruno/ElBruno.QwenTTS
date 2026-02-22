@@ -3,6 +3,7 @@
 @using ElBruno.QwenTTS.Pipeline
 @inject TtsPipelineService Tts
 @inject IJSRuntime JS
+@implements IDisposable
 @rendermode InteractiveServer
 
 <PageTitle>Podcast Generator — Qwen TTS</PageTitle>
@@ -262,6 +263,13 @@
     {
         Tts.OnDownloadProgress += OnDownloadProgressUpdate;
         await InitializeModel();
+    }
+
+    public void Dispose()
+    {
+        Tts.OnDownloadProgress -= OnDownloadProgressUpdate;
+        _elapsedTimer?.Stop();
+        _elapsedTimer?.Dispose();
     }
 
     private async Task InitializeModel()
