@@ -36,11 +36,15 @@ public static class MelSpectrogram
         // Build Hann window
         var window = BuildHannWindow(nFft);
 
-        // Build mel filter bank
+        // Build mel filter bank (slaney norm, matching PyTorch/librosa)
         var melFilters = BuildMelFilterBank(nMels, nFreqs, sampleRate, FMin, FMax);
 
-        // Compute STFT frames
-        int numFrames = 1 + (samples.Length - nFft) / hopLength;
+        // Reflect-pad the input signal (matching PyTorch: padding = (n_fft - hop_size) // 2)
+        int padding = (nFft - hopLength) / 2;
+        var padded = ReflectPad(samples, padding, padding);
+
+        // Compute STFT frames on padded signal
+        int numFrames = 1 + (padded.Length - nFft) / hopLength;
         if (numFrames <= 0)
             numFrames = 1;
 
@@ -58,7 +62,7 @@ public static class MelSpectrogram
             for (int i = 0; i < nFft; i++)
             {
                 int idx = start + i;
-                float sample = idx < samples.Length ? samples[idx] : 0f;
+                float sample = idx < padded.Length ? padded[idx] : 0f;
                 fftBuffer[i] = sample * window[i];
                 fftImag[i] = 0;
             }
@@ -66,7 +70,7 @@ public static class MelSpectrogram
             // In-place FFT
             Fft(fftBuffer, fftImag, nFft);
 
-            // Compute power spectrum and apply mel filters
+            // Compute magnitude spectrum (sqrt(r²+i²+1e-9)) and apply mel filters
             for (int m = 0; m < nMels; m++)
             {
                 double melEnergy = 0;
@@ -76,13 +80,13 @@ public static class MelSpectrogram
                     {
                         double real = fftBuffer[k];
                         double imag = fftImag[k];
-                        double power = real * real + imag * imag;
-                        melEnergy += melFilters[m, k] * power;
+                        double magnitude = Math.Sqrt(real * real + imag * imag + 1e-9);
+                        melEnergy += melFilters[m, k] * magnitude;
                     }
                 }
 
-                // Log mel: log(max(energy, 1e-10))
-                melSpec[frame, m] = (float)Math.Log(Math.Max(melEnergy, 1e-10));
+                // Dynamic range compression: log(clamp(x, min=1e-5))
+                melSpec[frame, m] = (float)Math.Log(Math.Max(melEnergy, 1e-5));
             }
         }
 
@@ -197,11 +201,52 @@ public static class MelSpectrogram
         return window;
     }
 
+    /// <summary>
+    /// Reflect-pad an array on both sides, matching PyTorch's F.pad(mode='reflect').
+    /// </summary>
+    private static float[] ReflectPad(float[] input, int padLeft, int padRight)
+    {
+        int len = input.Length;
+        if (len < 2)
+        {
+            // Cannot reflect-pad with less than 2 samples; zero-pad instead
+            var zeroPadded = new float[padLeft + len + padRight];
+            Array.Copy(input, 0, zeroPadded, padLeft, len);
+            return zeroPadded;
+        }
+
+        var output = new float[padLeft + len + padRight];
+
+        // Copy original
+        Array.Copy(input, 0, output, padLeft, len);
+
+        // Reflect index helper: maps arbitrary index to [0, len-1] via reflection
+        static int ReflectIndex(int idx, int length)
+        {
+            if (idx < 0) idx = -idx;
+            int period = 2 * (length - 1);
+            if (period == 0) return 0;
+            idx = idx % period;
+            if (idx >= length) idx = period - idx;
+            return idx;
+        }
+
+        // Left padding
+        for (int i = 0; i < padLeft; i++)
+            output[padLeft - 1 - i] = input[ReflectIndex(i + 1, len)];
+
+        // Right padding
+        for (int i = 0; i < padRight; i++)
+            output[padLeft + len + i] = input[ReflectIndex(len - 2 - i, len)];
+
+        return output;
+    }
+
     private static float[,] BuildMelFilterBank(int nMels, int nFreqs, int sampleRate, float fMin, float fMax)
     {
         var filters = new float[nMels, nFreqs];
 
-        // Convert Hz to mel scale
+        // Convert Hz to mel scale (HTK formula, same as librosa default)
         static double HzToMel(double hz) => 2595.0 * Math.Log10(1.0 + hz / 700.0);
         static double MelToHz(double mel) => 700.0 * (Math.Pow(10.0, mel / 2595.0) - 1.0);
 
@@ -213,24 +258,33 @@ public static class MelSpectrogram
         for (int i = 0; i < nMels + 2; i++)
             melPoints[i] = melMin + (melMax - melMin) * i / (nMels + 1);
 
-        // Convert mel points to FFT bin indices
+        // Convert mel points to Hz frequencies, then to FFT bin indices
+        var hzPoints = new double[nMels + 2];
         var binIndices = new double[nMels + 2];
+        double fftFreqStep = (double)sampleRate / (2.0 * (nFreqs - 1));
         for (int i = 0; i < nMels + 2; i++)
-            binIndices[i] = MelToHz(melPoints[i]) * (nFreqs - 1) * 2.0 / sampleRate;
+        {
+            hzPoints[i] = MelToHz(melPoints[i]);
+            binIndices[i] = hzPoints[i] / fftFreqStep;
+        }
 
-        // Build triangular filters
+        // Build triangular filters with slaney normalization
+        // Slaney norm: each filter is normalized by 2 / (hz_high - hz_low)
         for (int m = 0; m < nMels; m++)
         {
             double left = binIndices[m];
             double center = binIndices[m + 1];
             double right = binIndices[m + 2];
 
+            // Slaney normalization factor: 2.0 / (hz[m+2] - hz[m])
+            double enorm = 2.0 / (hzPoints[m + 2] - hzPoints[m]);
+
             for (int k = 0; k < nFreqs; k++)
             {
                 if (k >= left && k <= center && center > left)
-                    filters[m, k] = (float)((k - left) / (center - left));
+                    filters[m, k] = (float)(enorm * (k - left) / (center - left));
                 else if (k > center && k <= right && right > center)
-                    filters[m, k] = (float)((right - k) / (right - center));
+                    filters[m, k] = (float)(enorm * (right - k) / (right - center));
             }
         }
 
