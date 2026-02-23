@@ -56,10 +56,34 @@ internal sealed class LanguageModel : IDisposable
                              int topK = 50, float topP = 1.0f,
                              float repetitionPenalty = 1.05f)
     {
+        return GenerateInternal(tokenIds, speakerId, language, speakerEmbedding: null,
+            maxNewTokens, temperature, topK, topP, repetitionPenalty);
+    }
+
+    /// <summary>
+    /// Generate audio codes using a speaker embedding vector (e.g., from ECAPA-TDNN).
+    /// The 1024-dim embedding is injected at the speaker position in the codec prefix,
+    /// replacing the preset speaker token lookup. Used for voice cloning with the Base model.
+    /// </summary>
+    public long[,,] GenerateWithSpeakerEmbedding(int[] tokenIds, float[] speakerEmbedding, string language,
+                             int maxNewTokens = 2048, float temperature = 0.9f,
+                             int topK = 50, float topP = 1.0f,
+                             float repetitionPenalty = 1.05f)
+    {
+        return GenerateInternal(tokenIds, speakerId: -1, language, speakerEmbedding,
+            maxNewTokens, temperature, topK, topP, repetitionPenalty);
+    }
+
+    private long[,,] GenerateInternal(int[] tokenIds, int speakerId, string language,
+                             float[]? speakerEmbedding,
+                             int maxNewTokens, float temperature,
+                             int topK, float topP,
+                             float repetitionPenalty)
+    {
         var cfg = _embeddings.Config;
         
         // Build prefill embedding
-        var (inputsEmbeds, trailingTextHidden) = BuildPrefillEmbedding(tokenIds, speakerId, language, cfg);
+        var (inputsEmbeds, trailingTextHidden) = BuildPrefillEmbedding(tokenIds, speakerId, language, cfg, speakerEmbedding);
         int prefillLen = inputsEmbeds.GetLength(1);
 
         // Attention mask: all 1s
@@ -247,7 +271,8 @@ internal sealed class LanguageModel : IDisposable
         return result;
     }
 
-    private (float[,,], float[,]) BuildPrefillEmbedding(int[] tokenIds, int speakerId, string language, ModelConfig cfg)
+    private (float[,,], float[,]) BuildPrefillEmbedding(int[] tokenIds, int speakerId, string language, ModelConfig cfg,
+        float[]? speakerEmbeddingOverride = null)
     {
         // Role embed: tokens [0:3]
         var roleEmbeds = new List<float[]>();
@@ -260,8 +285,9 @@ internal sealed class LanguageModel : IDisposable
             roleEmbeds.Add((float[])roleProjBuf.Clone());
         }
 
-        // Codec prefix
+        // Codec prefix — track speaker position for embedding override
         var codecPrefix = new List<int>();
+        int speakerPositionInPrefix = -1; // index of speaker token in codecPrefix
         if (language != "auto")
         {
             codecPrefix.Add(cfg.talker.codec_think_id);
@@ -276,9 +302,17 @@ internal sealed class LanguageModel : IDisposable
             codecPrefix.Add(cfg.talker.codec_think_eos_id);
         }
         
-        // Speaker token: only add when speakerId >= 0 (Base model has no speakers)
+        // Speaker token: add when speakerId >= 0, or when we have a speaker embedding override
         if (speakerId >= 0)
+        {
             codecPrefix.Add(speakerId);
+        }
+        else if (speakerEmbeddingOverride != null)
+        {
+            // Use pad_id as placeholder — the embedding will be overridden below
+            speakerPositionInPrefix = codecPrefix.Count;
+            codecPrefix.Add(cfg.talker.codec_pad_id);
+        }
         codecPrefix.Add(cfg.talker.codec_pad_id);
         codecPrefix.Add(cfg.talker.codec_bos_id);
 
@@ -304,10 +338,19 @@ internal sealed class LanguageModel : IDisposable
         
         for (int i = 0; i < codecPrefixLen - 2; i++)
         {
-            _embeddings.TalkerCodecEmbedding(codecPrefix[i], codecEmbBuf);
             var combined = new float[1024];
-            for (int j = 0; j < 1024; j++)
-                combined[j] = ttsPadProj[j] + codecEmbBuf[j];
+            if (i == speakerPositionInPrefix && speakerEmbeddingOverride != null)
+            {
+                // Inject the ECAPA-TDNN speaker embedding directly instead of codec table lookup
+                for (int j = 0; j < 1024; j++)
+                    combined[j] = ttsPadProj[j] + speakerEmbeddingOverride[j];
+            }
+            else
+            {
+                _embeddings.TalkerCodecEmbedding(codecPrefix[i], codecEmbBuf);
+                for (int j = 0; j < 1024; j++)
+                    combined[j] = ttsPadProj[j] + codecEmbBuf[j];
+            }
             talkerInputEmbeds.Add(combined);
         }
         
