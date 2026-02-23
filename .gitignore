@@ -43,3 +43,4 @@ Thumbs.db
 # IDE
 .vs/
 *.user
+python/parity_outputs/
