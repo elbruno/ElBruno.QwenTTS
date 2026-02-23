@@ -144,6 +144,29 @@ public class SpeakerEncoderTests
         Assert.Equal(128, encoder.MelDim);
         encoder.Dispose();
     }
+
+    /// <summary>
+    /// Parity test: C# mel spectrogram must produce the same number of frames
+    /// as PyTorch for the same audio input.
+    /// PyTorch: numFrames = 1 + (padded_len - n_fft) / hop where padded_len = len + 2*384
+    /// </summary>
+    [Fact]
+    public void MelSpectrogram_FrameCount_MatchesPyTorch()
+    {
+        // Simulate 1 second of 24kHz audio
+        int nSamples = 24000;
+        var samples = new float[nSamples];
+        for (int i = 0; i < nSamples; i++)
+            samples[i] = MathF.Sin(2f * MathF.PI * 440f * i / 24000);
+
+        var mel = MelSpectrogram.Extract(samples);
+
+        // PyTorch: padding = 384, padded_len = 24000 + 768 = 24768
+        // numFrames = 1 + (24768 - 1024) / 256 = 1 + 23744/256 = 1 + 92 = 93
+        int expectedFrames = 1 + (nSamples + 2 * 384 - 1024) / 256;
+        Assert.Equal(expectedFrames, mel.GetLength(0));
+        Assert.Equal(128, mel.GetLength(1));
+    }
 }
 
 public class VoiceClonePipelineTests
