@@ -31,6 +31,7 @@ public sealed class VoiceCloningDownloader
         "talker_decode.onnx.data",
         "code_predictor.onnx",
         "vocoder.onnx",
+        "vocoder.onnx.data",
         "embeddings/config.json",
         "embeddings/talker_codec_embedding.npy",
         "embeddings/text_embedding.npy",
