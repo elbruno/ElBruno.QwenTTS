@@ -49,3 +49,7 @@ TextTokenizer.cs and Vocoder.cs are fully implemented. LanguageModel.cs is a ske
 - **Program.cs**: CLI now accepts `--model-dir` (required), `--language` (default auto), wires up full pipeline.
 - **Architecture decisions**: Used DenseTensor<T> for ONNX I/O, stackalloc for temp buffers (warnings about loops are acceptable — buffers are small), manual matrix-vector multiply for projections, multinomial sampling with Random.Shared.
 - **Key file paths**: {modelDir}/embeddings/*.npy, {modelDir}/config.json, {modelDir}/speaker_ids.json, {modelDir}/tokenizer/{vocab,merges}.json, {modelDir}/{talker_prefill,talker_decode,code_predictor,vocoder}.onnx
+
+### 2026-02-21: Compiler warnings fixed (Neo)
+**What:** Fixed 6 compiler warnings across 4 files: (1) CS1574 — Fixed XML doc cref in QwenVoicePreset.cs (line 5) by changing `<see cref="ToSpeakerName"/>` to `<see cref="QwenVoicePresetExtensions.ToSpeakerName"/>`, (2) CA2022 × 4 — Replaced 4 unsafe FileStream.Read calls with ReadExactly in NpyReader.cs (lines 58, 72, 78, 104), (3) CS4014 × 2 — Added `async` to lambda in Progress callback and `await` to ScrollConsole() call in VoiceClone.razor:432 and Home.razor:372.
+**Why:** Clean build with 0 warnings/errors. ReadExactly() guarantees full buffer reads (required for NPY header/data parsing); async lambdas properly await async methods in Blazor component callbacks.

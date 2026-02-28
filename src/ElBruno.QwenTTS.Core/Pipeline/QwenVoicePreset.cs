@@ -2,7 +2,7 @@ namespace ElBruno.QwenTTS.Pipeline;
 
 /// <summary>
 /// Pre-defined voice presets for Qwen3-TTS CustomVoice model.
-/// Use <see cref="ToSpeakerName"/> to convert to the string speaker name.
+/// Use <see cref="QwenVoicePresetExtensions.ToSpeakerName"/> to convert to the string speaker name.
 /// </summary>
 public enum QwenVoicePreset
 {

@@ -429,7 +429,7 @@
 
             var progress = new Progress<string>(msg =>
             {
-                InvokeAsync(() => { Log(msg); StateHasChanged(); ScrollConsole(); });
+                InvokeAsync(async () => { Log(msg); StateHasChanged(); await ScrollConsole(); });
             });
 
             var url = await Vc.GenerateAsync(_text, _speakerEmbedding, _language, progress);
