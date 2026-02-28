@@ -76,3 +76,60 @@
 **By:** Neo, Tank (Squad)
 **What:** Fixed all 8 compiler warnings: CS1574 (invalid XML comments) in QwenVoicePreset.cs & NpyReader.cs; CA2022 (potential null reference) in Home.razor & VoiceClone.razor; CS4014 (async not awaited) in Home.razor & VoiceClone.razor. Created branch `squad/fix-compiler-warnings`, opened PR #23, merged via squash merge.
 **Why:** Clean codebase ready for release. Build validation (0 errors, 0 warnings). All 29 unit tests passing.
+
+### 2026-02-28: SEC-1 Input Validation on TtsPipeline.SynthesizeAsync
+**By:** Neo  
+**Status:** ✅ Complete  
+**What:** Added input validation to public TTS entry points:
+  - **TtsPipeline.SynthesizeAsync** (Core library): Added null check (`ArgumentNullException.ThrowIfNull(text)`), empty string check, and 10k character limit before tokenization.
+  - **TtsPipelineService.GenerateAsync** (Web wrapper): Applied identical validation at HTTP boundary. Validation occurs before pipeline.IsReady and semaphore acquisition.
+**Why:** Defense-in-depth approach. Validation at both Core library (NuGet boundary) and Web service (HTTP entry point) ensures hardening regardless of deployment context. 10,000 char limit is reasonable for typical TTS (2× headroom over common 5k prompts) while preventing resource exhaustion.
+**Design Decisions:**
+  - Null check before length check (higher semantic clarity)
+  - Empty string as separate validation (logic error vs. length overflow)
+  - Character-count based limit (predictable for API callers; tokenizer varies by language)
+  - Validation in both TtsPipeline AND TtsPipelineService (defense-in-depth)
+  - No explicit UTF-8 validation (C# strings are Unicode; tokenizer validates naturally)
+**Build Status:** ✅ All 8 projects compile (0 warnings/errors). ✅ All 29 tests pass (19 Core + 10 VoiceCloning).
+**Files Modified:**
+  - `src/ElBruno.QwenTTS.Core/Pipeline/TtsPipeline.cs` — Added validation, updated XML docs
+  - `src/ElBruno.QwenTTS.Web/Services/TtsPipelineService.cs` — Added validation, updated XML docs
+
+### 2026-02-28: SEC-1 Input Validation Test Suite — Tank's Validation
+**By:** Tank (Tester)  
+**Status:** ✅ Complete  
+**What:** Wrote 9 comprehensive edge case tests for SEC-1 input validation:
+  - **Sec1ValidationTests.cs** (NEW): Tests for null (`ArgumentNullException`), empty (`ArgumentException`), 10k boundary cases (9,999 → 10,000 → 10,001), Unicode handling (emoji/CJK/Arabic/Cyrillic/Japanese), and validation order (null → empty → length).
+  - All tests pass with HIGH confidence (deterministic validation logic, no flaky tests).
+  - Boundary condition testing (n-1, n, n+1) catches off-by-one errors.
+**Test Coverage:**
+  - Before: 19 Core tests
+  - After: 28 Core tests (9 new)
+  - Total: 38 tests passing (28 Core + 10 VoiceCloning)
+  - Zero warnings, zero errors
+**Why:** Comprehensive validation testing ensures production readiness. Edge case coverage (boundary values, exception types, Unicode, validation order) validates Neo's implementation is correct and defendable.
+**Confidence Level:** HIGH — Validation logic is deterministic; character counting is straightforward in C#; null/empty/length checks are simple, well-tested patterns; boundary cases comprehensively covered.
+**Files Modified:**
+  - `src/ElBruno.QwenTTS.Core.Tests/Sec1ValidationTests.cs` — NEW (9 validation tests)
+
+### 2026-02-28: SEC-2 Path Traversal Validation in VoiceCloningDownloader
+**By:** Neo  
+**Status:** ✅ Complete  
+**What:** Added path traversal validation to `VoiceCloningDownloader.cs`:
+  - **ValidateRelativePath()** private static method (lines 136–142): Rejects absolute paths (via `Path.IsPathRooted()`) and paths containing `..` sequences.
+  - Called in **IsModelDownloaded()** (line 57) for each file in `ExpectedFiles`
+  - Called in **DownloadModelAsync()** (line 82) before constructing `localPath` with Path.Combine
+  - XML docs explain threat model: prevents directory traversal attacks and absolute path injection
+**Threat Model & Validation Strategy:**
+  - **Attack vector**: Untrusted `relativePath` + `Path.Combine(modelDir, relativePath)` = write to arbitrary locations
+  - **Defense 1 (Path.IsPathRooted)**: Rejects absolute paths (Windows drive letters, UNC, POSIX `/`). Covers drive letter injection and absolute path attacks.
+  - **Defense 2 (Contains(".."))**: Rejects all traversal sequences (`../`, `..\`). Simple substring match catches `../../etc/passwd` and Windows equivalents.
+  - **Why sufficient**: ExpectedFiles is hardcoded array of safe relative paths; validation ensures it stays safe if ever modified. Two independent checks cover both attack classes.
+**Edge Cases Verified:**
+  - ✅ Normal relative paths (e.g., `embeddings/config.json`) pass validation
+  - ❌ Traversal attempts (e.g., `embeddings/../../../etc/passwd`) rejected
+  - ❌ Absolute paths (Windows `C:\`, POSIX `/`, UNC `\\server`) rejected
+  - ✅ Dot prefixes (`.hidden`, `./`) allowed (don't escape directory)
+**Build Status:** ✅ All 5 projects compile (0 warnings/errors). ✅ 10 VoiceCloning tests pass.
+**Files Modified:**
+  - `src/ElBruno.QwenTTS.VoiceCloning/VoiceCloningDownloader.cs` — Added ValidateRelativePath() method and validation calls
