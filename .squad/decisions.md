@@ -71,3 +71,8 @@
 **By:** Coordinator
 **What:** Fixed 4 runtime bugs: (1) TTS embedding sizing — corrected prefill tensor dimensions, (2) Hidden state indexing — fixed decode loop stacking from flat to (B, 8, T, 128), (3) Code Predictor KV tracking — CP sessions no longer accumulate KV across groups; reset per group, (4) Tokenizer case sensitivity — ensured vocab.json respects case-sensitive special tokens.
 **Why:** Ensures pipeline produces correct outputs matching ONNX model contracts. All bugs found during code review before runtime testing.
+
+### 2026-02-28: Compiler warnings eliminated in PR #23
+**By:** Neo, Tank (Squad)
+**What:** Fixed all 8 compiler warnings: CS1574 (invalid XML comments) in QwenVoicePreset.cs & NpyReader.cs; CA2022 (potential null reference) in Home.razor & VoiceClone.razor; CS4014 (async not awaited) in Home.razor & VoiceClone.razor. Created branch `squad/fix-compiler-warnings`, opened PR #23, merged via squash merge.
+**Why:** Clean codebase ready for release. Build validation (0 errors, 0 warnings). All 29 unit tests passing.
