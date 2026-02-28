@@ -35,10 +35,28 @@ public sealed class TtsPipeline : ITtsPipeline
     /// <summary>Available speaker names from the model.</summary>
     public IReadOnlyCollection<string> Speakers => _embeddings.GetAvailableSpeakers();
 
+    /// <summary>
+    /// Synthesizes speech from text and saves the output to a WAV file.
+    /// </summary>
+    /// <param name="text">Input text to synthesize. Must not be null, empty, and cannot exceed 10,000 characters.</param>
+    /// <param name="speaker">Speaker name (must exist in model embeddings).</param>
+    /// <param name="outputPath">Path where the output WAV file will be saved.</param>
+    /// <param name="language">Language code (default: "auto" for auto-detection).</param>
+    /// <param name="instruct">Optional instruction prompt for voice style modification.</param>
+    /// <param name="progress">Optional progress reporter.</param>
+    /// <exception cref="ArgumentNullException">Thrown when text is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when text is empty or exceeds 10,000 characters.</exception>
     public async Task SynthesizeAsync(string text, string speaker, string outputPath, 
                                      string language = "auto", string? instruct = null,
                                      IProgress<string>? progress = null)
     {
+        // Input validation
+        ArgumentNullException.ThrowIfNull(text);
+        if (text.Length == 0)
+            throw new ArgumentException("Text cannot be empty.", nameof(text));
+        if (text.Length > 10000)
+            throw new ArgumentException("Text exceeds maximum length of 10,000 characters.", nameof(text));
+
         // Build prompt using tokenizer
         var tokenIds = _tokenizer.BuildCustomVoicePrompt(text, speaker, language, instruct);
 
@@ -69,6 +87,14 @@ public sealed class TtsPipeline : ITtsPipeline
     /// <summary>
     /// Synthesizes speech using a strongly-typed voice preset.
     /// </summary>
+    /// <param name="text">Input text to synthesize. Must not be null, empty, and cannot exceed 10,000 characters.</param>
+    /// <param name="speaker">Voice preset (enum) to use for synthesis.</param>
+    /// <param name="outputPath">Path where the output WAV file will be saved.</param>
+    /// <param name="language">Language code (default: "auto" for auto-detection).</param>
+    /// <param name="instruct">Optional instruction prompt for voice style modification.</param>
+    /// <param name="progress">Optional progress reporter.</param>
+    /// <exception cref="ArgumentNullException">Thrown when text is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when text is empty or exceeds 10,000 characters.</exception>
     public Task SynthesizeAsync(string text, QwenVoicePreset speaker, string outputPath,
                                 string language = "auto", string? instruct = null,
                                 IProgress<string>? progress = null)

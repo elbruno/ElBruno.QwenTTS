@@ -37,6 +37,12 @@ internal sealed class Vocoder : IDisposable
     {
         if (_session is null)
         {
+            // SEC-3: File size pre-check to prevent out-of-memory attacks
+            var fileInfo = new FileInfo(_modelPath);
+            const long maxOnnxSize = 2_000_000_000; // 2 GB
+            if (fileInfo.Length > maxOnnxSize)
+                throw new InvalidOperationException($"ONNX file too large ({fileInfo.Length / 1e9:F2} GB). Maximum allowed: {maxOnnxSize / 1e9:F2} GB.");
+            
             _session = new InferenceSession(_modelPath, _sessionOptionsFactory());
             _inputName = _session.InputMetadata.Keys.FirstOrDefault() ?? "codes";
         }

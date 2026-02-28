@@ -83,11 +83,27 @@ public sealed class TtsPipelineService : IDisposable
     public string ModelDirectory => _modelDir;
 
     /// <summary>
-    /// Generates a WAV file and returns the relative URL path.
+    /// Generates a WAV file from text and returns the relative URL path.
     /// </summary>
+    /// <param name="text">Input text to synthesize. Must not be null, empty, and cannot exceed 10,000 characters.</param>
+    /// <param name="speaker">Speaker name (must exist in model embeddings).</param>
+    /// <param name="language">Language code (default: "auto" for auto-detection).</param>
+    /// <param name="instruct">Optional instruction prompt for voice style modification.</param>
+    /// <param name="progress">Optional progress reporter.</param>
+    /// <returns>Relative URL path to the generated WAV file (e.g., "/generated/{guid}.wav").</returns>
+    /// <exception cref="InvalidOperationException">Thrown when pipeline is not initialized.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when text is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when text is empty or exceeds 10,000 characters.</exception>
     public async Task<string> GenerateAsync(string text, string speaker, string language,
                                             string? instruct, IProgress<string>? progress = null)
     {
+        // Input validation
+        ArgumentNullException.ThrowIfNull(text);
+        if (text.Length == 0)
+            throw new ArgumentException("Text cannot be empty.", nameof(text));
+        if (text.Length > 10000)
+            throw new ArgumentException("Text exceeds maximum length of 10,000 characters.", nameof(text));
+
         if (!_isReady)
             throw new InvalidOperationException("Pipeline not initialized. Call InitializeAsync first.");
 

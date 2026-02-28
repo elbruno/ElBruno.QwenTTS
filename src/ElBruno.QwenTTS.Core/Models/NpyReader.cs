@@ -50,6 +50,12 @@ internal static class NpyReader
 
     private static (string dtype, int[] shape, byte[] data) ReadNpy(string path)
     {
+        // SEC-3: File size pre-check to prevent out-of-memory attacks
+        var fileInfo = new FileInfo(path);
+        const long maxNpySize = 500_000_000; // 500 MB
+        if (fileInfo.Length > maxNpySize)
+            throw new InvalidOperationException($"NPY file too large ({fileInfo.Length / 1e6:F2} MB). Maximum allowed: {maxNpySize / 1e6:F2} MB.");
+
         using var fs = File.OpenRead(path);
         
         // Read magic: 0x93 N U M P Y
