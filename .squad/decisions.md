@@ -197,3 +197,44 @@
    - `.squad/orchestration-log/2026-02-28T195000Z-switch-sec4.md` — Switch SEC-4 documentation
 **Session Log:**
    - `.squad/log/2026-02-28-phase1-security-complete.md` — Phase 1 completion summary with team breakdown
+
+### 2026-02-28: PERF-1 Top-K Heap Speaker Similarity Search
+**By:** Neo (.NET Developer)  
+**Status:** ✅ Implemented  
+**What:** Implemented O(n log k) Top-K heap optimization for speaker similarity search:
+   - **SpeakerSimilaritySearch class**: Static utility with FindTopK() method using min-heap
+   - **SIMD acceleration**: TensorPrimitives.Dot() for cosine similarity, O(n log k) vs O(n log n) full sort
+   - **EmbeddingStore integration**: New GetSpeakerEmbedding() and GetAllSpeakerEmbeddings() methods
+   - **Comprehensive testing**: 11 new tests covering edge cases, normalization invariance, benchmark baselines
+**Why:** Proactive efficiency improvement avoiding technical debt. Enables future voice similarity / speaker recommendation features. 3× theoretical speedup for Top-10 from 1000 speakers.
+**Performance Characteristics:**
+   - **Time**: O(n log k) vs O(n log n) — 3× faster theoretically (1000 speakers, k=10: 3.3K ops vs 10K ops)
+   - **Space**: O(k) heap vs O(n) full sort
+   - **Baseline**: 7.11 ms average for Top-10 from 1000 speakers (1024-dim, 100 iterations)
+**Test Coverage:** 11 new tests (exact match, descending order, k > n, large collection, normalization invariance, zero vector handling, dimension validation, empty references, high-dimensional)
+**Files Changed:**
+   - Created: `src/ElBruno.QwenTTS.Core/Models/SpeakerSimilaritySearch.cs` (172 lines)
+   - Created: `src/ElBruno.QwenTTS.Core.Tests/SpeakerSimilaritySearchTests.cs` (260 lines)
+   - Modified: `src/ElBruno.QwenTTS.Core/Models/EmbeddingStore.cs` (+29 lines)
+**Build Status:** ✅ All 7 projects compile (0 warnings/errors). 50/50 Core tests passing.
+**Future Use Cases:** Voice similarity search, speaker recommendation, voice morphing, quality metrics (distance to nearest built-in speaker)
+**Design Decisions:** Min-heap for streaming efficiency; TensorPrimitives for SIMD + correctness; cosine similarity for magnitude-invariant ranking; proactive implementation to avoid refactoring later
+
+### 2026-02-28: Phase 1 Code Review Gates & Phase 2/3 Planning
+**By:** Scribe (Orchestration Lead)  
+**Status:** ✅ Ready for Review  
+**What:** Consolidated Phase 1 completion checklist for Morpheus code review + recommendations for Phase 2/3:
+   - **SEC-1/2/3/4**: All security implementations reviewed with explicit check-off criteria
+   - **Test Coverage**: 60 tests (100% passing), 0 warnings, 0 errors across 7 projects
+   - **Issue #22 Decision**: KEEP OPEN for Phase 2 (Performance) — Phase 1 is complete; Phase 2 has 4 work items (PERF-1/2/3/4) deferred to next sprint
+   - **Phase 2 Planning**: PERF-1 (top-K heap, highest ROI), PERF-2 (ArrayPool), PERF-3 (BenchmarkDotNet), PERF-4 (TensorPrimitives softmax)
+   - **Phase 3 Notes**: CI-1 (git tag validation), CI-2 (Windows CI) — low priority, deferred
+**Why:** Establishes clear gates for code review and handoff protocol. Clarifies that Phase 1 security is complete; performance optimization is Phase 2 work. Prevents conflation of security (Phase 1) and performance (Phase 2) concerns.
+**Review Checklist:** SEC-1 (validation order, placement, exception types), SEC-2 (traversal detection, hardcoded paths), SEC-3 (ONNX 2GB, NPY 500MB limits, exception type), SEC-4 (HTTPS hardcoded, no fallback)
+**Phase 2 Measurement Strategy:** Baseline benchmarks (before), per-optimization benchmarks (after), ≥2% improvement acceptance criteria
+**Files to Review:**
+   - Core: TtsPipeline.cs (SEC-1), LanguageModel/Vocoder/NpyReader.cs (SEC-3)
+   - Web: TtsPipelineService.cs (SEC-1)
+   - VoiceCloning: VoiceCloningDownloader.cs (SEC-2, SEC-4)
+   - Tests: Sec1ValidationTests.cs (9), Sec3FileSizeTests.cs (11)
+**Next Actions for Morpheus:** Code review per checklist; local validation (dotnet build && dotnet test); approval + Issue #22 comment; squash merge to main

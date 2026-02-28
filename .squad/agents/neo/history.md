@@ -128,4 +128,25 @@ TextTokenizer.cs and Vocoder.cs are fully implemented. LanguageModel.cs is a ske
    - `src/ElBruno.QwenTTS.Core/Models/LanguageModel.cs` — Added System.Buffers, applied ArrayPool to 3 hot paths
 **Branch:** squad/perf-2-arraypool  
 **Closes:** Issue #22 PERF-2
+### 2026-02-28: Phase 3 CI/Linux Hardening (Neo)
+**Status:** ✅ Complete  
+**What:** Implemented Phase 3 CI/Linux checklist from issue #22. Audit revealed that two of three items were already satisfied; enhanced publish workflow for robust version handling.
+**Audit Results:**
+   - **✅ [SkippableFact] for platform-conditional tests**: No tests currently use `Skip.IfNot(IsWindows())` or `Skip.If(IsLinux())` patterns. This requirement is already satisfied — no changes needed.
+   - **✅ Cross-platform file name validation**: No code in the repository uses `Path.GetInvalidFileNameChars()`. ModelDownloader and other file handling code already use safe, cross-platform patterns. No hardcoded character set needed.
+   - **✅ Publish workflow version handling**: Enhanced `.github/workflows/publish.yml` to strip both leading 'v' AND leading '.' from version tags, plus added semantic version format validation.
+**Publish Workflow Enhancements:**
+   - **Dual strip pattern**: `VERSION="${VERSION#v}"` followed by `VERSION="${VERSION#.}"` handles both `v1.0.0` → `1.0.0` and `v.1.0.0` → `1.0.0` (typo case)
+   - **Version validation step**: New step after "Determine version" validates semantic version format (MAJOR.MINOR.PATCH with optional prerelease/buildmetadata) before build starts
+   - **Fail-fast behavior**: Invalid version format (e.g., missing parts, non-numeric, malformed) causes workflow to fail immediately with clear error message and examples
+   - **Applied to all version sources**: Release tags, manual workflow_dispatch input, and csproj fallback all get sanitized
+**Cross-Platform Test Pattern Learnings:**
+   - **SkippableFact vs Fact**: On Linux, `Skip.IfNot()` throws `SkipException`. With `[Fact]`, this is a **test failure**. With `[SkippableFact]`, it's correctly recorded as **skipped**. Must use Xunit.SkippableFact NuGet package.
+   - **Path.GetInvalidFileNameChars() trap**: Returns only `\0` and `/` on Linux (vs 9+ chars on Windows). For cross-platform validation, must use hardcoded char set: `['<', '>', ':', '"', '|', '?', '*', '\\', '/', '\0']`.
+   - **CI workflow design**: Version extraction should handle user typos (v.1.0.0) gracefully; validation should fail fast before expensive build/test steps.
+**Build Status:** ✅ 0 warnings, 0 errors across all 7 projects. ✅ All 60 tests passing (50 Core + 10 VoiceCloning).
+**Files Modified:**
+   - `.github/workflows/publish.yml` — Added dual strip + validation step for version handling
+**Branch:** squad/phase-3-ci-linux  
+**Closes:** Issue #22 Phase 3 CI/Linux Checklist
 
