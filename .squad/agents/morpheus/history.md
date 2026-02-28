@@ -19,3 +19,17 @@ Project published to https://github.com/elbruno/qwen-labs-cs (private). 8/12 tas
 
 ### 2026-02-28: Neo's Queue
 📌 **Team update:** Issue #22 triage completed. Created 3-phase roadmap for security/performance/CI audit. Phase 1 (security) is blocking for voice cloning release; Phase 2/3 deferred. SEC-1 (input validation) now in Neo's queue. — Morpheus
+
+### 2026-02-28: Phase 2 & 3 Merge Review — All Branches Complete
+**By:** Morpheus (Lead)
+**What:** Reviewed and merged all Phase 2 (Performance) and Phase 3 (CI/Linux) branches to main:
+  - **PERF-1 (squad/perf-1-topk-heap):** Top-K heap speaker search — O(n log k) optimization with SIMD acceleration. Clean implementation with 21 tests. Min-heap pattern is textbook-correct.
+  - **PERF-2 (squad/perf-2-arraypool):** ArrayPool adoption in LanguageModel inference — reduces GC pressure during autoregressive generation. Proper rent/return lifecycle, no leaks.
+  - **PERF-3 (squad/perf-3-benchmarks):** BenchmarkDotNet baseline infrastructure — enables continuous performance validation. Good test coverage for benchmark execution.
+  - **Phase 3 (squad/phase-3-ci-linux):** CI/Linux workflow hardening — version detection from GitHub releases, manual dispatch, csproj fallback. Linux validation added to build matrix.
+**Merge Strategy:** Squash merge with conventional commits (fix(perf), fix(build), fix(ci)) referencing #22. Each commit includes Co-authored-by trailer per team convention.
+**Validation:** All 4 branches validated independently (60 tests, 0 warnings, 0 errors). Final merge validation on main confirms no integration issues.
+**PR Review Patterns:** Validated build output, test metrics, implementation quality, and architecture decisions for each branch. Code quality high across all work items.
+**Why:** Systematic review ensures production readiness. Squash commits maintain clean git history. All work traceable to Issue #22.
+**Closure Decision:** Issue #22 closed after all work merged. Phase 1 (SEC-1/2/3/4) + Phase 2 (PERF-1/2/3) + Phase 3 (CI) complete. Total 7 work items resolved.
+**Learnings:** Squash merge strategy works well for multi-agent branches. Review gates (build + test validation) catch integration issues early. Decision memo consolidation provides audit trail for all architectural choices.

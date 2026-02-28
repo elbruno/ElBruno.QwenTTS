@@ -238,3 +238,28 @@
    - VoiceCloning: VoiceCloningDownloader.cs (SEC-2, SEC-4)
    - Tests: Sec1ValidationTests.cs (9), Sec3FileSizeTests.cs (11)
 **Next Actions for Morpheus:** Code review per checklist; local validation (dotnet build && dotnet test); approval + Issue #22 comment; squash merge to main
+
+### 2026-02-28: PHASE_2_3_COMPLETE — All Security/Performance/CI Work Merged
+**By:** Morpheus (Lead)  
+**Status:** ✅ Complete  
+**What:** Phase 1 (Security), Phase 2 (Performance), and Phase 3 (CI/Linux) all validated, reviewed, and merged to main:
+   - **PERF-1 (Top-K Heap):** O(n log k) speaker similarity search with min-heap + SIMD. 21 tests. 3× theoretical speedup for Top-10 from 1000 speakers.
+   - **PERF-2 (ArrayPool):** ArrayPool<float> adoption in LanguageModel inference loops. Reduces GC pressure during autoregressive generation.
+   - **PERF-3 (BenchmarkDotNet):** Baseline profiling infrastructure with TextTokenizerBenchmarks. Enables continuous performance validation.
+   - **Phase 3 (CI/Linux):** Publish workflow version detection (GitHub releases, manual dispatch, csproj fallback). Linux CI validation.
+**Validation Results:** All 4 branches validated with 60 tests passing (50 Core + 10 VoiceCloning), 0 warnings, 0 errors. Each branch builds and tests cleanly.
+**Merge Strategy:** Squash merge with conventional commits:
+   - `f4884ae` — fix(perf): PERF-1 Top-K heap optimization for speaker search (#22)
+   - `8a8af4d` — fix(perf): PERF-2 ArrayPool adoption to reduce GC pressure (#22)
+   - `36de345` — fix(build): PERF-3 BenchmarkDotNet baseline profiling (#22)
+   - `eea6759` — fix(ci): Phase 3 CI/Linux workflow hardening (#22)
+**Final Test Metrics:** 60 tests passing, 0 warnings, 0 errors. All 7 projects compile successfully.
+**Decision:** Issue #22 closed. Phase 1 security hardening (SEC-1/2/3/4), Phase 2 performance optimizations (PERF-1/2/3), and Phase 3 CI enhancements all complete.
+**Why:** Systematic review and merge process ensures code quality. Squash commits maintain clean git history. All work documented in decision memos and history files.
+**Files Modified:**
+   - Core: SpeakerSimilaritySearch.cs (NEW), LanguageModel.cs (ArrayPool), EmbeddingStore.cs
+   - Tests: SpeakerSimilaritySearchTests.cs (NEW, 21 tests)
+   - Benchmarks: ElBruno.QwenTTS.Benchmarks (NEW project)
+   - Workflows: .github/workflows/publish.yml (version detection)
+   - Docs: .squad/agents/{neo,morpheus}/history.md, .squad/decisions/inbox/ (4 new memos)
+**Readiness:** Production-ready for NuGet release. All security, performance, and CI work complete and tested.
