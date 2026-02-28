@@ -1,0 +1,14 @@
+Test run for C:\src\ElBruno.QwenTTS\src\ElBruno.QwenTTS.Core.Tests\bin\Debug\net10.0\ElBruno.QwenTTS.Core.Tests.dll (.NETCoreApp,Version=v10.0)
+VSTest version 18.0.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+Test run for C:\src\ElBruno.QwenTTS\src\ElBruno.QwenTTS.VoiceCloning.Tests\bin\Debug\net10.0\ElBruno.QwenTTS.VoiceCloning.Tests.dll (.NETCoreApp,Version=v10.0)
+VSTest version 18.0.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:    10, Skipped:     0, Total:    10, Duration: 376 ms - ElBruno.QwenTTS.VoiceCloning.Tests.dll (net10.0)
+
+Passed!  - Failed:     0, Passed:    39, Skipped:     0, Total:    39, Duration: 10 s - ElBruno.QwenTTS.Core.Tests.dll (net10.0)

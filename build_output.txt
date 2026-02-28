@@ -1,0 +1,17 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  ElBruno.QwenTTS.Core -> C:\src\ElBruno.QwenTTS\src\ElBruno.QwenTTS.Core\bin\Debug\net10.0\ElBruno.QwenTTS.Core.dll
+  ElBruno.QwenTTS.Core -> C:\src\ElBruno.QwenTTS\src\ElBruno.QwenTTS.Core\bin\Debug\net8.0\ElBruno.QwenTTS.Core.dll
+  ElBruno.QwenTTS.Core.Tests -> C:\src\ElBruno.QwenTTS\src\ElBruno.QwenTTS.Core.Tests\bin\Debug\net10.0\ElBruno.QwenTTS.Core.Tests.dll
+  ElBruno.QwenTTS.VoiceCloning -> C:\src\ElBruno.QwenTTS\src\ElBruno.QwenTTS.VoiceCloning\bin\Debug\net10.0\ElBruno.QwenTTS.VoiceCloning.dll
+  ElBruno.QwenTTS -> C:\src\ElBruno.QwenTTS\src\ElBruno.QwenTTS\bin\Debug\net10.0\ElBruno.QwenTTS.dll
+  ElBruno.QwenTTS.FileReader -> C:\src\ElBruno.QwenTTS\src\ElBruno.QwenTTS.FileReader\bin\Debug\net10.0\ElBruno.QwenTTS.FileReader.dll
+  ElBruno.QwenTTS.VoiceCloning -> C:\src\ElBruno.QwenTTS\src\ElBruno.QwenTTS.VoiceCloning\bin\Debug\net8.0\ElBruno.QwenTTS.VoiceCloning.dll
+  ElBruno.QwenTTS.VoiceCloning.Tests -> C:\src\ElBruno.QwenTTS\src\ElBruno.QwenTTS.VoiceCloning.Tests\bin\Debug\net10.0\ElBruno.QwenTTS.VoiceCloning.Tests.dll
+  ElBruno.QwenTTS.Web -> C:\src\ElBruno.QwenTTS\src\ElBruno.QwenTTS.Web\bin\Debug\net10.0\ElBruno.QwenTTS.Web.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:08.71

@@ -1,0 +1,79 @@
+Build started 2026-02-28 2:58:00 PM.
+     1>Project "C:\src\ElBruno.QwenTTS\ElBruno.QwenTTS.slnx" on node 1 (VSTest target(s)).
+     1>ValidateSolutionConfiguration:
+         Building solution configuration "Debug|Any CPU".
+Test run for C:\src\ElBruno.QwenTTS\src\ElBruno.QwenTTS.Core.Tests\bin\Debug\net10.0\ElBruno.QwenTTS.Core.Tests.dll (.NETCoreApp,Version=v10.0)
+VSTest version 18.0.1 (x64)
+
+Starting test execution, please wait...
+Test run for C:\src\ElBruno.QwenTTS\src\ElBruno.QwenTTS.VoiceCloning.Tests\bin\Debug\net10.0\ElBruno.QwenTTS.VoiceCloning.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+VSTest version 18.0.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.3)
+[xUnit.net 00:00:00.27]   Discovering: ElBruno.QwenTTS.Core.Tests
+[xUnit.net 00:00:00.37]   Discovered:  ElBruno.QwenTTS.Core.Tests
+[xUnit.net 00:00:00.43]   Starting:    ElBruno.QwenTTS.Core.Tests
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.0+00ab0a9ec4 (64-bit .NET 10.0.3)
+[xUnit.net 00:00:00.26]   Discovering: ElBruno.QwenTTS.VoiceCloning.Tests
+[xUnit.net 00:00:00.35]   Discovered:  ElBruno.QwenTTS.VoiceCloning.Tests
+[xUnit.net 00:00:00.42]   Starting:    ElBruno.QwenTTS.VoiceCloning.Tests
+  Passed ElBruno.QwenTTS.Core.Tests.Sec1ValidationTests.SynthesizeAsync_AcceptsLongTextBeforeLimit [8 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.Sec1ValidationTests.ValidationOrder_NullBeforeEmpty [2 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.Sec1ValidationTests.SynthesizeAsync_AcceptsSingleCharacter [7 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.Sec1ValidationTests.SynthesizeAsync_RejectsEmptyText [425 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.Sec1ValidationTests.SynthesizeAsync_Rejects10001Characters [1 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.Sec1ValidationTests.SynthesizeAsync_RejectsNullText [< 1 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.Sec1ValidationTests.SynthesizeAsync_Accepts10000Characters [< 1 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.Sec1ValidationTests.LengthValidation_UsesGreaterThan [< 1 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.Sec1ValidationTests.SynthesizeAsync_AcceptsUnicodeWithin10000Chars [< 1 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.NpyReaderTests.ReadFloat1D_InvalidMagic_Throws [458 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.WavWriterTests.Write_WithAudioData_NonZeroContent [471 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.WavWriterTests.Write_SampleRateInHeader [7 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.NpyReaderTests.ReadFloat1D_ValidFile_ReturnsCorrectData [22 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.NpyReaderTests.ReadFloat1D_NonExistentFile_Throws [2 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.WavWriterTests.Write_CorrectFileSize [10 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.NpyReaderTests.ReadFloat2D_ValidFile_ReturnsCorrectShape [48 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.TtsPipelineFactoryTests.CreateAsync_WithMissingFiles_TriggersDownload [541 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.TtsPipelineFactoryTests.Constructor_WithInvalidDir_Throws [11 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.WavWriterTests.Write_CreatesValidWavFile [64 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.ModelDownloaderTests.DownloadModelAsync_AlreadyReady_SkipsDownload [666 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.ModelDownloaderTests.ModelDownloadProgress_Percentage_Calculation [9 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.ModelDownloaderTests.GetMissingFiles_WithSomeFiles_ReturnsOnlyMissing [14 ms]
+[xUnit.net 00:00:01.32]   Finished:    ElBruno.QwenTTS.Core.Tests
+  Passed ElBruno.QwenTTS.VoiceCloning.Tests.VoiceCloningDownloaderTests.IsModelDownloaded_EmptyDir_ReturnsFalse [20 ms]
+  Passed ElBruno.QwenTTS.VoiceCloning.Tests.SpeakerEncoderTests.Constructor_AcceptsModelPath [21 ms]
+  Passed ElBruno.QwenTTS.VoiceCloning.Tests.VoiceClonePipelineTests.Constructor_ThrowsIfSpeakerEncoderMissing [17 ms]
+  Passed ElBruno.QwenTTS.VoiceCloning.Tests.VoiceCloningDownloaderTests.DefaultModelDir_IsUnderElBruno [13 ms]
+  Passed ElBruno.QwenTTS.VoiceCloning.Tests.VoiceCloningDownloaderTests.DownloadModelAsync_CancellationPreventsDownload [27 ms]
+  Passed ElBruno.QwenTTS.VoiceCloning.Tests.MelSpectrogramTests.Extract_WithSineWave_HasNonZeroEnergy [134 ms]
+  Passed ElBruno.QwenTTS.VoiceCloning.Tests.MelSpectrogramTests.Extract_ShortAudio_StillWorks [4 ms]
+  Passed ElBruno.QwenTTS.VoiceCloning.Tests.SpeakerEncoderTests.MelSpectrogram_FrameCount_MatchesPyTorch [132 ms]
+  Passed ElBruno.QwenTTS.VoiceCloning.Tests.MelSpectrogramTests.FromWavFile_ReadsAndExtracts [155 ms]
+[xUnit.net 00:00:00.90]   Finished:    ElBruno.QwenTTS.VoiceCloning.Tests
+  Passed ElBruno.QwenTTS.Core.Tests.ModelDownloaderTests.IsModelReady_NonExistentDir_ReturnsFalse [2 ms]
+  Passed   Passed ElBruno.QwenTTS.VoiceCloning.Tests.MelSpectrogramTests.Extract_ReturnsCorrectShape [112 ms]
+ElBruno.QwenTTS.Core.Tests.ModelDownloaderTests.DownloadModelAsync_Cancellation_ThrowsOperationCanceled [8 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.ModelDownloaderTests.DefaultRepoId_IsCorrect [2 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.ModelDownloaderTests.GetMissingFiles_EmptyDir_ReturnsAllExpectedFiles [6 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.ModelDownloaderTests.IsModelReady_EmptyDir_ReturnsFalse [2 ms]
+  Passed ElBruno.QwenTTS.Core.Tests.ModelDownloaderTests.IsModelReady_AllFilesPresent_ReturnsTrue [82 ms]
+
+
+Test Run Successful.
+Total tests: 28
+     Passed: 28
+ Total time: 2.8840 Seconds
+Test Run Successful.
+Total tests: 10
+     Passed: 10
+ Total time: 2.3935 Seconds
+     1>Done Building Project "C:\src\ElBruno.QwenTTS\ElBruno.QwenTTS.slnx" (VSTest target(s)).
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:06.17
