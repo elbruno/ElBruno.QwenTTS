@@ -108,3 +108,24 @@ TextTokenizer.cs and Vocoder.cs are fully implemented. LanguageModel.cs is a ske
 **Branch:** squad/perf-1-topk-heap  
 **Closes:** Issue #22 PERF-1
 
+### 2026-02-28: PERF-2 ArrayPool Adoption in ONNX Inference Loops
+**Status:** ✅ Complete  
+**What:** Applied `ArrayPool<T>.Shared` optimizations to hot allocation paths in ONNX inference (LanguageModel.cs). Replaced heap allocations with pooled arrays to reduce GC pressure and latency variance during real-time synthesis.
+**Hot Paths Optimized:**
+   1. **Prefill stage** — Rented `flatEmbeds` (float[]), `flatMask` (long[]), `flatPosIds` (long[]) before ONNX session, returned in finally
+   2. **Decode loop** — Rented `pooledMask` (long[2048]) and `pooledCpInputs` (float[2048]) once before loop, reused per-step
+   3. **Code Predictor inner loop** — Dynamically rented `flatCpEmbeds` per group iteration with nested try-finally
+   4. **Sampling methods** — `SampleToken` and `SampleTokenSimple` now rent/return `probs` arrays with try-finally
+**Design Decisions:**
+   - Rent large buffers (mask, CP inputs) once before loops to amortize pool overhead
+   - Wrap all rental sites in try-finally to guarantee return even on early exit/exception
+   - Use `.AsMemory(0, actualSize)` to slice rented arrays to exact size needed
+   - Zero behavioral change — logic identical, only allocation strategy differs
+**Test Coverage:** ✅ All 60 tests pass (50 Core + 10 VoiceCloning) in both Debug and Release modes
+**Build Status:** ✅ 0 errors, 0 warnings across all 7 projects
+**GC Reduction:** Per-step allocations eliminated in tight decode loop (2048 iterations max); sampling arrays (~3KB-12KB) now pooled instead of heap-allocated
+**Files Modified:**
+   - `src/ElBruno.QwenTTS.Core/Models/LanguageModel.cs` — Added System.Buffers, applied ArrayPool to 3 hot paths
+**Branch:** squad/perf-2-arraypool  
+**Closes:** Issue #22 PERF-2
+
