@@ -77,4 +77,34 @@ TextTokenizer.cs and Vocoder.cs are fully implemented. LanguageModel.cs is a ske
    - `src/ElBruno.QwenTTS.Core/Models/NpyReader.cs` — Size check in ReadNpy()
    - `src/ElBruno.QwenTTS.Core.Tests/Sec3FileSizeTests.cs` — 14 new test cases (Tank)
 
+### 2026-02-28: PERF-1 Top-K Heap Speaker Similarity Search
+**Status:** ✅ Complete  
+**What:** Implemented O(k log n) Top-K heap optimization for speaker embedding similarity search as a proactive performance enhancement. Enables finding the K most similar speakers from an embedding database without full sort.
+**Implementation Details:**
+   - **SpeakerSimilaritySearch.cs** (NEW): Static FindTopK() method using internal MinHeap class for efficient Top-K tracking
+   - **Algorithm**: Min-heap maintains only K highest similarities; rejects lower values without insertion
+   - **SIMD acceleration**: TensorPrimitives.Dot() for cosine similarity, TensorPrimitives.Norm() for L2 normalization, TensorPrimitives.Divide() for unit vector computation
+   - **Normalization**: Automatic L2 normalization of both query and reference embeddings (handles unnormalized inputs gracefully)
+   - **MinHeap**: Binary heap with BubbleUp/BubbleDown operations; ExtractAll() returns results in descending similarity order
+**EmbeddingStore Integration:**
+   - **GetSpeakerEmbedding(int speakerId)**: Retrieves single speaker embedding (1024-dim) from talker_codec_embedding matrix
+   - **GetAllSpeakerEmbeddings()**: Yields all (name, embedding) tuples for similarity search iteration
+**Performance Characteristics:**
+   - **Time complexity**: O(n log k) for n speakers and k results (vs O(n log n) for full sort + take-k)
+   - **Space complexity**: O(k) heap (vs O(n) for full array sort)
+   - **Benchmark baseline**: 7.11 ms average for Top-10 from 1000 speakers with 1024-dimensional embeddings (100 iterations)
+**Test Coverage:**
+   - **11 new tests** in SpeakerSimilaritySearchTests.cs: exact match, descending order, large collection (1000 speakers), normalized/unnormalized equivalence, zero vector handling, dimension mismatch, invalid k, empty references, high-dimensional (1024-dim) correctness, benchmark baseline
+   - **Edge cases**: Zero vectors, dimension mismatches, k > n, k ≤ 0, empty collections
+   - **Total Core tests**: 50 passing (39 existing + 11 new PERF-1)
+**Use Case:**
+   - Future feature: "Find similar voices" — given a speaker embedding (from voice clone or reference), return top-K closest built-in speakers
+   - Proactive optimization: Implements efficient algorithm before feature demand, avoiding technical debt
+**Files Created:**
+   - `src/ElBruno.QwenTTS.Core/Models/SpeakerSimilaritySearch.cs` (172 lines)
+   - `src/ElBruno.QwenTTS.Core.Tests/SpeakerSimilaritySearchTests.cs` (260 lines)
+**Files Modified:**
+   - `src/ElBruno.QwenTTS.Core/Models/EmbeddingStore.cs` — Added GetSpeakerEmbedding() and GetAllSpeakerEmbeddings() methods
+**Branch:** squad/perf-1-topk-heap  
+**Closes:** Issue #22 PERF-1
 

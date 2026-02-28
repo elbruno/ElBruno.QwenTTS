@@ -128,6 +128,32 @@ internal sealed class EmbeddingStore : IDisposable
     /// </summary>
     public IReadOnlyCollection<string> GetAvailableSpeakers() => _speakerIds.Keys;
 
+    /// <summary>
+    /// Gets the talker codec embedding for a speaker as a float array.
+    /// Used for similarity search and speaker matching.
+    /// </summary>
+    /// <param name="speakerId">Speaker token ID (codec embedding token).</param>
+    /// <returns>Embedding vector (1024 dimensions).</returns>
+    public float[] GetSpeakerEmbedding(int speakerId)
+    {
+        var embedding = new float[1024];
+        for (int i = 0; i < 1024; i++)
+            embedding[i] = _talkerCodecEmbedding[speakerId, i];
+        return embedding;
+    }
+
+    /// <summary>
+    /// Gets all speaker embeddings as a collection for similarity search.
+    /// </summary>
+    /// <returns>Tuples of (speakerName, embedding) for all available speakers.</returns>
+    public IEnumerable<(string name, float[] embedding)> GetAllSpeakerEmbeddings()
+    {
+        foreach (var (name, id) in _speakerIds)
+        {
+            yield return (name, GetSpeakerEmbedding(id));
+        }
+    }
+
     public void Dispose()
     {
         // No unmanaged resources
