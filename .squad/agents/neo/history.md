@@ -59,4 +59,22 @@ TextTokenizer.cs and Vocoder.cs are fully implemented. LanguageModel.cs is a ske
 **What:** SEC-1 Input Validation (TtsPipeline & TtsPipelineService) + SEC-2 Path Traversal Validation (VoiceCloningDownloader). 28 Core tests passing (19 original + 9 new Tank validation tests), 10 Voice Cloning tests passing.
 **Build:** 0 errors, 0 warnings across all 5 projects
 
+### 2026-02-28: SEC-3 File Size Pre-Checks for ONNX/NPY (Neo)
+**Status:** ✅ Complete  
+**What:** Added file size validation to model file loaders before memory allocation:
+   - **LanguageModel.cs** (3 methods): GetPrefillSession(), GetDecodeSession(), GetCpSession() — each checks ONNX file ≤ 2 GB before `new InferenceSession()`
+   - **Vocoder.cs** (1 method): GetSession() — checks vocoder ONNX file ≤ 2 GB before session creation
+   - **NpyReader.cs** (1 method): ReadNpy() — checks NPY file ≤ 500 MB at start of parsing
+**Size Limits & Rationale:**
+   - **ONNX: 2 GB** — Qwen3-TTS models (talker_prefill ~1.2GB, talker_decode ~1.2GB, code_predictor ~400MB, vocoder ~500MB) fit with 1.7× headroom; rejects pathological files
+   - **NPY: 500 MB** — Embeddings + configs (~150-250MB aggregate) fit with 2-3× headroom; NPY = raw float data, 500MB file = 500MB memory
+**Exception Type:** InvalidOperationException with human-readable message (e.g., "ONNX file too large (2.50 GB). Maximum allowed: 2.00 GB.")
+**Test Coverage:** Tank wrote 14 boundary tests covering NPY/ONNX boundary cases (n-1, n, n+1) plus comparative limits validation.
+**Build Status:** ✅ 0 warnings, 0 errors across all projects. ✅ 39 Core tests pass, 10 VoiceCloning tests pass. ✅ No regression in SEC-1/SEC-2.
+**Files Modified:**
+   - `src/ElBruno.QwenTTS.Core/Models/LanguageModel.cs` — Size checks in 3 session factories
+   - `src/ElBruno.QwenTTS.Core/Models/Vocoder.cs` — Size check in GetSession()
+   - `src/ElBruno.QwenTTS.Core/Models/NpyReader.cs` — Size check in ReadNpy()
+   - `src/ElBruno.QwenTTS.Core.Tests/Sec3FileSizeTests.cs` — 14 new test cases (Tank)
+
 

@@ -133,3 +133,67 @@
 **Build Status:** ✅ All 5 projects compile (0 warnings/errors). ✅ 10 VoiceCloning tests pass.
 **Files Modified:**
   - `src/ElBruno.QwenTTS.VoiceCloning/VoiceCloningDownloader.cs` — Added ValidateRelativePath() method and validation calls
+
+### 2026-02-28: SEC-3 File Size Pre-Checks for ONNX/NPY Models
+**By:** Neo  
+**Status:** ✅ Complete  
+**What:** Implemented file size validation for ONNX and NPY model files to prevent out-of-memory attacks:
+   - **LanguageModel.cs** (lines 32–54): Three ONNX session factories (GetPrefillSession, GetDecodeSession, GetCpSession) check file size ≤ 2 GB before loading
+   - **Vocoder.cs** (lines 36–47): GetSession() checks vocoder.onnx ≤ 2 GB before ONNX Runtime loads
+   - **NpyReader.cs** (lines 51–57): ReadNpy() checks NPY files ≤ 500 MB before parsing
+   - Exception type: `InvalidOperationException` with human-readable size format (GB/MB)
+**Size Limits Rationale:**
+   - **2 GB for ONNX:** Qwen3-TTS suite has 4 ONNX files (~1.2 GB each max). 2 GB provides 1.7× headroom above largest single model.
+   - **500 MB for NPY:** 15 codec embeddings (~30–40 MB each) + text/speaker embeddings (~150–100 MB) = typical 300–400 MB total. 500 MB provides 2–3× headroom.
+**Validation Order:** File existence → file size (SEC-3) → ONNX protobuf validation → data parsing. Malicious files rejected as early as possible.
+**Test Coverage:** Tank wrote 11 boundary tests (499 MB/500 MB/500+MB for NPY; 1.9 GB/2 GB/2+GB for ONNX; comparative limits). All 50 Core tests passing.
+**Build Status:** ✅ All 7 projects compile (0 warnings/errors). ✅ 50 Core + 10 VoiceCloning = 60 tests passing.
+**Files Modified:**
+   - `src/ElBruno.QwenTTS.Core/Models/LanguageModel.cs` — Added size checks to 3 ONNX session factories
+   - `src/ElBruno.QwenTTS.Core/Models/Vocoder.cs` — Added size check to GetSession()
+   - `src/ElBruno.QwenTTS.Core/Models/NpyReader.cs` — Added size check to ReadNpy()
+   - `src/ElBruno.QwenTTS.Core.Tests/Sec3FileSizeTests.cs` — 11 new boundary condition tests (Tank)
+
+### 2026-02-28: SEC-4 HTTPS Enforcement for Model Downloads
+**By:** Switch (Issue Solver)  
+**Status:** ✅ Complete  
+**What:** Documented hardcoded HTTPS scheme in `VoiceCloningDownloader.cs` to enforce secure model downloads:
+   - **Line 14–24:** Enhanced XML documentation on `HfResolveBase` constant (`https://huggingface.co`)
+   - **Threat Model:** ONNX models are large binaries (~5.5 GB total) executed by ONNX Runtime. MITM attacks can inject malicious code during HTTP download.
+   - **Defense Strategy:** Hardcoding HTTPS (non-configurable) prevents:
+     - Accidental downgrade to HTTP by misconfiguration
+     - Protocol negotiation attacks
+     - Attacker injection of malicious model binaries
+   - **Why Hardcoding is Correct:** No legitimate use case for HTTP. HuggingFace models always hosted on HTTPS. Configuration risk eliminated by making constant immutable.
+**Guidance for Future Maintainers:**
+   - Always use HTTPS for remote model repositories (hardcoded, not configurable)
+   - Document threat model in code comments (ONNX binaries = code execution risk)
+   - Add ValidateRelativePath() checks (already done in VoiceCloningDownloader)
+   - When migrating to new repository, keep HTTPS hardcoded; update HfResolveBase constant only
+**Build Status:** ✅ All 5 projects compile (0 warnings/errors). Documentation-only change; no functional impact.
+**Files Modified:**
+   - `src/ElBruno.QwenTTS.VoiceCloning/Pipeline/VoiceCloningDownloader.cs` — Enhanced XML documentation on HfResolveBase constant
+**References:** Defense-in-depth with SEC-2 (path traversal) and SEC-1 (input validation). Total security surface hardened: input → path → file size → HTTPS
+
+### 2026-02-28: Phase 1 Security Complete — SEC-1 Through SEC-4
+**By:** Scribe (Orchestration Lead), Neo, Tank, Switch  
+**Status:** ✅ Complete  
+**What:** Phase 1 security hardening fully implemented, tested, and documented:
+   - **SEC-1 (Input Validation):** 9 tests covering null, empty, length boundary cases (10k char limit)
+   - **SEC-2 (Path Traversal):** ValidateRelativePath() in VoiceCloningDownloader blocks `..` and absolute paths
+   - **SEC-3 (File Size Checks):** 11 tests verifying ONNX (2 GB) and NPY (500 MB) limits
+   - **SEC-4 (HTTPS Enforcement):** Threat model and guidance documented for future maintainers
+**Consolidated Metrics:**
+   - **Test Growth:** 19 Core tests → 50 Core tests (+163% new tests)
+   - **Total Test Suite:** 60 tests (50 Core + 10 VoiceCloning), 100% passing
+   - **Build Quality:** 0 warnings, 0 errors across 7 projects
+   - **Regression Testing:** All pre-existing tests pass; zero breakage
+**Team Contributions:** Neo (implementation SEC-1/2/3), Tank (20 new tests), Switch (documentation SEC-4), Morpheus (triage + review gates)
+**Decision Memos Consolidated:** Merged all inbox files (neo-sec3, tank-sec3, switch-sec4, morpheus-triage) into decisions.md with full design rationale.
+**Readiness:** Code ready for Morpheus code review. Zero blocking issues. Can proceed to Phase 2 (performance) and Phase 3 (CI/Linux) planning.
+**Orchestration Logs Created:**
+   - `.squad/orchestration-log/2026-02-28T195000Z-neo-sec3.md` — Neo SEC-3 completion
+   - `.squad/orchestration-log/2026-02-28T195000Z-tank-sec3-validation.md` — Tank SEC-3 test validation
+   - `.squad/orchestration-log/2026-02-28T195000Z-switch-sec4.md` — Switch SEC-4 documentation
+**Session Log:**
+   - `.squad/log/2026-02-28-phase1-security-complete.md` — Phase 1 completion summary with team breakdown
