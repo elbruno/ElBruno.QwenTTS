@@ -11,6 +11,15 @@ namespace ElBruno.QwenTTS.VoiceCloning.Pipeline;
 public sealed class VoiceCloningDownloader
 {
     public const string DefaultRepoId = "elbruno/Qwen3-TTS-12Hz-0.6B-Base-ONNX";
+    
+    /// <summary>
+    /// HuggingFace repository base URL. HTTPS scheme is hardcoded (not configurable) to enforce
+    /// secure model downloads. This is a security design decision: all ONNX model files are
+    /// large binaries (~5.5 GB total) that will be executed by ONNX Runtime. Using only HTTPS
+    /// prevents Man-in-the-Middle (MITM) attacks that could inject malicious code into models
+    /// during download. Attempting to change this to HTTP would bypass model signature validation
+    /// and create a critical security vulnerability in the TTS inference pipeline.
+    /// </summary>
     private const string HfResolveBase = "https://huggingface.co";
 
     /// <summary>
@@ -53,7 +62,10 @@ public sealed class VoiceCloningDownloader
     {
         modelDir ??= DefaultModelDir;
         return ExpectedFiles.All(f =>
-            File.Exists(Path.Combine(modelDir, f.Replace('/', Path.DirectorySeparatorChar))));
+        {
+            ValidateRelativePath(f, nameof(f));
+            return File.Exists(Path.Combine(modelDir, f.Replace('/', Path.DirectorySeparatorChar)));
+        });
     }
 
     /// <summary>
@@ -76,6 +88,7 @@ public sealed class VoiceCloningDownloader
 
         foreach (var relativePath in ExpectedFiles)
         {
+            ValidateRelativePath(relativePath, nameof(relativePath));
             currentFile++;
             var localPath = Path.Combine(modelDir, relativePath.Replace('/', Path.DirectorySeparatorChar));
 
@@ -120,5 +133,20 @@ public sealed class VoiceCloningDownloader
         progress?.Report(new ModelDownloadProgress(
             totalFiles, totalFiles, "",
             "All model files downloaded.", 0, 0));
+    }
+
+    /// <summary>
+    /// Validates that a path is relative and does not contain path traversal sequences.
+    /// Rejects absolute paths and paths containing ".." segments to prevent directory traversal attacks.
+    /// </summary>
+    /// <param name="relativePath">The path to validate.</param>
+    /// <param name="paramName">The parameter name for error reporting.</param>
+    /// <exception cref="ArgumentException">Thrown if the path is absolute or contains ".." segments.</exception>
+    private static void ValidateRelativePath(string relativePath, string paramName)
+    {
+        if (Path.IsPathRooted(relativePath))
+            throw new ArgumentException("Path must be relative.", paramName);
+        if (relativePath.Contains(".."))
+            throw new ArgumentException("Path traversal not allowed.", paramName);
     }
 }

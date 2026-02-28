@@ -30,13 +30,40 @@ internal sealed class LanguageModel : IDisposable
     };
 
     private InferenceSession GetPrefillSession()
-        => _prefillSession ??= new InferenceSession(Path.Combine(_modelDir, "talker_prefill.onnx"), _sessionOptionsFactory());
+    {
+        // SEC-3: File size pre-check to prevent out-of-memory attacks
+        var modelPath = Path.Combine(_modelDir, "talker_prefill.onnx");
+        var fileInfo = new FileInfo(modelPath);
+        const long maxOnnxSize = 2_000_000_000; // 2 GB
+        if (fileInfo.Length > maxOnnxSize)
+            throw new InvalidOperationException($"ONNX file too large ({fileInfo.Length / 1e9:F2} GB). Maximum allowed: {maxOnnxSize / 1e9:F2} GB.");
+        
+        return _prefillSession ??= new InferenceSession(modelPath, _sessionOptionsFactory());
+    }
 
     private InferenceSession GetDecodeSession()
-        => _decodeSession ??= new InferenceSession(Path.Combine(_modelDir, "talker_decode.onnx"), _sessionOptionsFactory());
+    {
+        // SEC-3: File size pre-check to prevent out-of-memory attacks
+        var modelPath = Path.Combine(_modelDir, "talker_decode.onnx");
+        var fileInfo = new FileInfo(modelPath);
+        const long maxOnnxSize = 2_000_000_000; // 2 GB
+        if (fileInfo.Length > maxOnnxSize)
+            throw new InvalidOperationException($"ONNX file too large ({fileInfo.Length / 1e9:F2} GB). Maximum allowed: {maxOnnxSize / 1e9:F2} GB.");
+        
+        return _decodeSession ??= new InferenceSession(modelPath, _sessionOptionsFactory());
+    }
 
     private InferenceSession GetCpSession()
-        => _cpSession ??= new InferenceSession(Path.Combine(_modelDir, "code_predictor.onnx"), _sessionOptionsFactory());
+    {
+        // SEC-3: File size pre-check to prevent out-of-memory attacks
+        var modelPath = Path.Combine(_modelDir, "code_predictor.onnx");
+        var fileInfo = new FileInfo(modelPath);
+        const long maxOnnxSize = 2_000_000_000; // 2 GB
+        if (fileInfo.Length > maxOnnxSize)
+            throw new InvalidOperationException($"ONNX file too large ({fileInfo.Length / 1e9:F2} GB). Maximum allowed: {maxOnnxSize / 1e9:F2} GB.");
+        
+        return _cpSession ??= new InferenceSession(modelPath, _sessionOptionsFactory());
+    }
 
     public long[,,] Generate(int[] tokenIds, string speaker, string language,
                              int maxNewTokens = 2048, float temperature = 0.9f,
