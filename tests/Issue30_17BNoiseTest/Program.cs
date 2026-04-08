@@ -1,6 +1,15 @@
 using System.Diagnostics;
 using ElBruno.QwenTTS.Pipeline;
 
+static bool PromptYesNo(string message)
+{
+    Console.Write($"{message} [y/n] (default: y): ");
+    var input = Console.ReadLine()?.Trim() ?? "";
+    return input.Length == 0
+        || input.Equals("y", StringComparison.OrdinalIgnoreCase)
+        || input.Equals("yes", StringComparison.OrdinalIgnoreCase);
+}
+
 Console.WriteLine("=== Issue #30: 1.7B Model Noise Diagnostic Test ===");
 Console.WriteLine($"Default model dir: {ModelDownloader.DefaultModelDir}");
 Console.WriteLine();
@@ -16,6 +25,9 @@ var chineseLanguage = "chinese";
 
 var outputs = new List<(string model, string lang, string path, long size, double duration)>();
 
+// Prompt for 0.6B tests
+if (PromptYesNo("Run 0.6B baseline tests?"))
+{
 // Test 1: 0.6B English (baseline)
 Console.WriteLine("=== Test 1: 0.6B Model - English ===");
 try
@@ -93,7 +105,16 @@ catch (Exception ex)
 }
 
 Console.WriteLine();
+}
+else
+{
+    Console.WriteLine("Skipping 0.6B tests.");
+    Console.WriteLine();
+}
 
+// Prompt for 1.7B tests
+if (PromptYesNo("Run 1.7B tests?"))
+{
 // Test 3: 1.7B English (test case)
 Console.WriteLine("=== Test 3: 1.7B Model - English ===");
 try
@@ -171,6 +192,13 @@ catch (Exception ex)
 }
 
 Console.WriteLine();
+}
+else
+{
+    Console.WriteLine("Skipping 1.7B tests.");
+    Console.WriteLine();
+}
+
 Console.WriteLine("=== Comparison Summary ===");
 Console.WriteLine();
 Console.WriteLine($"{"Model",-8} {"Language",-10} {"File",-30} {"Size",-15} {"Duration"}");
