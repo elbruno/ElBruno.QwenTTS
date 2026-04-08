@@ -6,6 +6,9 @@ python/onnx_models/*.onnx
 python/onnx_models/*.onnx.data
 python/onnx_models/embeddings/
 
+# Re-exported 1.7B vocoder (too large for git; upload to HuggingFace)
+python/onnx_1.7b/
+
 # Downloaded ONNX runtime models (from HuggingFace)
 python/onnx_runtime/
 

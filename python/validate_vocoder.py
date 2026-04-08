@@ -18,6 +18,29 @@ import torch
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
+# Compatibility patches (same as export_vocoder.py)
+# ---------------------------------------------------------------------------
+import transformers.utils.generic as _tug
+_orig_check = _tug.check_model_inputs
+
+def _compat_check_model_inputs(func=None):
+    if func is None:
+        return _orig_check
+    return _orig_check(func)
+
+_tug.check_model_inputs = _compat_check_model_inputs
+
+from transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS as _ROPE_FNS
+if "default" not in _ROPE_FNS:
+    def _compute_default_rope(config=None, device=None, **kwargs):
+        head_dim = getattr(config, "head_dim", None)
+        if head_dim is None:
+            head_dim = config.hidden_size // config.num_attention_heads
+        inv_freq = 1.0 / (config.rope_theta ** (torch.arange(0, head_dim, 2, dtype=torch.int64).float().to(device) / head_dim))
+        return inv_freq, 1.0
+    _ROPE_FNS["default"] = _compute_default_rope
+
+# ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 TOKENIZER_REPO = "Qwen/Qwen3-TTS-Tokenizer-12Hz"
@@ -33,7 +56,7 @@ UPSAMPLE_FACTOR = 1920
 # ---------------------------------------------------------------------------
 def load_models(local_dir: str | None = None):
     """Load both the PyTorch decoder and the ONNX Runtime session."""
-    from transformers import AutoModel
+    from qwen_tts.core import Qwen3TTSTokenizerV2Model, Qwen3TTSTokenizerV2Config
     import onnxruntime as ort
 
     if not ONNX_PATH.exists():
@@ -43,7 +66,8 @@ def load_models(local_dir: str | None = None):
 
     repo = local_dir or TOKENIZER_REPO
     print(f"Loading PyTorch model from {repo} ...")
-    model = AutoModel.from_pretrained(repo, trust_remote_code=True)
+    config = Qwen3TTSTokenizerV2Config.from_pretrained(repo)
+    model = Qwen3TTSTokenizerV2Model.from_pretrained(repo, config=config)
     decoder = model.decoder
     decoder.eval()
 

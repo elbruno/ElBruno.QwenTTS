@@ -49,10 +49,11 @@ public sealed class ModelDownloader
     ];
 
     /// <summary>
-    /// Additional files required only by the 1.7B variant (CP projection weights and code predictor data).
+    /// Additional files required only by the 1.7B variant (vocoder data, CP projection weights, and code predictor data).
     /// </summary>
     private static readonly string[] Extra17BFiles =
     [
+        "vocoder.onnx.data",
         "embeddings/cp_projection_weight.npy",
         "embeddings/cp_projection_bias.npy",
         "code_predictor.onnx.data"
@@ -60,8 +61,9 @@ public sealed class ModelDownloader
 
     /// <summary>
     /// Returns the expected file list for a given model variant.
-    /// The 0.6B variant includes vocoder.onnx.data; the 1.7B variant includes
-    /// code_predictor.onnx.data and CP projection weight files.
+    /// Both variants include vocoder.onnx.data (split ONNX external data).
+    /// The 0.6B variant has no additional files beyond the shared set.
+    /// The 1.7B variant additionally includes code_predictor.onnx.data and CP projection weight files.
     /// </summary>
     public static string[] GetExpectedFiles(QwenModelVariant variant = QwenModelVariant.Qwen06B) =>
         variant switch
