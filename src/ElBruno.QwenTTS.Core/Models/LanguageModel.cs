@@ -208,8 +208,8 @@ internal sealed class LanguageModel : IDisposable
         // CP input dimension: use config-driven value when projection exists, else full hiddenSize
         int cpInputDim = _embeddings.HasCpProjection ? _embeddings.CpModelHiddenSize : _hiddenSize;
 
-        // Rent per-step buffers before loop
-        var pooledMask = ArrayPool<long>.Shared.Rent(2048);
+        // Rent per-step buffers before loop — size mask to max possible sequence length
+        var pooledMask = ArrayPool<long>.Shared.Rent(prefillLen + maxNewTokens + 1);
         var pooledCpInputs = ArrayPool<float>.Shared.Rent(2 * cpInputDim);
         Debug.Assert(pooledCpInputs.Length >= 2 * cpInputDim, "CP prefill buffer too small");
 
@@ -437,9 +437,12 @@ internal sealed class LanguageModel : IDisposable
             var combined = new float[_hiddenSize];
             if (i == speakerPositionInPrefix && speakerEmbeddingOverride != null)
             {
-                // Inject the ECAPA-TDNN speaker embedding directly instead of codec table lookup
+                // Inject the speaker embedding directly instead of codec table lookup.
+                // Embedding may be shorter than _hiddenSize (e.g., 1024-dim ECAPA-TDNN
+                // with 2048-dim talker on 1.7B) — zero-pad the upper dimensions.
+                int embLen = speakerEmbeddingOverride.Length;
                 for (int j = 0; j < _hiddenSize; j++)
-                    combined[j] = ttsPadProj[j] + speakerEmbeddingOverride[j];
+                    combined[j] = ttsPadProj[j] + (j < embLen ? speakerEmbeddingOverride[j] : 0f);
             }
             else
             {

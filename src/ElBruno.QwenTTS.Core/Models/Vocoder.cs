@@ -17,6 +17,9 @@ internal sealed class Vocoder : IDisposable
 
     public int SampleRate => 24000;
 
+    /// <summary>Number of PCM samples per code frame (24000 Hz / 12 Hz = 1920).</summary>
+    public const int SamplesPerFrame = 1920;
+
     /// <summary>
     /// Creates a vocoder wrapper. Session is loaded lazily on first Decode call.
     /// </summary>
@@ -77,6 +80,17 @@ internal sealed class Vocoder : IDisposable
 
         // Extract waveform from first output tensor
         var outputTensor = results.First().AsTensor<float>();
+
+        // Validate output size matches expected upsample factor (12 Hz codes → 24 kHz PCM = 1920×)
+        int expectedSamples = timesteps * SamplesPerFrame;
+        if (outputTensor.Length != expectedSamples)
+        {
+            throw new InvalidOperationException(
+                $"Vocoder output mismatch: expected {expectedSamples} samples " +
+                $"({timesteps} frames × {SamplesPerFrame}), got {outputTensor.Length}. " +
+                $"The vocoder ONNX model may have been exported with a fixed time dimension. " +
+                $"Re-export with dynamic_axes on the timesteps dimension.");
+        }
 
         // Copy tensor values to a flat array
         var waveform = new float[outputTensor.Length];

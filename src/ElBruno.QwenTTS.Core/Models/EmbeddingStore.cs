@@ -213,11 +213,11 @@ internal sealed class EmbeddingStore : IDisposable
     /// Used for similarity search and speaker matching.
     /// </summary>
     /// <param name="speakerId">Speaker token ID (codec embedding token).</param>
-    /// <returns>Embedding vector (1024 dimensions).</returns>
+    /// <returns>Embedding vector (<see cref="HiddenSize"/> dimensions).</returns>
     public float[] GetSpeakerEmbedding(int speakerId)
     {
-        var embedding = new float[1024];
-        for (int i = 0; i < 1024; i++)
+        var embedding = new float[_hiddenSize];
+        for (int i = 0; i < _hiddenSize; i++)
             embedding[i] = _talkerCodecEmbedding[speakerId, i];
         return embedding;
     }
