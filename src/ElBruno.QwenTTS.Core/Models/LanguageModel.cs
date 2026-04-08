@@ -51,7 +51,12 @@ internal sealed class LanguageModel : IDisposable
 
     private static SessionOptions CreateDefaultOptions() => new()
     {
-        GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
+        GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
+        IntraOpNumThreads = Environment.ProcessorCount,
+        InterOpNumThreads = 1,
+        ExecutionMode = ExecutionMode.ORT_SEQUENTIAL,
+        EnableMemoryPattern = true,
+        EnableCpuMemArena = true
     };
 
     private InferenceSession GetPrefillSession()
@@ -217,6 +222,13 @@ internal sealed class LanguageModel : IDisposable
         {
             for (int step = 0; step < maxNewTokens; step++)
             {
+                // Suppress EOS for min_new_tokens=2 (matching Python reference)
+                if (step < 2)
+                {
+                    int eosIdx = logits.Length - cfg.talker.vocab_size + cfg.talker.codec_eos_token_id;
+                    logits[eosIdx] = float.NegativeInfinity;
+                }
+
                 // Sample group 0
                 var group0Token = SampleToken(logits, temperature, topK, topP, repetitionPenalty, generatedTokens, cfg);
                 if (group0Token == cfg.talker.codec_eos_token_id)
@@ -241,9 +253,9 @@ internal sealed class LanguageModel : IDisposable
                     var projectedHidden = new Span<float>(pooledCpInputs, 0, cpInputDim);
                     _embeddings.CpProjection(lastHidden, projectedHidden);
 
-                    // Project group0 embed: _hiddenSize → cpInputDim
+                    // Use pre-projected talker codec embedding (computed at init)
                     var projectedGroup0 = new Span<float>(pooledCpInputs, cpInputDim, cpInputDim);
-                    _embeddings.CpProjection(group0EmbedBuf, projectedGroup0);
+                    _embeddings.ProjectedTalkerCodecEmbedding(group0Token, projectedGroup0);
                 }
                 else
                 {
@@ -288,10 +300,18 @@ internal sealed class LanguageModel : IDisposable
                         if (groupIdx < 15)
                         {
                             Debug.Assert(cpInputDim <= pooledCpInputs.Length, "cpInputDim exceeds pooled buffer for next input");
-                            _embeddings.CpCodecEmbedding(groupIdx - 1, cpToken, cpEmbedBuf);
-                            // Zero-fill then copy: handles cpInputDim > _cpHiddenSize (old 1.7B compat)
-                            for (int i = 0; i < cpInputDim; i++)
-                                pooledCpInputs[i] = i < _cpHiddenSize ? cpEmbedBuf[i] : 0f;
+                            if (_embeddings.HasCpProjection)
+                            {
+                                // Use pre-projected embedding (computed at init, avoids per-step matrix multiply)
+                                _embeddings.ProjectedCpCodecEmbedding(groupIdx - 1, cpToken, new Span<float>(pooledCpInputs, 0, cpInputDim));
+                            }
+                            else
+                            {
+                                // No projection needed (0.6B: embedding dim matches CP input dim)
+                                _embeddings.CpCodecEmbedding(groupIdx - 1, cpToken, cpEmbedBuf);
+                                for (int i = 0; i < cpInputDim; i++)
+                                    pooledCpInputs[i] = i < _cpHiddenSize ? cpEmbedBuf[i] : 0f;
+                            }
                         }
                     }
                     finally
@@ -563,9 +583,14 @@ internal sealed class LanguageModel : IDisposable
         {
             Array.Copy(logits, logits.Length - vocabSize, probs, 0, vocabSize);
 
-            // Apply repetition penalty
+            // Apply repetition penalty (positive logits → divide, negative → multiply)
             foreach (var token in previousTokens)
-                probs[token] /= repPenalty;
+            {
+                if (probs[token] > 0)
+                    probs[token] /= repPenalty;
+                else
+                    probs[token] *= repPenalty;
+            }
 
             // Suppress upper codec range except codec_eos_token_id
             int cpVocabSize = cfg.code_predictor.vocab_size;
@@ -591,7 +616,11 @@ internal sealed class LanguageModel : IDisposable
             }
 
             // Softmax
-            float maxLogit = probs.AsSpan(0, vocabSize).ToArray().Max();
+            float maxLogit = float.NegativeInfinity;
+            for (int i = 0; i < vocabSize; i++)
+            {
+                if (probs[i] > maxLogit) maxLogit = probs[i];
+            }
             float sumExp = 0;
             for (int i = 0; i < vocabSize; i++)
             {
@@ -619,7 +648,7 @@ internal sealed class LanguageModel : IDisposable
         }
     }
 
-    private int SampleTokenSimple(float[] logits, float temperature)
+    private int SampleTokenSimple(float[] logits, float temperature, int topK = 50)
     {
         var vocabSize = _embeddings.Config.code_predictor.vocab_size;
         var probs = ArrayPool<float>.Shared.Rent(vocabSize);
@@ -628,6 +657,27 @@ internal sealed class LanguageModel : IDisposable
         {
             Array.Copy(logits, logits.Length - vocabSize, probs, 0, vocabSize);
 
+            // Top-k filtering (subtalker_top_k=50 from Python generation_config.json)
+            if (topK > 0 && topK < vocabSize)
+            {
+                var sorted = ArrayPool<float>.Shared.Rent(vocabSize);
+                try
+                {
+                    Array.Copy(probs, 0, sorted, 0, vocabSize);
+                    Array.Sort(sorted, 0, vocabSize);
+                    float threshold = sorted[vocabSize - topK];
+                    for (int i = 0; i < vocabSize; i++)
+                    {
+                        if (probs[i] < threshold)
+                            probs[i] = float.NegativeInfinity;
+                    }
+                }
+                finally
+                {
+                    ArrayPool<float>.Shared.Return(sorted);
+                }
+            }
+
             if (temperature > 0)
             {
                 for (int i = 0; i < vocabSize; i++)
@@ -635,7 +685,11 @@ internal sealed class LanguageModel : IDisposable
             }
 
             // Softmax
-            float maxLogit = probs.AsSpan(0, vocabSize).ToArray().Max();
+            float maxLogit = float.NegativeInfinity;
+            for (int i = 0; i < vocabSize; i++)
+            {
+                if (probs[i] > maxLogit) maxLogit = probs[i];
+            }
             float sumExp = 0;
             for (int i = 0; i < vocabSize; i++)
             {

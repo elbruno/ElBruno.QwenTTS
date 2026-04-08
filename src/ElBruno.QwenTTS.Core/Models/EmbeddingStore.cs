@@ -21,6 +21,10 @@ internal sealed class EmbeddingStore : IDisposable
     private readonly float[,]? _cpProjectionWeight;  // (cp_hidden, talker_hidden) = (1024, 2048) for 1.7B
     private readonly float[]? _cpProjectionBias;      // (cp_hidden,) = (1024,) for 1.7B
 
+    // Pre-computed projected embedding tables (avoids per-step matrix-vector multiplies during inference)
+    private readonly float[][,]? _projectedCpCodecEmbeddings;     // 15 × (cp_vocab, cpModelHiddenSize)
+    private readonly float[,]? _projectedTalkerCodecEmbedding;    // (talker_vocab, cpModelHiddenSize)
+
     // Dimensions derived from loaded arrays — no hardcoding
     private readonly int _textHiddenSize;   // text embedding dim (2048 for both 0.6B and 1.7B)
     private readonly int _fc1OutSize;       // intermediate MLP size
@@ -104,6 +108,37 @@ internal sealed class EmbeddingStore : IDisposable
             if (_cpProjectionWeight.GetLength(1) != _hiddenSize)
                 throw new InvalidDataException(
                     $"CP projection input mismatch: weight columns ({_cpProjectionWeight.GetLength(1)}) != hidden_size ({_hiddenSize})");
+
+            // Pre-compute projected embedding tables to avoid per-step matrix-vector multiplies
+            int projOutDim = _cpProjectionWeight.GetLength(0);
+            var tempInput = new float[_cpProjectionWeight.GetLength(1)];
+            var tempOutput = new float[projOutDim];
+
+            _projectedCpCodecEmbeddings = new float[15][,];
+            for (int g = 0; g < 15; g++)
+            {
+                int vocab = _cpCodecEmbeddings[g].GetLength(0);
+                _projectedCpCodecEmbeddings[g] = new float[vocab, projOutDim];
+                for (int t = 0; t < vocab; t++)
+                {
+                    for (int j = 0; j < _cpHiddenSize; j++)
+                        tempInput[j] = _cpCodecEmbeddings[g][t, j];
+                    CpProjection(tempInput, tempOutput);
+                    for (int j = 0; j < projOutDim; j++)
+                        _projectedCpCodecEmbeddings[g][t, j] = tempOutput[j];
+                }
+            }
+
+            int talkerVocab = _talkerCodecEmbedding.GetLength(0);
+            _projectedTalkerCodecEmbedding = new float[talkerVocab, projOutDim];
+            for (int t = 0; t < talkerVocab; t++)
+            {
+                for (int j = 0; j < _hiddenSize; j++)
+                    tempInput[j] = _talkerCodecEmbedding[t, j];
+                CpProjection(tempInput, tempOutput);
+                for (int j = 0; j < projOutDim; j++)
+                    _projectedTalkerCodecEmbedding[t, j] = tempOutput[j];
+            }
         }
     }
 
@@ -191,6 +226,39 @@ internal sealed class EmbeddingStore : IDisposable
         int outDim = _cpProjectionWeight.GetLength(0);
         for (int i = 0; i < outDim; i++)
             output[i] += _cpProjectionBias[i];
+    }
+
+    /// <summary>
+    /// Looks up pre-projected CP codec embedding (projected from talker space to CP input space at init).
+    /// Avoids per-step matrix-vector multiplies during inference.
+    /// Only available when <see cref="HasCpProjection"/> is true.
+    /// </summary>
+    public void ProjectedCpCodecEmbedding(int groupIndex, int tokenId, Span<float> output)
+    {
+        if (_projectedCpCodecEmbeddings == null)
+            throw new InvalidOperationException("Projected CP codec embeddings not available");
+        if (groupIndex < 0 || groupIndex >= 15)
+            throw new ArgumentException($"groupIndex must be 0-14, got {groupIndex}");
+
+        var table = _projectedCpCodecEmbeddings[groupIndex];
+        int dim = table.GetLength(1);
+        for (int i = 0; i < dim; i++)
+            output[i] = table[tokenId, i];
+    }
+
+    /// <summary>
+    /// Looks up pre-projected talker codec embedding (projected from talker space to CP input space at init).
+    /// Avoids per-step matrix-vector multiplies during inference.
+    /// Only available when <see cref="HasCpProjection"/> is true.
+    /// </summary>
+    public void ProjectedTalkerCodecEmbedding(int tokenId, Span<float> output)
+    {
+        if (_projectedTalkerCodecEmbedding == null)
+            throw new InvalidOperationException("Projected talker codec embedding not available");
+
+        int dim = _projectedTalkerCodecEmbedding.GetLength(1);
+        for (int i = 0; i < dim; i++)
+            output[i] = _projectedTalkerCodecEmbedding[tokenId, i];
     }
 
     /// <summary>
