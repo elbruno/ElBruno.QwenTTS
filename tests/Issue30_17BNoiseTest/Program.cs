@@ -1,8 +1,13 @@
 using System.Diagnostics;
 using ElBruno.QwenTTS.Pipeline;
 
-static bool PromptYesNo(string message)
+var promptMode = args.Contains("--prompt", StringComparer.OrdinalIgnoreCase);
+
+static bool PromptYesNo(string message, bool promptMode)
 {
+    if (!promptMode)
+        return true; // auto-run when --prompt is not specified
+
     Console.Write($"{message} [y/n] (default: y): ");
     var input = Console.ReadLine()?.Trim() ?? "";
     return input.Length == 0
@@ -26,7 +31,7 @@ var chineseLanguage = "chinese";
 var outputs = new List<(string model, string lang, string path, long size, double duration)>();
 
 // Prompt for 0.6B tests
-if (PromptYesNo("Run 0.6B baseline tests?"))
+if (PromptYesNo("Run 0.6B baseline tests?", promptMode))
 {
 // Test 1: 0.6B English (baseline)
 Console.WriteLine("=== Test 1: 0.6B Model - English ===");
@@ -113,7 +118,7 @@ else
 }
 
 // Prompt for 1.7B tests
-if (PromptYesNo("Run 1.7B tests?"))
+if (PromptYesNo("Run 1.7B tests?", promptMode))
 {
 // Test 3: 1.7B English (test case)
 Console.WriteLine("=== Test 3: 1.7B Model - English ===");
