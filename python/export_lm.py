@@ -147,9 +147,9 @@ class CodePredictorWrapper(nn.Module):
         self.register_buffer("lm_head_weights", all_weights)
 
     def forward(self, inputs_embeds, generation_steps, past_keys, past_values):
-        # Projection is NOT applied here — C# applies it externally for the
-        # CP prefill step only. This lets decode steps feed cp_hidden-dim
-        # embeddings directly without a dimension mismatch.
+        # Projection is NOT applied here — C# applies it externally.
+        # For 1.7B (where cp_codec_embedding dim > cp_hidden), C# must project
+        # ALL CP inputs (prefill AND decode steps) from talker space to CP space.
 
         cache = DynamicCache()
         for i in range(self.num_layers):
