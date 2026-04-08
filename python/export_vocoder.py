@@ -211,6 +211,27 @@ class VocoderOnnxWrapper(torch.nn.Module):
         return wav.clamp(min=-1, max=1)
 
 
+def _fix_rope_inv_freq(decoder):
+    """Recompute and set correct RoPE inv_freq on the decoder's rotary embedding.
+
+    When transformers loads the model via from_pretrained with device=meta,
+    non-persistent buffers (like inv_freq) become uninitialized meta tensors.
+    Since inv_freq is registered as persistent=False, it is NOT in the state dict
+    and never gets overwritten with real values. This leaves it with garbage data
+    that differs across processes. We must explicitly compute the correct values.
+    """
+    rotary = decoder.pre_transformer.rotary_emb
+    config = decoder.pre_transformer.config
+    head_dim = getattr(config, "head_dim", None)
+    if head_dim is None:
+        head_dim = config.hidden_size // config.num_attention_heads
+    theta = config.rope_theta
+    inv_freq = 1.0 / (theta ** (torch.arange(0, head_dim, 2, dtype=torch.float32) / head_dim))
+    rotary.inv_freq = inv_freq
+    print(f"  Fixed RoPE inv_freq: shape={inv_freq.shape}, "
+          f"range=[{inv_freq.min():.6f}, {inv_freq.max():.6f}]")
+
+
 def load_decoder(local_dir: str | None = None):
     """Load the Qwen3-TTS-Tokenizer-12Hz model and extract the decoder."""
     from qwen_tts.core import Qwen3TTSTokenizerV2Model, Qwen3TTSTokenizerV2Config
@@ -229,6 +250,9 @@ def load_decoder(local_dir: str | None = None):
     model = Qwen3TTSTokenizerV2Model.from_pretrained(repo, config=config)
     decoder = model.decoder
     decoder.eval()
+
+    # Fix non-persistent RoPE inv_freq (garbage after meta-device loading)
+    _fix_rope_inv_freq(decoder)
     # Patch transformer layers for vmap-free masking (ONNX trace compatibility)
     if _VMAP_WORKAROUND and hasattr(decoder, 'pre_transformer'):
         print(f"  Patching attention to '{_VMAP_WORKAROUND}' for ONNX trace ...")
@@ -300,7 +324,7 @@ def export_onnx(decoder, codes, opset: int = 17) -> bool:
             input_names=["codes"],
             output_names=["waveform"],
             dynamic_axes=dynamic_axes,
-            do_constant_folding=True,
+            do_constant_folding=False,
         )
         elapsed = time.time() - t0
         size_mb = ONNX_OUTPUT_PATH.stat().st_size / (1024 * 1024)
