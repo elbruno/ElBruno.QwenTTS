@@ -170,6 +170,77 @@ public class ModelDownloaderVariantTests : IDisposable
         Assert.Contains("vocoder.onnx.data", missing);
     }
 
+    // ── Regression test for Issue #30: 1.7B vocoder.onnx.data ──────
+
+    [Fact]
+    public void GetExpectedFiles_17B_IncludesVocoderData()
+    {
+        // Regression test for GitHub Issue #30: "1.7B model generates noise"
+        // The fix required adding vocoder.onnx.data to the 1.7B expected files list.
+        // This test ensures vocoder.onnx.data is in the 1.7B file list.
+        var files17B = ModelDownloader.GetExpectedFiles(QwenModelVariant.Qwen17B);
+        Assert.Contains("vocoder.onnx.data", files17B);
+    }
+
+    [Fact]
+    public void GetExpectedFiles_17B_IncludesCodePredictorData()
+    {
+        // The 1.7B model also requires code_predictor.onnx.data (not needed for 0.6B)
+        var files17B = ModelDownloader.GetExpectedFiles(QwenModelVariant.Qwen17B);
+        Assert.Contains("code_predictor.onnx.data", files17B);
+    }
+
+    [Fact]
+    public void GetExpectedFiles_17B_IncludesProjectionFiles()
+    {
+        // The 1.7B model requires CP projection files for 2048→1024 dimension reduction
+        var files17B = ModelDownloader.GetExpectedFiles(QwenModelVariant.Qwen17B);
+        Assert.Contains("embeddings/cp_projection_weight.npy", files17B);
+        Assert.Contains("embeddings/cp_projection_bias.npy", files17B);
+    }
+
+    [Fact]
+    public void GetExpectedFiles_06B_AlsoIncludesVocoderData()
+    {
+        // Both variants need vocoder.onnx.data (split ONNX external data)
+        var files06B = ModelDownloader.GetExpectedFiles(QwenModelVariant.Qwen06B);
+        Assert.Contains("vocoder.onnx.data", files06B);
+    }
+
+    [Fact]
+    public void GetExpectedFiles_06B_DoesNotIncludeCodePredictorData()
+    {
+        // The 0.6B model's code_predictor.onnx is small enough to not need .data file
+        var files06B = ModelDownloader.GetExpectedFiles(QwenModelVariant.Qwen06B);
+        Assert.DoesNotContain("code_predictor.onnx.data", files06B);
+    }
+
+    [Fact]
+    public void GetExpectedFiles_17B_HasMoreFilesThan06B()
+    {
+        // 1.7B should have all 0.6B files PLUS additional files
+        var files06B = ModelDownloader.GetExpectedFiles(QwenModelVariant.Qwen06B);
+        var files17B = ModelDownloader.GetExpectedFiles(QwenModelVariant.Qwen17B);
+        
+        Assert.True(files17B.Length > files06B.Length,
+            $"1.7B ({files17B.Length} files) should have more files than 0.6B ({files06B.Length} files)");
+    }
+
+    [Theory]
+    [InlineData(QwenModelVariant.Qwen06B)]
+    [InlineData(QwenModelVariant.Qwen17B)]
+    public void GetExpectedFiles_AllVariants_IncludeSharedFiles(QwenModelVariant variant)
+    {
+        // All variants must include the core shared files
+        var files = ModelDownloader.GetExpectedFiles(variant);
+        
+        Assert.Contains("talker_prefill.onnx", files);
+        Assert.Contains("talker_decode.onnx", files);
+        Assert.Contains("code_predictor.onnx", files);
+        Assert.Contains("vocoder.onnx", files);
+        Assert.Contains("vocoder.onnx.data", files);
+    }
+
     public void Dispose()
     {
         try { Directory.Delete(_tempDir, true); } catch { }
