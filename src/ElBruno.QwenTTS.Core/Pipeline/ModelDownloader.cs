@@ -26,7 +26,6 @@ public sealed class ModelDownloader
         "talker_decode.onnx.data",
         "code_predictor.onnx",
         "vocoder.onnx",
-        "vocoder.onnx.data",
         "embeddings/config.json",
         "embeddings/talker_codec_embedding.npy",
         "embeddings/text_embedding.npy",
@@ -42,22 +41,34 @@ public sealed class ModelDownloader
     ];
 
     /// <summary>
-    /// Additional files required only by the 1.7B variant (CP projection weights).
+    /// Additional files required only by the 0.6B variant (vocoder data file).
+    /// </summary>
+    private static readonly string[] Extra06BFiles =
+    [
+        "vocoder.onnx.data"
+    ];
+
+    /// <summary>
+    /// Additional files required only by the 1.7B variant (CP projection weights and code predictor data).
     /// </summary>
     private static readonly string[] Extra17BFiles =
     [
         "embeddings/cp_projection_weight.npy",
-        "embeddings/cp_projection_bias.npy"
+        "embeddings/cp_projection_bias.npy",
+        "code_predictor.onnx.data"
     ];
 
     /// <summary>
     /// Returns the expected file list for a given model variant.
-    /// The 1.7B variant includes additional CP projection weight files.
+    /// The 0.6B variant includes vocoder.onnx.data; the 1.7B variant includes
+    /// code_predictor.onnx.data and CP projection weight files.
     /// </summary>
     public static string[] GetExpectedFiles(QwenModelVariant variant = QwenModelVariant.Qwen06B) =>
-        variant == QwenModelVariant.Qwen17B
-            ? [.. ExpectedFiles, .. Extra17BFiles]
-            : ExpectedFiles;
+        variant switch
+        {
+            QwenModelVariant.Qwen17B => [.. ExpectedFiles, .. Extra17BFiles],
+            _ => [.. ExpectedFiles, .. Extra06BFiles]
+        };
 
     /// <summary>
     /// Returns true if the model directory contains all required files.

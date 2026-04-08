@@ -9,4 +9,7 @@
     <Project Path="src/ElBruno.QwenTTS.VoiceCloning/ElBruno.QwenTTS.VoiceCloning.csproj" />
     <Project Path="src/ElBruno.QwenTTS.VoiceCloning.Tests/ElBruno.QwenTTS.VoiceCloning.Tests.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Issue30_17BNoiseTest/Issue30_17BNoiseTest.csproj" />
+  </Folder>
 </Solution>
