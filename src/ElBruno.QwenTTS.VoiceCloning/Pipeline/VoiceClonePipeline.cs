@@ -20,6 +20,9 @@ public sealed class VoiceClonePipeline : IDisposable
     private readonly Vocoder _vocoder;
     private readonly EmbeddingStore _embeddings;
     private readonly SpeakerEncoder _speakerEncoder;
+    private readonly string _modelDir;
+    private readonly Func<SessionOptions>? _sessionOptionsFactory;
+    private SpeechTokenizer? _speechTokenizer;
 
     /// <summary>
     /// Creates a VoiceClonePipeline from a local model directory.
@@ -28,6 +31,9 @@ public sealed class VoiceClonePipeline : IDisposable
     /// <param name="sessionOptionsFactory">Optional factory for ONNX Runtime session options (e.g., for GPU acceleration). When null, uses CPU with max optimization.</param>
     public VoiceClonePipeline(string modelDir, Func<SessionOptions>? sessionOptionsFactory = null)
     {
+        _modelDir = modelDir;
+        _sessionOptionsFactory = sessionOptionsFactory;
+
         var tokenizerDir = Path.Combine(modelDir, "tokenizer");
         var embeddingsDir = Path.Combine(modelDir, "embeddings");
         var configPath = Path.Combine(embeddingsDir, "config.json");
@@ -78,6 +84,48 @@ public sealed class VoiceClonePipeline : IDisposable
     }
 
     /// <summary>
+    /// Synthesize speech with a cloned voice using ICL (In-Context Learning) mode.
+    /// When refText is provided, the model uses both reference text and reference audio codes
+    /// for higher-quality voice cloning compared to speaker-embedding-only mode.
+    /// </summary>
+    /// <param name="text">Text to synthesize.</param>
+    /// <param name="referenceAudioPath">Path to a reference WAV file for voice cloning.</param>
+    /// <param name="outputPath">Path to save the output WAV file.</param>
+    /// <param name="refText">Transcript of the reference audio. Enables ICL mode when provided.</param>
+    /// <param name="language">Language code (e.g., "english", "chinese", "auto").</param>
+    /// <param name="progress">Optional progress callback.</param>
+    public async Task SynthesizeAsync(string text, string referenceAudioPath, string outputPath,
+                                      string? refText, string language = "auto", IProgress<string>? progress = null)
+    {
+        // Step 1: Extract speaker embedding from reference audio
+        progress?.Report("Extracting speaker embedding from reference audio...");
+        var speakerEmbedding = ExtractSpeakerEmbedding(referenceAudioPath);
+        progress?.Report($"Speaker embedding extracted ({speakerEmbedding.Length} dimensions)");
+
+        if (refText != null)
+        {
+            // ICL mode: also extract audio codes from reference audio
+            progress?.Report("Encoding reference audio for ICL mode...");
+            var speechTokenizer = GetSpeechTokenizer();
+            var refAudioCodes = speechTokenizer.EncodeFromWav(referenceAudioPath);
+            int tFrames = refAudioCodes.GetLength(1);
+            progress?.Report($"Reference audio encoded ({tFrames} frames)");
+
+            // Tokenize reference text
+            var refTokenIds = _tokenizer.Encode(refText);
+            progress?.Report($"Reference text tokenized ({refTokenIds.Length} tokens)");
+
+            await SynthesizeWithEmbeddingAsync(text, speakerEmbedding, outputPath,
+                refText: refText, refAudioCodes: refAudioCodes,
+                language: language, progress: progress);
+        }
+        else
+        {
+            await SynthesizeWithEmbeddingAsync(text, speakerEmbedding, outputPath, language, progress);
+        }
+    }
+
+    /// <summary>
     /// Synthesize speech using a pre-extracted speaker embedding.
     /// Use this when synthesizing multiple utterances with the same cloned voice
     /// to avoid re-encoding the reference audio each time.
@@ -85,13 +133,50 @@ public sealed class VoiceClonePipeline : IDisposable
     public async Task SynthesizeWithEmbeddingAsync(string text, float[] speakerEmbedding, string outputPath,
                                                     string language = "auto", IProgress<string>? progress = null)
     {
+        await SynthesizeWithEmbeddingAsync(text, speakerEmbedding, outputPath,
+            refText: null, refAudioCodes: null, language: language, progress: progress);
+    }
+
+    /// <summary>
+    /// Synthesize speech using a pre-extracted speaker embedding with optional ICL reference data.
+    /// When refText and refAudioCodes are provided, enables In-Context Learning mode.
+    /// </summary>
+    /// <param name="text">Text to synthesize.</param>
+    /// <param name="speakerEmbedding">Pre-extracted 1024-dim speaker embedding.</param>
+    /// <param name="outputPath">Path to save the output WAV file.</param>
+    /// <param name="refText">Optional reference text transcript for ICL mode.</param>
+    /// <param name="refAudioCodes">Optional reference audio codes [1, T, 16] for ICL mode.</param>
+    /// <param name="language">Language code (e.g., "english", "chinese", "auto").</param>
+    /// <param name="progress">Optional progress callback.</param>
+    public async Task SynthesizeWithEmbeddingAsync(string text, float[] speakerEmbedding, string outputPath,
+                                                    string? refText = null, long[,,]? refAudioCodes = null,
+                                                    string language = "auto", IProgress<string>? progress = null)
+    {
         var tokenIds = _tokenizer.BuildCustomVoicePrompt(text, "none", language, instruct: null);
         progress?.Report($"Tokenized input ({tokenIds.Length} tokens)");
         Console.WriteLine($"Generating speech ({tokenIds.Length} input tokens)...");
 
-        // Generate audio codes via LM with the ECAPA-TDNN speaker embedding injected into the codec prefix
+        // Tokenize reference text for ICL mode if provided
+        int[]? refTokenIds = null;
+        if (refText != null)
+        {
+            refTokenIds = _tokenizer.Encode(refText);
+            progress?.Report($"ICL mode: {refTokenIds.Length} ref text tokens, {refAudioCodes?.GetLength(1) ?? 0} ref audio frames");
+        }
+
+        // Generate audio codes via LM
         progress?.Report("Running language model inference...");
-        var codes = _languageModel.GenerateWithSpeakerEmbedding(tokenIds, speakerEmbedding, language);
+        long[,,] codes;
+        if (refTokenIds != null && refAudioCodes != null)
+        {
+            codes = _languageModel.GenerateWithSpeakerEmbeddingAndRefText(
+                tokenIds, speakerEmbedding, language,
+                refTokenIds: refTokenIds, refAudioCodes: refAudioCodes);
+        }
+        else
+        {
+            codes = _languageModel.GenerateWithSpeakerEmbedding(tokenIds, speakerEmbedding, language);
+        }
 
         int timesteps = codes.GetLength(2);
         progress?.Report($"Generated {timesteps} audio frames");
@@ -108,6 +193,26 @@ public sealed class VoiceClonePipeline : IDisposable
         var duration = waveform.Length / 24000.0;
         progress?.Report($"Saved {Path.GetFileName(outputPath)} ({waveform.Length} samples, {duration:F2}s)");
         Console.WriteLine($"Saved {outputPath} ({waveform.Length} samples, {duration:F2}s)");
+    }
+
+    /// <summary>
+    /// Gets or lazily creates the speech tokenizer for ICL mode.
+    /// The speech tokenizer ONNX model is optional — only needed when refText is provided.
+    /// </summary>
+    private SpeechTokenizer GetSpeechTokenizer()
+    {
+        if (_speechTokenizer != null)
+            return _speechTokenizer;
+
+        var modelPath = Path.Combine(_modelDir, "tokenizer12hz_encode.onnx");
+        if (!File.Exists(modelPath))
+            throw new FileNotFoundException(
+                "Speech tokenizer model not found. Required for ICL (ref_text) mode. " +
+                "Re-download the model or update VoiceCloningDownloader to include tokenizer12hz_encode.onnx.",
+                modelPath);
+
+        _speechTokenizer = new SpeechTokenizer(modelPath, _sessionOptionsFactory);
+        return _speechTokenizer;
     }
 
     /// <summary>
@@ -161,5 +266,6 @@ public sealed class VoiceClonePipeline : IDisposable
         _languageModel.Dispose();
         _vocoder.Dispose();
         _speakerEncoder.Dispose();
+        _speechTokenizer?.Dispose();
     }
 }

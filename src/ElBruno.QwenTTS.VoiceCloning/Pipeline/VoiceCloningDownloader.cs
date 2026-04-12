@@ -34,6 +34,8 @@ public sealed class VoiceCloningDownloader
     [
         "speaker_encoder.onnx",
         "speaker_encoder.onnx.data",
+        "tokenizer12hz_encode.onnx",
+        "tokenizer12hz_encode.onnx.data",
         "talker_prefill.onnx",
         "talker_prefill.onnx.data",
         "talker_decode.onnx",

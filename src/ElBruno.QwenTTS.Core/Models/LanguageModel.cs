@@ -131,16 +131,48 @@ internal sealed class LanguageModel : IDisposable
             maxNewTokens, temperature, topK, topP, repetitionPenalty);
     }
 
+    /// <summary>
+    /// Generate audio codes using a speaker embedding and optional ICL reference data.
+    /// When refTokenIds and refAudioCodes are provided, enables In-Context Learning mode
+    /// where the model uses both reference text and reference audio codes for higher-quality
+    /// voice cloning.
+    /// </summary>
+    /// <param name="tokenIds">Target text token IDs from the prompt builder.</param>
+    /// <param name="speakerEmbedding">1024-dim ECAPA-TDNN speaker embedding.</param>
+    /// <param name="language">Language code (e.g., "english", "chinese", "auto").</param>
+    /// <param name="refTokenIds">Optional reference text token IDs for ICL mode.</param>
+    /// <param name="refAudioCodes">Optional reference audio codes [1, T, 16] for ICL mode.</param>
+    /// <param name="maxNewTokens">Maximum number of audio frames to generate.</param>
+    /// <param name="temperature">Sampling temperature.</param>
+    /// <param name="topK">Top-k sampling parameter.</param>
+    /// <param name="topP">Top-p (nucleus) sampling parameter.</param>
+    /// <param name="repetitionPenalty">Repetition penalty factor.</param>
+    public long[,,] GenerateWithSpeakerEmbeddingAndRefText(
+        int[] tokenIds, float[] speakerEmbedding, string language,
+        int[]? refTokenIds = null, long[,,]? refAudioCodes = null,
+        int maxNewTokens = 2048, float temperature = 0.9f,
+        int topK = 50, float topP = 1.0f,
+        float repetitionPenalty = 1.05f)
+    {
+        return GenerateInternal(tokenIds, speakerId: -1, language, speakerEmbedding,
+            maxNewTokens, temperature, topK, topP, repetitionPenalty,
+            refTokenIds, refAudioCodes);
+    }
+
     private long[,,] GenerateInternal(int[] tokenIds, int speakerId, string language,
                              float[]? speakerEmbedding,
                              int maxNewTokens, float temperature,
                              int topK, float topP,
-                             float repetitionPenalty)
+                             float repetitionPenalty,
+                             int[]? refTokenIds = null,
+                             long[,,]? refAudioCodes = null)
     {
         var cfg = _embeddings.Config;
         
         // Build prefill embedding
-        var (inputsEmbeds, trailingTextHidden) = BuildPrefillEmbedding(tokenIds, speakerId, language, cfg, speakerEmbedding);
+        var (inputsEmbeds, trailingTextHidden) = BuildPrefillEmbedding(
+            tokenIds, speakerId, language, cfg, speakerEmbedding,
+            refTokenIds, refAudioCodes);
         int prefillLen = inputsEmbeds.GetLength(1);
 
         // Attention mask: all 1s
@@ -388,7 +420,8 @@ internal sealed class LanguageModel : IDisposable
     }
 
     private (float[,,], float[,]) BuildPrefillEmbedding(int[] tokenIds, int speakerId, string language, ModelConfig cfg,
-        float[]? speakerEmbeddingOverride = null)
+        float[]? speakerEmbeddingOverride = null,
+        int[]? refTokenIds = null, long[,,]? refAudioCodes = null)
     {
         // Role embed: tokens [0:3]
         var roleEmbeds = new List<float[]>();
@@ -472,7 +505,46 @@ internal sealed class LanguageModel : IDisposable
             }
             talkerInputEmbeds.Add(combined);
         }
-        
+
+        // ICL section: insert reference text and audio code embeddings before the transition marker
+        bool hasIclData = refTokenIds != null && refAudioCodes != null;
+        if (hasIclData)
+        {
+            // Pre-compute codec_pad embedding (reused for all ref text tokens)
+            var codecPadEmbed = new float[_hiddenSize];
+            _embeddings.TalkerCodecEmbedding(cfg.talker.codec_pad_id, codecPadEmbed);
+
+            // Ref text embeddings: textProj(refToken) + codec_pad_embed
+            var refTextEmbBuf = new float[2048];
+            var refProjBuf = new float[_hiddenSize];
+            for (int i = 0; i < refTokenIds!.Length; i++)
+            {
+                _embeddings.TextEmbedding(refTokenIds[i], refTextEmbBuf);
+                _embeddings.TextProjection(refTextEmbBuf, refProjBuf);
+                var combined = new float[_hiddenSize];
+                for (int j = 0; j < _hiddenSize; j++)
+                    combined[j] = refProjBuf[j] + codecPadEmbed[j];
+                talkerInputEmbeds.Add(combined);
+            }
+
+            // Ref audio code embeddings: ttsPadProj + sum(TalkerCodecEmbed(codes[t][g]) for g=0..15)
+            int tFrames = refAudioCodes!.GetLength(1);
+            for (int t = 0; t < tFrames; t++)
+            {
+                var combined = new float[_hiddenSize];
+                for (int j = 0; j < _hiddenSize; j++)
+                    combined[j] = ttsPadProj[j];
+
+                for (int g = 0; g < 16; g++)
+                {
+                    _embeddings.TalkerCodecEmbedding((int)refAudioCodes[0, t, g], codecEmbBuf);
+                    for (int j = 0; j < _hiddenSize; j++)
+                        combined[j] += codecEmbBuf[j];
+                }
+                talkerInputEmbeds.Add(combined);
+            }
+        }
+
         // Last position: tts_bos + codec_prefix[-2]
         {
             _embeddings.TalkerCodecEmbedding(codecPrefix[codecPrefixLen - 2], codecEmbBuf);
@@ -482,7 +554,7 @@ internal sealed class LanguageModel : IDisposable
             talkerInputEmbeds.Add(combined);
         }
 
-        // Combine: role_embed + _talker_input_embed
+        // Combine: role_embed + _talker_input_embed (includes ICL section when present)
         var allEmbeds = new List<float[]>();
         allEmbeds.AddRange(roleEmbeds);
         allEmbeds.AddRange(talkerInputEmbeds);

@@ -109,7 +109,7 @@ public static class MelSpectrogram
         return Extract(samples, DefaultSampleRate);
     }
 
-    private static (float[] samples, int sampleRate) ReadWav(string path)
+    internal static (float[] samples, int sampleRate) ReadWav(string path)
     {
         using var stream = File.OpenRead(path);
         using var reader = new BinaryReader(stream);
@@ -175,7 +175,7 @@ public static class MelSpectrogram
         throw new InvalidDataException("WAV file has no data chunk");
     }
 
-    private static float[] Resample(float[] input, int fromRate, int toRate)
+    internal static float[] Resample(float[] input, int fromRate, int toRate)
     {
         double ratio = (double)toRate / fromRate;
         int outputLen = (int)(input.Length * ratio);
