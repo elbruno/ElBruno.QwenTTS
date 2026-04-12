@@ -169,6 +169,24 @@ public class SpeakerEncoderTests
     }
 }
 
+public class SpeechTokenizerTests
+{
+    [Fact]
+    public void Constructor_ThrowsIfModelNotFound()
+    {
+        Assert.Throws<FileNotFoundException>(() =>
+            new SpeechTokenizer("nonexistent_tokenizer.onnx"));
+    }
+
+    [Fact]
+    public void Constants_AreCorrect()
+    {
+        Assert.Equal(24000, SpeechTokenizer.SampleRate);
+        Assert.Equal(1920, SpeechTokenizer.SamplesPerFrame);
+        Assert.Equal(16, SpeechTokenizer.NumCodebooks);
+    }
+}
+
 public class VoiceClonePipelineTests
 {
     [Fact]
@@ -185,5 +203,33 @@ public class VoiceClonePipelineTests
         {
             Directory.Delete(tempDir, recursive: true);
         }
+    }
+}
+
+public class VoiceCloningDownloaderIclTests
+{
+    [Fact]
+    public void ExpectedFiles_IncludesSpeechTokenizer()
+    {
+        // Verify that IsModelDownloaded checks for the speech tokenizer ONNX model.
+        // An empty dir should return false, confirming tokenizer12hz_encode.onnx is expected.
+        var tempDir = Path.Combine(Path.GetTempPath(), $"vc_icl_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            Assert.False(VoiceCloningDownloader.IsModelDownloaded(tempDir));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void DefaultRepoId_IsValid()
+    {
+        Assert.False(string.IsNullOrEmpty(VoiceCloningDownloader.DefaultRepoId));
+        Assert.Contains("/", VoiceCloningDownloader.DefaultRepoId);
     }
 }

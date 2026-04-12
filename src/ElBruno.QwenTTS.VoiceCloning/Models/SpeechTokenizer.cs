@@ -54,31 +54,31 @@ internal sealed class SpeechTokenizer : IDisposable
         if (samples.Length == 0)
             throw new ArgumentException("Audio samples cannot be empty.", nameof(samples));
 
-        // Create input tensor: [1, num_samples]
-        var inputTensor = new DenseTensor<float>(samples, [1, samples.Length]);
+        // ONNX model expects input shape [B, 1, T_samples] (3D) named "audio_waveform"
+        var inputTensor = new DenseTensor<float>(samples, [1, 1, samples.Length]);
 
         var inputs = new List<NamedOnnxValue>
         {
-            NamedOnnxValue.CreateFromTensor("audio", inputTensor)
+            NamedOnnxValue.CreateFromTensor("audio_waveform", inputTensor)
         };
 
         using var results = GetSession().Run(inputs);
         var outputTensor = results.First().AsTensor<long>();
 
-        // Output shape: [1, T, 16]
+        // ONNX output shape: [B, 16, T_frames] — transpose to [B, T_frames, 16]
         var dims = outputTensor.Dimensions;
         int batch = dims[0];
-        int tFrames = dims[1];
-        int codebooks = dims[2];
+        int codebooks = dims[1];
+        int tFrames = dims[2];
 
         var codes = new long[batch, tFrames, codebooks];
         int idx = 0;
         foreach (var val in outputTensor)
         {
-            int b = idx / (tFrames * codebooks);
-            int t = (idx % (tFrames * codebooks)) / codebooks;
-            int c = idx % codebooks;
-            codes[b, t, c] = val;
+            int b = idx / (codebooks * tFrames);
+            int cb = (idx % (codebooks * tFrames)) / tFrames;
+            int t = idx % tFrames;
+            codes[b, t, cb] = val;
             idx++;
         }
 
