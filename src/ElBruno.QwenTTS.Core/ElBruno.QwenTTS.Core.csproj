@@ -15,7 +15,7 @@
     <PackageIcon>nuget_01.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>tts;text-to-speech;qwen;onnx;ai;local;speech-synthesis;voice;audio;machine-learning</PackageTags>
-    <Version>1.3.0</Version>
+    <Version>1.4.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

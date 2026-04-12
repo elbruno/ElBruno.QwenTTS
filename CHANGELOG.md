@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.4.0] - 2026-07-25
+
+### Added
+
+- **ICL (In-Context Learning) mode for voice cloning** ([#32](https://github.com/elbruno/ElBruno.QwenTTS/issues/32))
+  - New `SynthesizeAsync` overload accepting `refText` parameter for higher-quality voice cloning
+  - When reference text transcript is provided alongside reference audio, the model preserves accent characteristics (e.g., Trump voice speaking Chinese retains English accent)
+  - New `SpeechTokenizer` class wrapping `tokenizer12hz_encode.onnx` for audio → codec code extraction
+  - New `GenerateWithSpeakerEmbeddingAndRefText` method in `LanguageModel` for ICL prefill embedding
+  - Speech tokenizer encoder ONNX export script (`python/export_speech_tokenizer.py`)
+  - `tokenizer12hz_encode.onnx` added to `VoiceCloningDownloader` expected files
+  - 4 new ICL-specific unit tests
+
+### Fixed
+
+- SpeechTokenizer tensor shape/name compatibility with ONNX export (input: 3D `[B,1,T]`, output transpose `[B,16,T]→[B,T,16]`)
+
+## [v1.3.0] - 2026-07-24
+
+### Added
+
+- **1.7B model quality and performance improvements** ([#30](https://github.com/elbruno/ElBruno.QwenTTS/issues/30))
+
 ## [v1.2.3] - 2026-04-06
 
 First stable release (previously v1.2.3-preview).
