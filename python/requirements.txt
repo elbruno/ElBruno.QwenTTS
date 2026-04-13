@@ -1,3 +1,10 @@
+# Qwen3-TTS ONNX Export Dependencies
+#
+# Known working combination (tested on NVIDIA A10-24Q):
+#   Python 3.13.9, PyTorch 2.6.0+cu124, transformers 4.57.3, onnx 1.20.1
+#
+# The qwen-tts package requires transformers>=4.57.3.
+# Our compat_patches.py handles compatibility up through transformers 5.5+.
 qwen-tts
 torch
 transformers>=4.57.3

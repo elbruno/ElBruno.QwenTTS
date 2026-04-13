@@ -29,12 +29,25 @@ Usage:
 
 import argparse
 import json
+import sys
 from pathlib import Path
+
+# Apply compatibility patches BEFORE importing qwen_tts.
+try:
+    import compat_patches  # noqa: F401
+except ImportError:
+    print("WARNING: compat_patches.py not found. Model loading may fail with newer transformers.")
 
 import numpy as np
 import torch
-from qwen_tts.core.models.modeling_qwen3_tts import Qwen3TTSForConditionalGeneration
-from qwen_tts.core.models.configuration_qwen3_tts import Qwen3TTSConfig
+
+try:
+    from qwen_tts.core.models.modeling_qwen3_tts import Qwen3TTSForConditionalGeneration
+    from qwen_tts.core.models.configuration_qwen3_tts import Qwen3TTSConfig
+except ImportError:
+    print("ERROR: qwen-tts package not found.")
+    print("       Install with: pip install qwen-tts")
+    sys.exit(1)
 
 
 def save_tensor(tensor, path):
@@ -51,7 +64,7 @@ def main():
         "--model-dir",
         type=str,
         default="models/Qwen3-TTS-0.6B-CustomVoice",
-        help="Path to the Qwen3-TTS model directory",
+        help="Path to the local Qwen3-TTS model directory (download first with download_models.py)",
     )
     parser.add_argument(
         "--output-dir",
@@ -60,6 +73,14 @@ def main():
         help="Directory to save .npy embedding files",
     )
     args = parser.parse_args()
+
+    import os
+    if not os.path.isdir(args.model_dir):
+        print(f"ERROR: Model directory not found: {args.model_dir}")
+        if "/" in args.model_dir and not os.path.exists(args.model_dir):
+            print(f"\n  This script requires a LOCAL directory with downloaded model weights.")
+            print("  To download models first, run:  python download_models.py")
+        sys.exit(1)
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)

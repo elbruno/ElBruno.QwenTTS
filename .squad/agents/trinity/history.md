@@ -284,3 +284,19 @@ Storing an `nn.Module` as `self.projection` in the wrapper causes `torch.onnx.ex
 - `python/export_speech_tokenizer.py` — export script
 - `python/onnx_models/tokenizer12hz_encode.onnx` — 209.6 MB ONNX model
 - Copied to `%LOCALAPPDATA%\ElBruno\QwenTTS-Base\tokenizer12hz_encode.onnx`
+
+### 2026-04-13: Issue #34 — Missing Compat Patches in export_lm.py
+
+**Root cause identified and fixed:** `export_lm.py` was missing ALL 7 compatibility patches that the other export scripts have. The `RuntimeError: invalid unordered_map<K, T> key` error is the vmap masking crash — `torch.onnx.export` traces through transformers' vmap-based causal mask creation (introduced in transformers 4.57+), which is incompatible with JIT tracing.
+
+**History:** When vmap issues surfaced during 1.7B export, `reexport_lm_novmap.py` was created as a fix, but the original `export_lm.py` was never updated. It only used `attn_implementation="eager"`, which was insufficient with newer transformers.
+
+**Fix applied:**
+1. Created `python/compat_patches.py` — shared module with all 7 patches: check_model_inputs compat, ROPE_INIT_FUNCTIONS["default"], sdpa_mask scalar fix, torch.diff ONNX-safe, bool cumsum fix, GQA disable, vmap-free masking registration + helper.
+2. Updated `python/export_lm.py` — imports compat_patches, uses vmap-free masking, added model-dir validation with HF repo ID detection.
+3. Updated `python/export_embeddings.py` — imports compat_patches, added model-dir validation.
+4. Updated `python/README.md` — added Troubleshooting section.
+
+**Key learning — patch duplication debt:** All 4 export scripts had independently copy-pasted the same patches. Creating a shared module prevents this from recurring. The `reexport_*_novmap.py` scripts could also be refactored to use it, but they work as-is.
+
+**The user's "repo ID" issue was a secondary factor:** The scripts expect local model directories, not HuggingFace repo IDs. Added clear error messages to catch this early.

@@ -119,6 +119,41 @@ python extract_tokenizer.py  # Tokenizer is identical
 > files for each of talker_prefill and talker_decode. Total ONNX artifact size is
 > ~15 GB for 1.7B (vs ~5.5 GB for 0.6B).
 
+## Troubleshooting
+
+### "RuntimeError: invalid unordered_map key" during ONNX export
+
+This happens when transformers' vmap-based masking is incompatible with
+`torch.onnx.export` tracing. The fix is automatic — `compat_patches.py`
+(imported by all export scripts) registers vmap-free masking.
+
+**If you still see this error:**
+1. Ensure `compat_patches.py` is in the same directory as the export script
+2. Check that you're running from the `python/` directory
+3. Verify your transformers version: `pip show transformers`
+
+### "ERROR: Model directory not found"
+
+The export scripts require **locally downloaded** model weights. They do not
+accept HuggingFace repo IDs directly. Download first:
+
+```bash
+python download_models.py                          # 0.6B models
+python download_models.py --model customvoice-1.7b # 1.7B model
+```
+
+Then pass the local path:
+```bash
+python export_lm.py --model-dir models/Qwen3-TTS-0.6B-CustomVoice --output-dir onnx/
+```
+
+### Compatibility Patches (`compat_patches.py`)
+
+All export scripts import `compat_patches.py` which fixes incompatibilities
+between the `qwen-tts` package and newer `transformers` versions (4.57+, 5.5+).
+The patches handle: decorator API changes, RoPE init functions, SDPA mask
+tracing, `torch.diff`/`cumsum` ONNX support, and vmap-free masking.
+
 ## Next Steps
 
 After setup, see `ARCHITECTURE.md` for the model architecture analysis and ONNX export strategy.

@@ -12,17 +12,44 @@ are supported without code changes.
 Usage:
   python export_lm.py --model-dir models/Qwen3-TTS-0.6B-CustomVoice --output-dir onnx/
   python export_lm.py --model-dir models/Qwen3-TTS-1.7B-CustomVoice --output-dir onnx_1.7b/
+
+Requirements:
+  pip install -r requirements.txt
+  Requires: qwen-tts, torch, transformers>=4.57.3, onnx, optimum[onnx]
+
+Note:
+  This script includes compatibility patches for transformers 4.57+/5.5+ that
+  fix vmap-based masking crashes during ONNX tracing. If you see errors like
+  "RuntimeError: invalid unordered_map<K, T> key", ensure compat_patches.py
+  is present in the same directory.
 """
 
 import argparse
 import os
+import sys
 from pathlib import Path
+
+# Apply compatibility patches BEFORE importing qwen_tts or model code.
+# These fix vmap masking, RoPE init, sdpa_mask, torch.diff, and other
+# incompatibilities between qwen_tts and newer transformers versions.
+try:
+    import compat_patches  # noqa: F401
+except ImportError:
+    print("WARNING: compat_patches.py not found. Export may fail with newer transformers.")
+    print("         Ensure compat_patches.py is in the same directory as this script.")
 
 import torch
 import torch.nn as nn
-from qwen_tts.core.models.modeling_qwen3_tts import Qwen3TTSForConditionalGeneration
-from qwen_tts.core.models.configuration_qwen3_tts import Qwen3TTSConfig
 from transformers.cache_utils import DynamicCache
+
+try:
+    from qwen_tts.core.models.modeling_qwen3_tts import Qwen3TTSForConditionalGeneration
+    from qwen_tts.core.models.configuration_qwen3_tts import Qwen3TTSConfig
+except ImportError:
+    print("ERROR: qwen-tts package not found.")
+    print("       Install with: pip install qwen-tts")
+    print("       Or:           pip install -r requirements.txt")
+    sys.exit(1)
 
 OPSET_VERSION = 17
 
@@ -358,7 +385,7 @@ def main():
         "--model-dir",
         type=str,
         default="models/Qwen3-TTS-0.6B-CustomVoice",
-        help="Path to the Qwen3-TTS model directory",
+        help="Path to the local Qwen3-TTS model directory (download first with download_models.py)",
     )
     parser.add_argument(
         "--output-dir",
@@ -375,25 +402,68 @@ def main():
     )
     args = parser.parse_args()
 
+    # Validate model directory — catch common mistake of passing HuggingFace
+    # repo IDs instead of local paths
+    model_dir = args.model_dir
+    if not os.path.isdir(model_dir):
+        print(f"ERROR: Model directory not found: {model_dir}")
+        if "/" in model_dir and not os.path.exists(model_dir):
+            print(f"\n  It looks like '{model_dir}' might be a HuggingFace repo ID.")
+            print("  This script requires a LOCAL directory with downloaded model weights.")
+            print("\n  To download models first, run:")
+            print("    python download_models.py")
+            print(f"\n  Then export with:")
+            print(f"    python export_lm.py --model-dir models/<model-name> --output-dir {args.output_dir}")
+        sys.exit(1)
+
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Loading model from {args.model_dir} ...")
-    config = Qwen3TTSConfig.from_pretrained(args.model_dir)
+    print(f"Loading model from {model_dir} ...")
+    config = Qwen3TTSConfig.from_pretrained(model_dir)
 
     print("Model dimensions (from config):")
     dims = read_model_dims(config)
 
-    config.talker_config._attn_implementation = "eager"
-    if hasattr(config.talker_config, "code_predictor_config"):
-        config.talker_config.code_predictor_config._attn_implementation = "eager"
+    # Use vmap-free masking for ONNX trace compatibility.
+    # The vmap-based masking in transformers 4.57+ crashes during
+    # torch.onnx.export with: RuntimeError: invalid unordered_map<K, T> key
+    attn_impl = "sdpa"
+    try:
+        from compat_patches import VMAP_WORKAROUND, patch_attention_for_export
+        if VMAP_WORKAROUND:
+            attn_impl = "sdpa"  # will be patched to vmap-free after loading
+            print(f"  Using vmap-free attention: {VMAP_WORKAROUND}")
+        else:
+            attn_impl = "eager"
+            print("  Using eager attention (transformers 5.5+ detected)")
+    except ImportError:
+        attn_impl = "eager"
+        print("  Using eager attention (compat_patches not available)")
+
     model = Qwen3TTSForConditionalGeneration.from_pretrained(
-        args.model_dir,
+        model_dir,
         config=config,
         dtype=torch.float32,
-        attn_implementation="eager",
+        attn_implementation=attn_impl,
     )
     model.eval()
+
+    # Patch attention for vmap-free ONNX export
+    try:
+        from compat_patches import patch_attention_for_export
+        # Patch Talker LM layers
+        patch_attention_for_export(
+            model.talker.model, config=model.talker.model.config
+        )
+        # Patch Code Predictor layers
+        patch_attention_for_export(
+            model.talker.code_predictor.model,
+            config=model.talker.code_predictor.model.config,
+        )
+        print("  Patched attention layers for ONNX export")
+    except ImportError:
+        pass
 
     talker = model.talker
     device = torch.device(args.device)
