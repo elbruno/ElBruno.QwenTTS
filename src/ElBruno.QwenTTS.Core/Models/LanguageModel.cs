@@ -506,46 +506,7 @@ internal sealed class LanguageModel : IDisposable
             talkerInputEmbeds.Add(combined);
         }
 
-        // ICL section: insert reference text and audio code embeddings before the transition marker
-        bool hasIclData = refTokenIds != null && refAudioCodes != null;
-        if (hasIclData)
-        {
-            // Pre-compute codec_pad embedding (reused for all ref text tokens)
-            var codecPadEmbed = new float[_hiddenSize];
-            _embeddings.TalkerCodecEmbedding(cfg.talker.codec_pad_id, codecPadEmbed);
-
-            // Ref text embeddings: textProj(refToken) + codec_pad_embed
-            var refTextEmbBuf = new float[2048];
-            var refProjBuf = new float[_hiddenSize];
-            for (int i = 0; i < refTokenIds!.Length; i++)
-            {
-                _embeddings.TextEmbedding(refTokenIds[i], refTextEmbBuf);
-                _embeddings.TextProjection(refTextEmbBuf, refProjBuf);
-                var combined = new float[_hiddenSize];
-                for (int j = 0; j < _hiddenSize; j++)
-                    combined[j] = refProjBuf[j] + codecPadEmbed[j];
-                talkerInputEmbeds.Add(combined);
-            }
-
-            // Ref audio code embeddings: ttsPadProj + sum(TalkerCodecEmbed(codes[t][g]) for g=0..15)
-            int tFrames = refAudioCodes!.GetLength(1);
-            for (int t = 0; t < tFrames; t++)
-            {
-                var combined = new float[_hiddenSize];
-                for (int j = 0; j < _hiddenSize; j++)
-                    combined[j] = ttsPadProj[j];
-
-                for (int g = 0; g < 16; g++)
-                {
-                    _embeddings.TalkerCodecEmbedding((int)refAudioCodes[0, t, g], codecEmbBuf);
-                    for (int j = 0; j < _hiddenSize; j++)
-                        combined[j] += codecEmbBuf[j];
-                }
-                talkerInputEmbeds.Add(combined);
-            }
-        }
-
-        // Last position: tts_bos + codec_prefix[-2]
+        // Last position: tts_bos + codec_prefix[-2] (always included, both ICL and non-ICL)
         {
             _embeddings.TalkerCodecEmbedding(codecPrefix[codecPrefixLen - 2], codecEmbBuf);
             var combined = new float[_hiddenSize];
@@ -554,12 +515,89 @@ internal sealed class LanguageModel : IDisposable
             talkerInputEmbeds.Add(combined);
         }
 
-        // Combine: role_embed + _talker_input_embed (includes ICL section when present)
+        // ICL section: ref_text + target_text + eos (+ codec_pad), then codec_bos + ref_audio (+ tts_pad)
+        // Matches official Qwen3-TTS generate_icl_prompt (non-streaming mode).
+        bool hasIclData = refTokenIds != null && refAudioCodes != null;
+        if (hasIclData)
+        {
+            var codecPadEmbed = new float[_hiddenSize];
+            _embeddings.TalkerCodecEmbedding(cfg.talker.codec_pad_id, codecPadEmbed);
+
+            // Ref text tokens: textProj(textEmbed(refToken)) + codec_pad
+            var iclTextEmbBuf = new float[2048];
+            var iclProjBuf = new float[_hiddenSize];
+            for (int i = 0; i < refTokenIds!.Length; i++)
+            {
+                _embeddings.TextEmbedding(refTokenIds[i], iclTextEmbBuf);
+                _embeddings.TextProjection(iclTextEmbBuf, iclProjBuf);
+                var combined = new float[_hiddenSize];
+                for (int j = 0; j < _hiddenSize; j++)
+                    combined[j] = iclProjBuf[j] + codecPadEmbed[j];
+                talkerInputEmbeds.Add(combined);
+            }
+
+            // Target text tokens (tokenIds[3:-5]): textProj(textEmbed(token)) + codec_pad
+            for (int i = 3; i < tokenIds.Length - 5; i++)
+            {
+                _embeddings.TextEmbedding(tokenIds[i], iclTextEmbBuf);
+                _embeddings.TextProjection(iclTextEmbBuf, iclProjBuf);
+                var combined = new float[_hiddenSize];
+                for (int j = 0; j < _hiddenSize; j++)
+                    combined[j] = iclProjBuf[j] + codecPadEmbed[j];
+                talkerInputEmbeds.Add(combined);
+            }
+
+            // tts_eos + codec_pad
+            {
+                var combined = new float[_hiddenSize];
+                for (int j = 0; j < _hiddenSize; j++)
+                    combined[j] = ttsEosProj[j] + codecPadEmbed[j];
+                talkerInputEmbeds.Add(combined);
+            }
+
+            // codec_bos + tts_pad
+            {
+                var codecBosEmbed = new float[_hiddenSize];
+                _embeddings.TalkerCodecEmbedding(cfg.talker.codec_bos_id, codecBosEmbed);
+                var combined = new float[_hiddenSize];
+                for (int j = 0; j < _hiddenSize; j++)
+                    combined[j] = ttsPadProj[j] + codecBosEmbed[j];
+                talkerInputEmbeds.Add(combined);
+            }
+
+            // Ref audio codes: tts_pad + sum_g(embedding_g(codes[t][g]))
+            // Group 0: TalkerCodecEmbedding, Groups 1-15: CpCodecEmbedding
+            var cpEmbBuf = new float[_cpHiddenSize];
+            int tFrames = refAudioCodes!.GetLength(1);
+            for (int t = 0; t < tFrames; t++)
+            {
+                var combined = new float[_hiddenSize];
+                for (int j = 0; j < _hiddenSize; j++)
+                    combined[j] = ttsPadProj[j];
+
+                // Group 0: talker codec embedding
+                _embeddings.TalkerCodecEmbedding((int)refAudioCodes[0, t, 0], codecEmbBuf);
+                for (int j = 0; j < _hiddenSize; j++)
+                    combined[j] += codecEmbBuf[j];
+
+                // Groups 1-15: CP codec embeddings
+                for (int g = 1; g < 16; g++)
+                {
+                    _embeddings.CpCodecEmbedding(g - 1, (int)refAudioCodes[0, t, g], cpEmbBuf);
+                    for (int j = 0; j < _cpHiddenSize; j++)
+                        combined[j] += cpEmbBuf[j];
+                }
+                talkerInputEmbeds.Add(combined);
+            }
+        }
+
+        // Combine: role_embed + _talker_input_embed
         var allEmbeds = new List<float[]>();
         allEmbeds.AddRange(roleEmbeds);
         allEmbeds.AddRange(talkerInputEmbeds);
 
-        // Append: TextProject(TextEmbed(tokenIds[3])) + codec_bos
+        // Non-ICL: append first_text_token + codec_bos
+        if (!hasIclData)
         {
             Span<float> textEmbed = stackalloc float[2048];
             var projected = new float[_hiddenSize];
@@ -575,17 +613,26 @@ internal sealed class LanguageModel : IDisposable
             allEmbeds.Add(combined);
         }
 
-        // Trailing text hidden: tokens[4:-5] + tts_eos
+        // Trailing text hidden
         var trailingList = new List<float[]>();
-        var trailTextEmbBuf = new float[2048];
-        var trailProjBuf = new float[_hiddenSize];
-        for (int i = 4; i < tokenIds.Length - 5; i++)
+        if (hasIclData)
         {
-            _embeddings.TextEmbedding(tokenIds[i], trailTextEmbBuf);
-            _embeddings.TextProjection(trailTextEmbBuf, trailProjBuf);
-            trailingList.Add((float[])trailProjBuf.Clone());
+            // ICL non-streaming: all text is in prefill, trailing is just tts_pad
+            trailingList.Add(ttsPadProj.ToArray());
         }
-        trailingList.Add(ttsEosProj.ToArray());
+        else
+        {
+            // Standard: tokens[4:-5] + tts_eos
+            var trailTextEmbBuf = new float[2048];
+            var trailProjBuf = new float[_hiddenSize];
+            for (int i = 4; i < tokenIds.Length - 5; i++)
+            {
+                _embeddings.TextEmbedding(tokenIds[i], trailTextEmbBuf);
+                _embeddings.TextProjection(trailTextEmbBuf, trailProjBuf);
+                trailingList.Add((float[])trailProjBuf.Clone());
+            }
+            trailingList.Add(ttsEosProj.ToArray());
+        }
 
         // Convert to arrays
         var inputsEmbeds = new float[1, allEmbeds.Count, _hiddenSize];
