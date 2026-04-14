@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.4.2] - 2026-04-14
+
+### Fixed
+
+- **ICL voice cloning producing only 3 audio frames (~0.24 s)** ([#36](https://github.com/elbruno/ElBruno.QwenTTS/issues/36))  
+  Three bugs in `BuildPrefillEmbedding` in `LanguageModel.cs` caused the model to generate essentially silence when voice cloning with a reference transcript. The fix aligns the C# implementation with the official Qwen3-TTS [`generate_icl_prompt`](https://github.com/QwenLM/Qwen3-TTS/blob/022e286b98fbec7e1e916cb940cdf532cd9f488e/qwen_tts/core/models/modeling_qwen3_tts.py#L1979):
+
+  1. **Token ordering** — The `tts_bos + codec_prefix[-2]` marker (end of codec prefix) is now placed **before** the ICL section, not after it. The ICL section then correctly embeds: ref-text tokens → target-text tokens → `tts_eos` (each paired with `codec_pad`), then `codec_bos` + ref-audio codes (each paired with `tts_pad`).
+  
+  2. **Codec embeddings for reference audio** — Group 0 now uses `TalkerCodecEmbedding` (talker embedding space); groups 1–15 now use `CpCodecEmbedding(g-1, …)` (Code Predictor embedding space). Previously all 16 groups incorrectly used `TalkerCodecEmbedding`. Only `_cpHiddenSize` elements are accumulated for CP groups, which handles the 1024 vs 2048 dimension difference on 1.7B models.
+  
+  3. **Trailing text hidden** — In ICL mode the trailing hidden state is now `[ttsPadProj]` only (a single `tts_pad` projection), because all text is already embedded in the prefill. Previously the standard non-ICL trailing text (`tokens[4:-5] + tts_eos`) was returned, causing the model to generate stop tokens immediately.
+
 ## [v1.4.1] - 2026-04-13
 
 ### Fixed
