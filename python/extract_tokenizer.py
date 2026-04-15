@@ -21,6 +21,7 @@ import json
 import os
 from pathlib import Path
 
+from export_utils import configure_output_encoding
 from transformers import AutoTokenizer
 
 DEFAULT_MODEL_ID = "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"
@@ -138,6 +139,7 @@ def save_special_tokens_summary(tokenizer, output_dir: Path) -> None:
 
 
 def main() -> None:
+    configure_output_encoding()
     parser = argparse.ArgumentParser(description="Extract BPE tokenizer artifacts for C#")
     parser.add_argument(
         "--model", type=str, default=DEFAULT_MODEL_ID,

@@ -29,6 +29,8 @@ import sys
 import time
 from pathlib import Path
 
+from export_utils import configure_output_encoding
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -550,6 +552,7 @@ def parse_args():
 
 
 def main():
+    configure_output_encoding()
     args = parse_args()
 
     output_dir = Path(args.output_dir) if args.output_dir else DEFAULT_OUTPUT_DIR

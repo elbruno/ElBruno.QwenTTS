@@ -19,6 +19,8 @@ Usage:
 import argparse
 import os
 from pathlib import Path
+
+from export_utils import configure_output_encoding
 from huggingface_hub import snapshot_download
 
 
@@ -61,6 +63,7 @@ MODELS_DIR = Path(__file__).parent / "models"
 
 
 def main():
+    configure_output_encoding()
     parser = argparse.ArgumentParser(description="Download Qwen3-TTS model weights")
     parser.add_argument(
         "--model",

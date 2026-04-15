@@ -23,6 +23,8 @@ import numpy as np
 import torch
 from pathlib import Path
 
+from export_utils import configure_output_encoding
+
 # Compatibility patch: transformers 5.5+ changed check_model_inputs from a
 # decorator factory (@check_model_inputs()) to a plain decorator (@check_model_inputs).
 # The qwen_tts package still uses the old factory style, so we monkey-patch it
@@ -429,6 +431,7 @@ def parse_args():
 
 
 def main():
+    configure_output_encoding()
     global ONNX_OUTPUT_DIR, ONNX_OUTPUT_PATH
     args = parse_args()
 

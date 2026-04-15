@@ -29,6 +29,8 @@ import os
 import sys
 from pathlib import Path
 
+from export_utils import configure_output_encoding
+
 # Apply compatibility patches BEFORE importing qwen_tts or model code.
 # These fix vmap masking, RoPE init, sdpa_mask, torch.diff, and other
 # incompatibilities between qwen_tts and newer transformers versions.
@@ -378,6 +380,7 @@ def export_code_predictor(talker, output_dir, device, dims):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def main():
+    configure_output_encoding()
     parser = argparse.ArgumentParser(
         description="Export Talker LM and Code Predictor to ONNX"
     )

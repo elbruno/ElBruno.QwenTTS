@@ -16,6 +16,8 @@ Usage:
 import argparse
 import os
 from pathlib import Path
+
+from export_utils import configure_output_encoding
 from huggingface_hub import hf_hub_download, list_repo_files
 
 
@@ -23,6 +25,7 @@ DEFAULT_REPO_ID = "elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX"
 
 
 def main():
+    configure_output_encoding()
     parser = argparse.ArgumentParser(description="Download ONNX models from HuggingFace Hub")
     parser.add_argument(
         "--repo-id",

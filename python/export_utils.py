@@ -11,7 +11,16 @@ Used by: export_lm.py, export_embeddings.py, export_vocoder.py,
 import json
 import os
 import re
+import sys
 from pathlib import Path
+
+
+def configure_output_encoding():
+    """Ensure stdout/stderr can handle Unicode on all platforms (e.g., GBK Windows)."""
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
 # ═══════════════════════════════════════════════════════════════════════════

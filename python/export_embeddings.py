@@ -32,6 +32,8 @@ import json
 import sys
 from pathlib import Path
 
+from export_utils import configure_output_encoding
+
 # Apply compatibility patches BEFORE importing qwen_tts.
 try:
     import compat_patches  # noqa: F401
@@ -57,6 +59,7 @@ def save_tensor(tensor, path):
 
 
 def main():
+    configure_output_encoding()
     parser = argparse.ArgumentParser(
         description="Extract embedding weights as NumPy arrays for C# inference"
     )

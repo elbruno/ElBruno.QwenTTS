@@ -16,6 +16,8 @@ import soundfile as sf
 import onnxruntime as ort
 from librosa.filters import mel as librosa_mel_fn
 
+from export_utils import configure_output_encoding
+
 
 def compute_mel_pytorch_style(audio: np.ndarray, sr=24000, n_fft=1024, hop_size=256,
                                win_size=1024, n_mels=128, fmin=0, fmax=12000) -> np.ndarray:
@@ -76,6 +78,7 @@ def run_speaker_encoder(session: ort.InferenceSession, mel: np.ndarray) -> np.nd
 
 
 def main():
+    configure_output_encoding()
     parser = argparse.ArgumentParser(description="ONNX parity comparison for voice cloning")
     parser.add_argument("--onnx-dir", default=r"c:\models\QwenTTSVoiceClone",
                         help="Directory with ONNX models")

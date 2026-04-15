@@ -17,6 +17,8 @@ import numpy as np
 import torch
 from pathlib import Path
 
+from export_utils import configure_output_encoding
+
 # ---------------------------------------------------------------------------
 # Compatibility patches (same as export_vocoder.py)
 # ---------------------------------------------------------------------------
@@ -203,6 +205,7 @@ def compare(decoder, session, batch_size: int, timesteps: int, label: str) -> di
 # Main
 # ---------------------------------------------------------------------------
 def main():
+    configure_output_encoding()
     parser = argparse.ArgumentParser(description="Validate vocoder ONNX export")
     parser.add_argument(
         "--model-dir", type=str, default=None,

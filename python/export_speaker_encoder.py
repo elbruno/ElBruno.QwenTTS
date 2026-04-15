@@ -14,6 +14,8 @@ Usage:
 import argparse
 from pathlib import Path
 
+from export_utils import configure_output_encoding
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -132,6 +134,7 @@ def export_speaker_encoder(model_dir: str, output_dir: str):
 
 
 def main():
+    configure_output_encoding()
     parser = argparse.ArgumentParser(
         description="Export ECAPA-TDNN speaker encoder to ONNX"
     )
