@@ -87,6 +87,7 @@ public sealed class VoiceCloningDownloader
 
         int totalFiles = ExpectedFiles.Length;
         int currentFile = 0;
+        var skippedFiles = new List<string>();
 
         foreach (var relativePath in ExpectedFiles)
         {
@@ -109,27 +110,46 @@ public sealed class VoiceCloningDownloader
                 currentFile, totalFiles, relativePath,
                 $"[{currentFile}/{totalFiles}] Downloading {relativePath}...", 0, 0));
 
-            using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            response.EnsureSuccessStatusCode();
-
-            var totalBytes = response.Content.Headers.ContentLength ?? 0;
-            await using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            await using var fileStream = File.Create(localPath);
-
-            var buffer = new byte[81920];
-            long downloaded = 0;
-            int bytesRead;
-
-            while ((bytesRead = await contentStream.ReadAsync(buffer, cancellationToken)) > 0)
+            try
             {
-                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
-                downloaded += bytesRead;
+                using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                response.EnsureSuccessStatusCode();
 
+                var totalBytes = response.Content.Headers.ContentLength ?? 0;
+                await using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                await using var fileStream = File.Create(localPath);
+
+                var buffer = new byte[81920];
+                long downloaded = 0;
+                int bytesRead;
+
+                while ((bytesRead = await contentStream.ReadAsync(buffer, cancellationToken)) > 0)
+                {
+                    await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+                    downloaded += bytesRead;
+
+                    progress?.Report(new ModelDownloadProgress(
+                        currentFile, totalFiles, relativePath,
+                        $"[{currentFile}/{totalFiles}] {relativePath} ({downloaded:N0}/{totalBytes:N0} bytes)",
+                        downloaded, totalBytes));
+                }
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                skippedFiles.Add(relativePath);
                 progress?.Report(new ModelDownloadProgress(
                     currentFile, totalFiles, relativePath,
-                    $"[{currentFile}/{totalFiles}] {relativePath} ({downloaded:N0}/{totalBytes:N0} bytes)",
-                    downloaded, totalBytes));
+                    $"[{currentFile}/{totalFiles}] {relativePath} not found (404), skipped.", 0, 0));
             }
+        }
+
+        if (skippedFiles.Count > 0)
+        {
+            var fileList = string.Join(", ", skippedFiles);
+            progress?.Report(new ModelDownloadProgress(
+                totalFiles, totalFiles, "",
+                $"Warning: {skippedFiles.Count} file(s) not found on HuggingFace and were skipped: {fileList}. The model repository may not have been updated yet.",
+                0, 0));
         }
 
         progress?.Report(new ModelDownloadProgress(

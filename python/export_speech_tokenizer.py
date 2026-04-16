@@ -105,6 +105,29 @@ def _onnx_safe_cumsum(self, dim, dtype=None):
 
 torch.Tensor.cumsum = _onnx_safe_cumsum
 
+# Patch torch.cdist for ONNX trace (MimiSplitResidualVectorQuantizer codebook lookup)
+_orig_cdist = torch.cdist
+
+def _onnx_safe_cdist(x1, x2, p=2.0, compute_mode='use_mm_for_euclid_dist_if_necessary'):
+    """ONNX-safe replacement for torch.cdist.
+
+    The standard torch.cdist fails during ONNX trace export because
+    the symbolic function can't determine row_size_x1 statically.
+    This implementation uses basic tensor ops that ONNX can trace.
+    """
+    # x1: (..., P, M), x2: (..., R, M) → output: (..., P, R)
+    diff = x1.unsqueeze(-2) - x2.unsqueeze(-3)
+    if p == 2.0:
+        return (diff * diff).sum(-1).sqrt()
+    elif p == 1.0:
+        return diff.abs().sum(-1)
+    elif p == float('inf'):
+        return diff.abs().amax(-1)
+    else:
+        return diff.abs().pow(p).sum(-1).pow(1.0 / p)
+
+torch.cdist = _onnx_safe_cdist
+
 # Disable GQA in SDPA (not needed for Mimi — num_kv_heads == num_heads)
 import transformers.integrations.sdpa_attention as _sdpa_mod
 _sdpa_mod.use_gqa_in_sdpa = lambda attention_mask, key: False
