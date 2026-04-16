@@ -2,6 +2,7 @@
 
 [![NuGet](https://img.shields.io/nuget/v/ElBruno.QwenTTS.svg?style=flat-square&logo=nuget)](https://www.nuget.org/packages/ElBruno.QwenTTS)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/ElBruno.QwenTTS.svg?style=flat-square&logo=nuget)](https://www.nuget.org/packages/ElBruno.QwenTTS)
+[![NuGet VoiceCloning](https://img.shields.io/nuget/v/ElBruno.QwenTTS.VoiceCloning.svg?style=flat-square&logo=nuget&label=VoiceCloning)](https://www.nuget.org/packages/ElBruno.QwenTTS.VoiceCloning)
 [![Build Status](https://github.com/elbruno/ElBruno.QwenTTS/actions/workflows/publish.yml/badge.svg)](https://github.com/elbruno/ElBruno.QwenTTS/actions/workflows/publish.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/elbruno/ElBruno.QwenTTS?style=social)](https://github.com/elbruno/ElBruno.QwenTTS)
