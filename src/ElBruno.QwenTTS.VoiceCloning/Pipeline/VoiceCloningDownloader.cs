@@ -1,5 +1,4 @@
-using System.Net.Http.Json;
-using System.Text.Json;
+using ElBruno.HuggingFace;
 using ElBruno.QwenTTS.Pipeline;
 
 namespace ElBruno.QwenTTS.VoiceCloning.Pipeline;
@@ -7,35 +6,28 @@ namespace ElBruno.QwenTTS.VoiceCloning.Pipeline;
 /// <summary>
 /// Downloads Qwen3-TTS Base model ONNX files (including speaker encoder)
 /// from a HuggingFace repository.
+/// Uses the ElBruno.HuggingFace.Downloader package for robust downloading with progress reporting.
 /// </summary>
 public sealed class VoiceCloningDownloader
 {
     public const string DefaultRepoId = "elbruno/Qwen3-TTS-12Hz-0.6B-Base-ONNX";
-    
-    /// <summary>
-    /// HuggingFace repository base URL. HTTPS scheme is hardcoded (not configurable) to enforce
-    /// secure model downloads. This is a security design decision: all ONNX model files are
-    /// large binaries (~5.5 GB total) that will be executed by ONNX Runtime. Using only HTTPS
-    /// prevents Man-in-the-Middle (MITM) attacks that could inject malicious code into models
-    /// during download. Attempting to change this to HTTP would bypass model signature validation
-    /// and create a critical security vulnerability in the TTS inference pipeline.
-    /// </summary>
-    private const string HfResolveBase = "https://huggingface.co";
 
     /// <summary>
     /// Default model directory for voice cloning models.
     /// Stored alongside the CustomVoice models under the shared ElBruno folder.
+    /// Uses manual Path.Combine to preserve the exact path users already have cached.
     /// </summary>
     public static string DefaultModelDir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                      "ElBruno", "QwenTTS-Base");
 
-    private static readonly string[] ExpectedFiles =
+    /// <summary>
+    /// Files that must be present for the model to function.
+    /// </summary>
+    private static readonly string[] RequiredFiles =
     [
         "speaker_encoder.onnx",
         "speaker_encoder.onnx.data",
-        "tokenizer12hz_encode.onnx",
-        "tokenizer12hz_encode.onnx.data",
         "talker_prefill.onnx",
         "talker_prefill.onnx.data",
         "talker_decode.onnx",
@@ -58,20 +50,34 @@ public sealed class VoiceCloningDownloader
     ];
 
     /// <summary>
+    /// Files that are part of the model but may not yet be uploaded to HuggingFace.
+    /// </summary>
+    private static readonly string[] OptionalFiles =
+    [
+        "tokenizer12hz_encode.onnx",
+        "tokenizer12hz_encode.onnx.data"
+    ];
+
+    /// <summary>
+    /// All expected model files (required + optional). Used for backward compatibility.
+    /// </summary>
+    public static string[] ExpectedFiles => [.. RequiredFiles, .. OptionalFiles];
+
+    /// <summary>
     /// Returns true if the model directory contains all required files for voice cloning.
+    /// Only checks <see cref="RequiredFiles"/> since optional files may not yet be available.
     /// </summary>
     public static bool IsModelDownloaded(string? modelDir = null)
     {
         modelDir ??= DefaultModelDir;
-        return ExpectedFiles.All(f =>
-        {
-            ValidateRelativePath(f, nameof(f));
-            return File.Exists(Path.Combine(modelDir, f.Replace('/', Path.DirectorySeparatorChar)));
-        });
+        using var downloader = new HuggingFaceDownloader();
+        return downloader.AreFilesAvailable(RequiredFiles, modelDir);
     }
 
     /// <summary>
-    /// Downloads all required model files from HuggingFace.
+    /// Downloads all required model files from HuggingFace with byte-level progress.
+    /// Skips files that already exist locally. Optional files that are not yet available
+    /// on HuggingFace are handled gracefully by the downloader package.
     /// </summary>
     public static async Task DownloadModelAsync(
         string? modelDir = null,
@@ -82,79 +88,40 @@ public sealed class VoiceCloningDownloader
         modelDir ??= DefaultModelDir;
         Directory.CreateDirectory(modelDir);
 
-        using var http = new HttpClient();
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("ElBruno.QwenTTS.VoiceCloning/1.0");
+        using var downloader = new HuggingFaceDownloader();
 
-        int totalFiles = ExpectedFiles.Length;
-        int currentFile = 0;
-        var skippedFiles = new List<string>();
-
-        foreach (var relativePath in ExpectedFiles)
+        if (downloader.AreFilesAvailable(RequiredFiles, modelDir))
         {
-            ValidateRelativePath(relativePath, nameof(relativePath));
-            currentFile++;
-            var localPath = Path.Combine(modelDir, relativePath.Replace('/', Path.DirectorySeparatorChar));
-
-            if (File.Exists(localPath))
-            {
-                progress?.Report(new ModelDownloadProgress(
-                    currentFile, totalFiles, relativePath,
-                    $"[{currentFile}/{totalFiles}] {relativePath} (cached)", 0, 0));
-                continue;
-            }
-
-            Directory.CreateDirectory(Path.GetDirectoryName(localPath)!);
-
-            var url = $"{HfResolveBase}/{repoId}/resolve/main/{relativePath}";
-            progress?.Report(new ModelDownloadProgress(
-                currentFile, totalFiles, relativePath,
-                $"[{currentFile}/{totalFiles}] Downloading {relativePath}...", 0, 0));
-
-            try
-            {
-                using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-                response.EnsureSuccessStatusCode();
-
-                var totalBytes = response.Content.Headers.ContentLength ?? 0;
-                await using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-                await using var fileStream = File.Create(localPath);
-
-                var buffer = new byte[81920];
-                long downloaded = 0;
-                int bytesRead;
-
-                while ((bytesRead = await contentStream.ReadAsync(buffer, cancellationToken)) > 0)
-                {
-                    await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
-                    downloaded += bytesRead;
-
-                    progress?.Report(new ModelDownloadProgress(
-                        currentFile, totalFiles, relativePath,
-                        $"[{currentFile}/{totalFiles}] {relativePath} ({downloaded:N0}/{totalBytes:N0} bytes)",
-                        downloaded, totalBytes));
-                }
-            }
-            catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-            {
-                skippedFiles.Add(relativePath);
-                progress?.Report(new ModelDownloadProgress(
-                    currentFile, totalFiles, relativePath,
-                    $"[{currentFile}/{totalFiles}] {relativePath} not found (404), skipped.", 0, 0));
-            }
+            progress?.Report(new ModelDownloadProgress(0, 0, null, "All model files already present.", 0, 0));
+            return;
         }
 
-        if (skippedFiles.Count > 0)
-        {
-            var fileList = string.Join(", ", skippedFiles);
-            progress?.Report(new ModelDownloadProgress(
-                totalFiles, totalFiles, "",
-                $"Warning: {skippedFiles.Count} file(s) not found on HuggingFace and were skipped: {fileList}. The model repository may not have been updated yet.",
-                0, 0));
-        }
+        var downloadProgress = progress != null
+            ? new Progress<DownloadProgress>(p => progress.Report(MapProgress(p)))
+            : null;
 
-        progress?.Report(new ModelDownloadProgress(
-            totalFiles, totalFiles, "",
-            "All model files downloaded.", 0, 0));
+        var request = new DownloadRequest
+        {
+            RepoId = repoId,
+            LocalDirectory = modelDir,
+            RequiredFiles = RequiredFiles,
+            OptionalFiles = OptionalFiles,
+            Progress = downloadProgress
+        };
+
+        await downloader.DownloadFilesAsync(request, cancellationToken);
+    }
+
+    private static ModelDownloadProgress MapProgress(DownloadProgress p)
+    {
+        return new ModelDownloadProgress(
+            CurrentFile: p.CurrentFileIndex,
+            TotalFiles: p.TotalFileCount,
+            FileName: p.CurrentFile,
+            Message: p.Message ?? "",
+            BytesDownloaded: p.BytesDownloaded,
+            TotalBytes: p.TotalBytes
+        );
     }
 
     /// <summary>
