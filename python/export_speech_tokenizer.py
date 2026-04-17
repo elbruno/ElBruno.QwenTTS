@@ -45,8 +45,8 @@ _orig_check = _tug.check_model_inputs
 
 def _compat_check_model_inputs(func=None):
     if func is None:
-        return _orig_check
-    return _orig_check(func)
+        return lambda fn: fn  # called as @check_model_inputs() → identity decorator
+    return func  # called as @check_model_inputs → return function unchanged
 
 _tug.check_model_inputs = _compat_check_model_inputs
 

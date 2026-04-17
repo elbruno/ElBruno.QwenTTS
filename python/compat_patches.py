@@ -9,8 +9,10 @@ Import this module BEFORE importing qwen_tts or any model code:
     import compat_patches  # noqa: F401 — patches applied on import
 
 Patches applied:
-    1. check_model_inputs: transformers 5.5+ changed from decorator factory
-       (@check_model_inputs()) to plain decorator (@check_model_inputs).
+    1. check_model_inputs: no-op replacement. The original decorator in newer
+       transformers wraps forward methods and rejects unexpected kwargs like
+       inputs_embeds. We bypass it entirely — input validation isn't needed
+       during ONNX export.
     2. ROPE_INIT_FUNCTIONS["default"]: removed in transformers 5.5+, but
        qwen_tts still references it.
     3. sdpa_mask: ONNX tracing creates 0-d tensors for q_length, which crashes
@@ -41,8 +43,8 @@ _orig_check = _tug.check_model_inputs
 
 def _compat_check_model_inputs(func=None):
     if func is None:
-        return _orig_check  # called as @check_model_inputs() → return decorator
-    return _orig_check(func)  # called as @check_model_inputs → apply directly
+        return lambda fn: fn  # called as @check_model_inputs() → identity decorator
+    return func  # called as @check_model_inputs → return function unchanged
 
 
 _tug.check_model_inputs = _compat_check_model_inputs
