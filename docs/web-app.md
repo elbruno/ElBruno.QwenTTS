@@ -16,7 +16,7 @@ Then open [http://localhost:5153](http://localhost:5153) in your browser.
 
 - **Type text** or **upload a file** (.txt, .srt, .md) for speech generation
 - **Speaker selection** — choose from all available voices (Ryan, Serena, Vivian, Aiden, etc.)
-- **Language selection** — English, Spanish, Chinese, Japanese, Korean, or auto-detect
+- **Language selection** — English, Spanish, Chinese, Japanese, Korean, Russian, or auto-detect
 - **Voice instructions** — optional style prompts (e.g., "speak slowly and calmly")
 - **Audio playback** — listen to generated audio directly in the browser
 - **Download** — save generated WAV files locally

@@ -33,6 +33,13 @@ public class QwenTextToSpeechClientTests : IDisposable
     }
 
     [Fact]
+    public void Constructor_AcceptsRussianLanguage()
+    {
+        using var client = new QwenTextToSpeechClient(defaultLanguage: "russian");
+        Assert.NotNull(client);
+    }
+
+    [Fact]
     public void Dispose_CanBeCalledMultipleTimes()
     {
         var client = new QwenTextToSpeechClient();

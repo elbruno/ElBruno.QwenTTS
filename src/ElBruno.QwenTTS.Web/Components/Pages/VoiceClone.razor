@@ -133,12 +133,10 @@
                     <div>
                         <label class="form-label">Language</label>
                         <select class="form-select form-select-sm" @bind="_language">
-                            <option value="auto">Auto</option>
-                            <option value="english">English</option>
-                            <option value="spanish">Spanish</option>
-                            <option value="chinese">Chinese</option>
-                            <option value="japanese">Japanese</option>
-                            <option value="korean">Korean</option>
+                            @foreach (var language in QwenLanguageCatalog.Options)
+                            {
+                                <option value="@language.Value">@language.Label</option>
+                            }
                         </select>
                     </div>
                 </div>

@@ -13,7 +13,7 @@ dotnet run --project src/ElBruno.QwenTTS -- --model-dir <path> --text "<text>" [
 | `--model-dir` | *(required)* | Path to model directory (models auto-download if missing) |
 | `--text` | *(required)* | Text to synthesize |
 | `--speaker` | `Ryan` | Speaker voice name (see below) |
-| `--language` | `auto` | Language: `english`, `chinese`, `auto`, etc. |
+| `--language` | `auto` | Language: `english`, `spanish`, `chinese`, `japanese`, `korean`, `russian`, `auto`, etc. |
 | `--output` | `output.wav` | Output WAV file path |
 | `--instruct` | *(none)* | Voice style instruction (e.g., "speak happily") |
 
@@ -47,6 +47,12 @@ dotnet run --project src/ElBruno.QwenTTS -- --model-dir python/onnx_runtime --te
 dotnet run --project src/ElBruno.QwenTTS -- --model-dir python/onnx_runtime --text "Hola, esta es una prueba de texto a voz." --speaker ryan --language spanish --output hola.wav
 dotnet run --project src/ElBruno.QwenTTS -- --model-dir python/onnx_runtime --text "Bienvenidos al futuro de la sintesis de voz." --speaker serena --language spanish --output bienvenidos.wav
 dotnet run --project src/ElBruno.QwenTTS -- --model-dir python/onnx_runtime --text "Hablando con emocion y energia." --speaker aiden --language spanish --instruct "speak with excitement" --output emocion.wav
+```
+
+### Russian
+
+```bash
+dotnet run --project src/ElBruno.QwenTTS -- --model-dir python/onnx_runtime --text "Привет, это тест синтеза речи." --speaker ryan --language russian --output russian.wav
 ```
 
 ### File Reader (batch text/SRT to audio)

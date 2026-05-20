@@ -25,7 +25,7 @@ Pre-exported ONNX models are hosted on HuggingFace:
 - **Voice Cloning** — Clone any voice from a 3-second audio sample ([docs](docs/voice-cloning.md))
 - **Web UI** — Blazor app with TTS generation and voice cloning pages ([docs](docs/web-app.md))
 - **GPU Acceleration** — Optional CUDA or DirectML support via SessionOptions injection ([docs](docs/gpu-acceleration.md))
-- **Multi-Language** — English, Spanish, Chinese, Japanese, Korean
+- **Multi-Language** — English, Spanish, Chinese, Japanese, Korean, Russian
 - **Shared Model Cache** — Models stored once in `%LOCALAPPDATA%/ElBruno/QwenTTS`, shared across all apps
 - **24 kHz WAV Output** — High-quality mono audio
 
@@ -116,6 +116,12 @@ dotnet run --project src/ElBruno.QwenTTS -- --model-dir models --text "A calm an
 ```bash
 dotnet run --project src/ElBruno.QwenTTS -- --model-dir models --text "Hola, esta es una prueba de texto a voz." --speaker ryan --language spanish --output hola.wav
 dotnet run --project src/ElBruno.QwenTTS -- --model-dir models --text "Bienvenidos al futuro de la sintesis de voz." --speaker serena --language spanish --output bienvenidos.wav
+```
+
+### Russian Example
+
+```bash
+dotnet run --project src/ElBruno.QwenTTS -- --model-dir models --text "Привет, это тест синтеза речи." --speaker ryan --language russian --output russian.wav
 ```
 
 ### File Reader (batch audio from text/SRT files)

@@ -139,7 +139,7 @@ internal sealed class LanguageModel : IDisposable
     /// </summary>
     /// <param name="tokenIds">Target text token IDs from the prompt builder.</param>
     /// <param name="speakerEmbedding">1024-dim ECAPA-TDNN speaker embedding.</param>
-    /// <param name="language">Language code (e.g., "english", "chinese", "auto").</param>
+    /// <param name="language">Language code (e.g., "english", "russian", "chinese", "auto").</param>
     /// <param name="refTokenIds">Optional reference text token IDs for ICL mode.</param>
     /// <param name="refAudioCodes">Optional reference audio codes [1, T, 16] for ICL mode.</param>
     /// <param name="maxNewTokens">Maximum number of audio frames to generate.</param>
@@ -437,11 +437,19 @@ internal sealed class LanguageModel : IDisposable
         // Codec prefix — track speaker position for embedding override
         var codecPrefix = new List<int>();
         int speakerPositionInPrefix = -1; // index of speaker token in codecPrefix
-        if (language != "auto")
+        if (!string.Equals(language, "auto", StringComparison.OrdinalIgnoreCase))
         {
             codecPrefix.Add(cfg.talker.codec_think_id);
             codecPrefix.Add(cfg.talker.codec_think_bos_id);
-            codecPrefix.Add(cfg.language_ids[language.ToLowerInvariant()]);
+            var normalizedLanguage = language.ToLowerInvariant();
+            if (!cfg.language_ids.TryGetValue(normalizedLanguage, out var languageId))
+            {
+                var supportedLanguages = string.Join(", ", cfg.language_ids.Keys.OrderBy(x => x));
+                throw new ArgumentException(
+                    $"Unsupported language '{language}'. Supported languages: {supportedLanguages}",
+                    nameof(language));
+            }
+            codecPrefix.Add(languageId);
             codecPrefix.Add(cfg.talker.codec_think_eos_id);
         }
         else

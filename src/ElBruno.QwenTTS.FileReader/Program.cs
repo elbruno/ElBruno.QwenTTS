@@ -29,7 +29,7 @@ public static class Program
             Console.Error.WriteLine("  --input       Input text or SRT file (required)");
             Console.Error.WriteLine("  --speaker     Speaker name (default: Ryan)");
             Console.Error.WriteLine("  --output-dir  Output directory (default: output)");
-            Console.Error.WriteLine("  --language    Language: auto, english, chinese, etc. (default: auto)");
+            Console.Error.WriteLine("  --language    Language: auto, english, spanish, chinese, japanese, korean, russian, etc. (default: auto)");
             Console.Error.WriteLine("  --instruct    Style instruction, e.g. \"Read with warmth\" (1.7B only)");
             Console.Error.WriteLine("  --variant     Model variant: 0.6b (default), 1.7b");
             return 1;

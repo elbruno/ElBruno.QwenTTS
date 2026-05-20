@@ -124,7 +124,7 @@ public async Task SynthesizeAsync(
 | `text` | `string` | The text to synthesize |
 | `speaker` | `string` | Speaker voice name (e.g., `"ryan"`, `"serena"`) |
 | `outputPath` | `string` | Path for the output WAV file (24 kHz, 16-bit PCM) |
-| `language` | `string` | Language: `"english"`, `"spanish"`, `"chinese"`, `"japanese"`, `"korean"`, or `"auto"` (default) |
+| `language` | `string` | Language: `"english"`, `"spanish"`, `"chinese"`, `"japanese"`, `"korean"`, `"russian"`, or `"auto"` (default) |
 | `instruct` | `string?` | Optional voice style instruction (e.g., `"speak slowly and calmly"`) |
 | `progress` | `IProgress<string>?` | Optional progress callback for real-time status updates |
 
@@ -218,6 +218,17 @@ await pipeline.SynthesizeAsync(
     outputPath: "bienvenidos.wav",
     language: "spanish",
     instruct: "speak with warmth and excitement"
+);
+```
+
+### Russian speech
+
+```csharp
+await pipeline.SynthesizeAsync(
+    text: "Привет, это тест синтеза речи.",
+    speaker: "ryan",
+    outputPath: "russian.wav",
+    language: "russian"
 );
 ```
 

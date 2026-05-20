@@ -15,7 +15,7 @@ dotnet run --project src/ElBruno.QwenTTS.FileReader -- --model-dir python/onnx_r
 | `--model-dir` | *(required)* | Path to ONNX model directory |
 | `--input` | *(required)* | Path to `.txt`, `.md`, or `.srt` file |
 | `--speaker` | `Ryan` | Speaker voice name |
-| `--language` | `auto` | Language: `english`, `chinese`, `spanish`, `auto`, etc. |
+| `--language` | `auto` | Language: `english`, `spanish`, `chinese`, `japanese`, `korean`, `russian`, `auto`, etc. |
 | `--output-dir` | `output` | Directory for generated WAV files |
 | `--instruct` | *(none)* | Voice style instruction |
 
@@ -63,4 +63,10 @@ dotnet run --project src/ElBruno.QwenTTS.FileReader -- --model-dir python/onnx_r
 
 ```bash
 dotnet run --project src/ElBruno.QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/hola_demo.txt --speaker ryan --language spanish --instruct "speak slowly and clearly" --output-dir output/slow
+```
+
+### Russian text file
+
+```bash
+dotnet run --project src/ElBruno.QwenTTS.FileReader -- --model-dir python/onnx_runtime --input samples/russian_demo.txt --speaker ryan --language russian --output-dir output/russian
 ```

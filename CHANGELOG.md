@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-05-20
+
+### Added
+- Russian language support surfaced across the CLI, web UI, file reader, and client defaults
+- Regression tests covering the shared language catalog and Russian client initialization
+
+### Changed
+- Updated README and command-line examples to document Russian synthesis support
+
 ## [1.0.1] - 2026-05-02
 
 ### Fixed
