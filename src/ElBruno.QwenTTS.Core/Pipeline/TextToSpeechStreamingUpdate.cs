@@ -26,6 +26,23 @@ public sealed class TextToSpeechStreamingUpdate
     /// <summary>Audio data for <see cref="TextToSpeechUpdateKind.AudioChunk"/> updates. Null for other kinds.</summary>
     public byte[]? AudioData { get; init; }
 
-    /// <summary>Sample rate in Hz. Present on <see cref="TextToSpeechUpdateKind.AudioChunk"/> updates.</summary>
+    /// <summary>Sample rate in Hz for the stream. Present on session open and audio chunk updates.</summary>
     public int? SampleRate { get; init; }
+
+    /// <summary>MIME type for the emitted audio stream (for example, <c>audio/wav</c>).</summary>
+    public string? MediaType { get; init; }
+
+    /// <summary>Number of audio channels in the stream.</summary>
+    public int? Channels { get; init; }
+
+    /// <summary>Bits per sample for PCM audio.</summary>
+    public int? BitsPerSample { get; init; }
+
+    /// <summary>
+    /// True when audio is emitted progressively during inference; false when emitted as ordered chunks after generation completes.
+    /// </summary>
+    public bool IsProgressive { get; init; }
+
+    /// <summary>Per-request synthesis metrics, typically attached to the final session close update.</summary>
+    public TtsSynthesisMetrics? Metrics { get; init; }
 }

@@ -78,6 +78,25 @@ public class WavWriterTests : IDisposable
         Assert.Equal(24000, sampleRate);
     }
 
+    [Fact]
+    public void EnumerateWavChunks_ReassemblesToExactWavPayload()
+    {
+        var path = Path.Combine(_tempDir, "chunked.wav");
+        var samples = new float[5000];
+        for (var i = 0; i < samples.Length; i++)
+            samples[i] = (float)Math.Sin(2 * Math.PI * 220 * i / 24000.0) * 0.25f;
+
+        WavWriter.Write(path, samples, sampleRate: 24000);
+        var expected = File.ReadAllBytes(path);
+        var actual = WavWriter.EnumerateWavChunks(samples, sampleRate: 24000, maxChunkBytes: 512)
+            .SelectMany(static chunk => chunk)
+            .ToArray();
+
+        Assert.True(WavWriter.EnumerateWavChunks(samples, sampleRate: 24000, maxChunkBytes: 512).Count() > 1);
+        Assert.Equal(expected.Length, actual.Length);
+        Assert.True(expected.SequenceEqual(actual));
+    }
+
     public void Dispose()
     {
         try { Directory.Delete(_tempDir, recursive: true); } catch { }

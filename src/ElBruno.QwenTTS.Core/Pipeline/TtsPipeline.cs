@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Microsoft.ML.OnnxRuntime;
 using ElBruno.QwenTTS.Audio;
 using ElBruno.QwenTTS.Models;
@@ -16,6 +17,9 @@ public sealed class TtsPipeline : ITtsPipeline
     private readonly EmbeddingStore _embeddings;
     private readonly QwenModelVariant _variant;
     private readonly TtsConcurrencyGate _concurrencyGate;
+    private const string StreamingMediaType = "audio/wav";
+
+    private sealed record SynthesisArtifacts(float[] Waveform, TtsSynthesisMetrics Metrics);
 
     /// <summary>
     /// Creates a TtsPipeline from a local model directory.
@@ -78,12 +82,114 @@ public sealed class TtsPipeline : ITtsPipeline
         IProgress<string>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        // Input validation
-        ArgumentNullException.ThrowIfNull(text);
-        if (text.Length == 0)
-            throw new ArgumentException("Text cannot be empty.", nameof(text));
-        if (text.Length > 10000)
-            throw new ArgumentException("Text exceeds maximum length of 10,000 characters.", nameof(text));
+        var artifacts = await SynthesizeToWaveformAsync(
+            text,
+            speaker,
+            language,
+            instruct,
+            progress,
+            cancellationToken);
+
+        progress?.Report("Writing WAV file...");
+        cancellationToken.ThrowIfCancellationRequested();
+        await Task.Run(() => WavWriter.Write(outputPath, artifacts.Waveform, sampleRate: WavWriter.DefaultSampleRate), cancellationToken);
+
+        var duration = artifacts.Waveform.Length / (double)WavWriter.DefaultSampleRate;
+        progress?.Report(
+            $"Saved {Path.GetFileName(outputPath)} ({artifacts.Waveform.Length} samples, {duration:F2}s) " +
+            $"[queue {artifacts.Metrics.QueueLatency.TotalSeconds:F2}s, first audio {artifacts.Metrics.FirstAudioLatency.TotalSeconds:F2}s, total {artifacts.Metrics.TotalLatency.TotalSeconds:F2}s]");
+        Console.WriteLine(
+            $"Saved {outputPath} ({artifacts.Waveform.Length} samples, {duration:F2}s) " +
+            $"[queue {artifacts.Metrics.QueueLatency.TotalSeconds:F2}s, first audio {artifacts.Metrics.FirstAudioLatency.TotalSeconds:F2}s, total {artifacts.Metrics.TotalLatency.TotalSeconds:F2}s]");
+
+        return artifacts.Metrics;
+    }
+
+    /// <summary>
+    /// Synthesizes speech and yields ordered WAV chunks whose byte concatenation reconstructs a valid WAV file.
+    /// </summary>
+    public async IAsyncEnumerable<TextToSpeechStreamingUpdate> SynthesizeStreamingAsync(
+        string text,
+        string speaker,
+        string language = "auto",
+        string? instruct = null,
+        IProgress<string>? progress = null,
+        int maxChunkBytes = 32 * 1024,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        ValidateSynthesisText(text);
+
+        yield return new TextToSpeechStreamingUpdate
+        {
+            Kind = TextToSpeechUpdateKind.SessionOpen,
+            MediaType = StreamingMediaType,
+            SampleRate = WavWriter.DefaultSampleRate,
+            Channels = WavWriter.DefaultChannels,
+            BitsPerSample = WavWriter.DefaultBitsPerSample,
+            IsProgressive = false
+        };
+
+        var artifacts = await SynthesizeToWaveformAsync(
+            text,
+            speaker,
+            language,
+            instruct,
+            progress,
+            cancellationToken);
+
+        foreach (var chunk in WavWriter.EnumerateWavChunks(
+            artifacts.Waveform,
+            sampleRate: WavWriter.DefaultSampleRate,
+            channels: WavWriter.DefaultChannels,
+            maxChunkBytes: maxChunkBytes))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return new TextToSpeechStreamingUpdate
+            {
+                Kind = TextToSpeechUpdateKind.AudioChunk,
+                AudioData = chunk,
+                MediaType = StreamingMediaType,
+                SampleRate = WavWriter.DefaultSampleRate,
+                Channels = WavWriter.DefaultChannels,
+                BitsPerSample = WavWriter.DefaultBitsPerSample,
+                IsProgressive = false
+            };
+        }
+
+        yield return new TextToSpeechStreamingUpdate
+        {
+            Kind = TextToSpeechUpdateKind.SessionClose,
+            MediaType = StreamingMediaType,
+            SampleRate = WavWriter.DefaultSampleRate,
+            Channels = WavWriter.DefaultChannels,
+            BitsPerSample = WavWriter.DefaultBitsPerSample,
+            IsProgressive = false,
+            Metrics = artifacts.Metrics
+        };
+    }
+
+    /// <summary>
+    /// Convenience alias for <see cref="SynthesizeStreamingAsync"/> for callers that prefer a get-style name.
+    /// </summary>
+    public IAsyncEnumerable<TextToSpeechStreamingUpdate> GetStreamingAudioAsync(
+        string text,
+        string speaker,
+        string language = "auto",
+        string? instruct = null,
+        IProgress<string>? progress = null,
+        int maxChunkBytes = 32 * 1024,
+        CancellationToken cancellationToken = default)
+        => SynthesizeStreamingAsync(text, speaker, language, instruct, progress, maxChunkBytes, cancellationToken);
+
+    private async Task<SynthesisArtifacts> SynthesizeToWaveformAsync(
+        string text,
+        string speaker,
+        string language,
+        string? instruct,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        ValidateSynthesisText(text);
 
         using var lease = await _concurrencyGate.EnterAsync(cancellationToken);
         var stopwatch = Stopwatch.StartNew();
@@ -116,13 +222,6 @@ public sealed class TtsPipeline : ITtsPipeline
         progress?.Report("Decoding waveform via vocoder...");
         var waveform = _vocoder.Decode(codes, cancellationToken);
         var firstAudioLatency = stopwatch.Elapsed;
-
-        // Write WAV file
-        progress?.Report("Writing WAV file...");
-        cancellationToken.ThrowIfCancellationRequested();
-        await Task.Run(() => WavWriter.Write(outputPath, waveform, sampleRate: 24000), cancellationToken);
-
-        var duration = waveform.Length / 24000.0;
         var metrics = new TtsSynthesisMetrics
         {
             QueueLatency = lease.QueueLatency,
@@ -132,14 +231,16 @@ public sealed class TtsPipeline : ITtsPipeline
             OutputSamples = waveform.Length
         };
 
-        progress?.Report(
-            $"Saved {Path.GetFileName(outputPath)} ({waveform.Length} samples, {duration:F2}s) " +
-            $"[queue {metrics.QueueLatency.TotalSeconds:F2}s, first audio {metrics.FirstAudioLatency.TotalSeconds:F2}s, total {metrics.TotalLatency.TotalSeconds:F2}s]");
-        Console.WriteLine(
-            $"Saved {outputPath} ({waveform.Length} samples, {duration:F2}s) " +
-            $"[queue {metrics.QueueLatency.TotalSeconds:F2}s, first audio {metrics.FirstAudioLatency.TotalSeconds:F2}s, total {metrics.TotalLatency.TotalSeconds:F2}s]");
+        return new SynthesisArtifacts(waveform, metrics);
+    }
 
-        return metrics;
+    private static void ValidateSynthesisText(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        if (text.Length == 0)
+            throw new ArgumentException("Text cannot be empty.", nameof(text));
+        if (text.Length > 10000)
+            throw new ArgumentException("Text exceeds maximum length of 10,000 characters.", nameof(text));
     }
 
     /// <summary>

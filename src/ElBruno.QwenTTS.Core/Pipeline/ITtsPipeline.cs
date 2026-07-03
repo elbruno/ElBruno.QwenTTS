@@ -24,4 +24,28 @@ public interface ITtsPipeline : IDisposable
     Task SynthesizeAsync(string text, string speaker, string outputPath,
                          string language = "auto", string? instruct = null,
                          IProgress<string>? progress = null);
+
+    /// <summary>
+    /// Synthesizes speech to a WAV file and returns timing metrics for the request.
+    /// </summary>
+    Task<TtsSynthesisMetrics> SynthesizeWithMetricsAsync(
+        string text,
+        string speaker,
+        string outputPath,
+        string language = "auto",
+        string? instruct = null,
+        IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Synthesizes speech and yields streaming updates (open → chunk(s) → close).
+    /// </summary>
+    IAsyncEnumerable<TextToSpeechStreamingUpdate> SynthesizeStreamingAsync(
+        string text,
+        string speaker,
+        string language = "auto",
+        string? instruct = null,
+        IProgress<string>? progress = null,
+        int maxChunkBytes = 32 * 1024,
+        CancellationToken cancellationToken = default);
 }

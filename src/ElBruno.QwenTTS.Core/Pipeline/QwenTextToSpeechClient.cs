@@ -22,8 +22,9 @@ public sealed class QwenTextToSpeechClient : ITextToSpeechClient
     private readonly Func<Microsoft.ML.OnnxRuntime.SessionOptions>? _sessionOptionsFactory;
     private readonly Func<Microsoft.ML.OnnxRuntime.SessionOptions>? _vocoderSessionOptionsFactory;
     private readonly int _maxConcurrency;
+    private readonly Func<CancellationToken, Task<ITtsPipeline>> _pipelineFactory;
 
-    private TtsPipeline? _pipeline;
+    private ITtsPipeline? _pipeline;
     private bool _disposed;
     private readonly SemaphoreSlim _initLock = new(1, 1);
 
@@ -47,6 +48,29 @@ public sealed class QwenTextToSpeechClient : ITextToSpeechClient
         Func<Microsoft.ML.OnnxRuntime.SessionOptions>? sessionOptionsFactory = null,
         Func<Microsoft.ML.OnnxRuntime.SessionOptions>? vocoderSessionOptionsFactory = null,
         int maxConcurrency = 1)
+        : this(
+            defaultVoice,
+            defaultLanguage,
+            modelDir,
+            repoId,
+            variant,
+            sessionOptionsFactory,
+            vocoderSessionOptionsFactory,
+            maxConcurrency,
+            pipelineFactory: null)
+    {
+    }
+
+    internal QwenTextToSpeechClient(
+        string defaultVoice,
+        string defaultLanguage,
+        string? modelDir,
+        string? repoId,
+        QwenModelVariant variant,
+        Func<Microsoft.ML.OnnxRuntime.SessionOptions>? sessionOptionsFactory,
+        Func<Microsoft.ML.OnnxRuntime.SessionOptions>? vocoderSessionOptionsFactory,
+        int maxConcurrency,
+        Func<CancellationToken, Task<ITtsPipeline>>? pipelineFactory)
     {
         _defaultVoice = defaultVoice;
         _defaultLanguage = defaultLanguage;
@@ -56,6 +80,7 @@ public sealed class QwenTextToSpeechClient : ITextToSpeechClient
         _sessionOptionsFactory = sessionOptionsFactory;
         _vocoderSessionOptionsFactory = vocoderSessionOptionsFactory;
         _maxConcurrency = maxConcurrency;
+        _pipelineFactory = pipelineFactory ?? CreatePipelineAsync;
     }
 
     /// <inheritdoc />
@@ -86,7 +111,7 @@ public sealed class QwenTextToSpeechClient : ITextToSpeechClient
             {
                 AudioData = audioData,
                 MediaType = "audio/wav",
-                SampleRate = 24000,
+                SampleRate = ElBruno.QwenTTS.Audio.WavWriter.DefaultSampleRate,
                 ModelId = options?.ModelId ?? "qwen3-tts",
                 Metrics = metrics,
             };
@@ -103,28 +128,34 @@ public sealed class QwenTextToSpeechClient : ITextToSpeechClient
         TextToSpeechOptions? options = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        yield return new TextToSpeechStreamingUpdate
-        {
-            Kind = TextToSpeechUpdateKind.SessionOpen,
-        };
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentException.ThrowIfNullOrWhiteSpace(text);
 
-        var response = await SynthesizeToMemoryAsync(text, options, cancellationToken);
+        await EnsureInitializedAsync(cancellationToken);
 
-        if (response.AudioData is { Length: > 0 })
+        var voice = options?.VoiceId ?? _defaultVoice;
+        var language = options?.Language ?? _defaultLanguage;
+        var instruct = options?.Instruct;
+
+        await foreach (var update in _pipeline!.SynthesizeStreamingAsync(
+            text,
+            voice,
+            language,
+            instruct,
+            cancellationToken: cancellationToken).WithCancellation(cancellationToken))
         {
-            yield return new TextToSpeechStreamingUpdate
-            {
-                Kind = TextToSpeechUpdateKind.AudioChunk,
-                AudioData = response.AudioData,
-                SampleRate = response.SampleRate,
-            };
+            yield return update;
         }
-
-        yield return new TextToSpeechStreamingUpdate
-        {
-            Kind = TextToSpeechUpdateKind.SessionClose,
-        };
     }
+
+    /// <summary>
+    /// Convenience alias for <see cref="SynthesizeStreamingAsync"/> for callers that prefer a get-style name.
+    /// </summary>
+    public IAsyncEnumerable<TextToSpeechStreamingUpdate> GetStreamingAudioAsync(
+        string text,
+        TextToSpeechOptions? options = null,
+        CancellationToken cancellationToken = default)
+        => SynthesizeStreamingAsync(text, options, cancellationToken);
 
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
     {
@@ -134,20 +165,23 @@ public sealed class QwenTextToSpeechClient : ITextToSpeechClient
         try
         {
             if (_pipeline is not null) return;
-            _pipeline = await TtsPipeline.CreateAsync(
-                _modelDir,
-                repoId: _repoId,
-                variant: _variant,
-                sessionOptionsFactory: _sessionOptionsFactory,
-                vocoderSessionOptionsFactory: _vocoderSessionOptionsFactory,
-                maxConcurrency: _maxConcurrency,
-                cancellationToken: cancellationToken);
+            _pipeline = await _pipelineFactory(cancellationToken);
         }
         finally
         {
             _initLock.Release();
         }
     }
+
+    private async Task<ITtsPipeline> CreatePipelineAsync(CancellationToken cancellationToken)
+        => await TtsPipeline.CreateAsync(
+            _modelDir,
+            repoId: _repoId,
+            variant: _variant,
+            sessionOptionsFactory: _sessionOptionsFactory,
+            vocoderSessionOptionsFactory: _vocoderSessionOptionsFactory,
+            maxConcurrency: _maxConcurrency,
+            cancellationToken: cancellationToken);
 
     /// <summary>Disposes the underlying pipeline, semaphore, and any held resources.</summary>
     public void Dispose()

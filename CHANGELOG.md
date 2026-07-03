@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-07-03
+
+### Added
+- True streaming-oriented WAV chunk output on `TtsPipeline` via `SynthesizeStreamingAsync()` and the convenience alias `GetStreamingAudioAsync()`
+- Rich `TextToSpeechStreamingUpdate` metadata for media type, sample rate, channel count, PCM bit depth, progressive capability, and final-request metrics
+
+### Changed
+- `QwenTextToSpeechClient.SynthesizeStreamingAsync()` now streams ordered audio updates from the pipeline instead of buffering and returning a single full WAV chunk
+
+### Fixed
+- Streaming synthesis no longer requires a second complete audio copy before the first `AudioChunk` can be emitted
+- Concatenating streamed `AudioChunk` payloads now reconstructs the exact WAV output bytes
+
+### Documentation
+- Updated README and core library docs with the streaming API contract and chunk reconstruction behavior
+
 ## [1.0.3] - 2026-07-03
 
 ### Added

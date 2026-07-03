@@ -30,6 +30,7 @@ Pre-exported ONNX models are hosted on HuggingFace:
 - **Reusable Sessions** — ONNX sessions stay loaded and are reused across requests instead of being recreated
 - **Bounded Concurrency + Cancellation** — Configure max concurrent syntheses and cancel queued or in-flight requests at safe boundaries
 - **Latency Metrics** — Capture queue, first-audio, and total synthesis latency from the high-level client
+- **Streaming Audio Updates** — Emit ordered WAV chunks with format metadata and explicit progressive-vs-chunked capability flags
 - **24 kHz WAV Output** — High-quality mono audio
 
 ---
@@ -63,6 +64,23 @@ var metrics = await sharedPipeline.SynthesizeWithMetricsAsync(
     "serena",
     "queued.wav");
 Console.WriteLine($"First audio: {metrics.FirstAudioLatency.TotalSeconds:F2}s");
+
+// Stream WAV chunks without building a second full-audio byte[]
+await foreach (var update in sharedPipeline.GetStreamingAudioAsync(
+    "Stream this response in WAV chunks.",
+    "ryan",
+    "english"))
+{
+    if (update.Kind == TextToSpeechUpdateKind.SessionOpen)
+    {
+        Console.WriteLine($"{update.MediaType} @ {update.SampleRate} Hz, progressive={update.IsProgressive}");
+    }
+
+    if (update.Kind == TextToSpeechUpdateKind.AudioChunk)
+    {
+        await outputStream.WriteAsync(update.AudioData!);
+    }
+}
 ```
 
 ### CLI

@@ -146,6 +146,32 @@ public async Task<TtsSynthesisMetrics> SynthesizeWithMetricsAsync(
 Returns queue latency, first-audio latency, total latency, generated frame count, and output sample count for the request.
 
 ```csharp
+public async IAsyncEnumerable<TextToSpeechStreamingUpdate> SynthesizeStreamingAsync(
+    string text,
+    string speaker,
+    string language = "auto",
+    string? instruct = null,
+    IProgress<string>? progress = null,
+    int maxChunkBytes = 32 * 1024,
+    CancellationToken cancellationToken = default)
+```
+
+Streams ordered WAV chunks. The first update is `SessionOpen` and carries format metadata (`MediaType`, `SampleRate`, `Channels`, `BitsPerSample`) plus `IsProgressive`, which is currently `false` because the pipeline emits ordered post-generation chunks after vocoder decode completes.
+
+```csharp
+public IAsyncEnumerable<TextToSpeechStreamingUpdate> GetStreamingAudioAsync(
+    string text,
+    string speaker,
+    string language = "auto",
+    string? instruct = null,
+    IProgress<string>? progress = null,
+    int maxChunkBytes = 32 * 1024,
+    CancellationToken cancellationToken = default)
+```
+
+Convenience alias for callers that prefer a get-style name.
+
+```csharp
 public void Dispose()
 ```
 
@@ -219,6 +245,26 @@ public sealed class TextToSpeechResponse
     public TtsSynthesisMetrics Metrics { get; init; }
 }
 ```
+
+### `TextToSpeechStreamingUpdate`
+
+The streaming client and pipeline emit lifecycle updates with format metadata and ordered audio chunks:
+
+```csharp
+public sealed class TextToSpeechStreamingUpdate
+{
+    public required TextToSpeechUpdateKind Kind { get; init; }
+    public byte[]? AudioData { get; init; }
+    public int? SampleRate { get; init; }
+    public string? MediaType { get; init; }
+    public int? Channels { get; init; }
+    public int? BitsPerSample { get; init; }
+    public bool IsProgressive { get; init; }
+    public TtsSynthesisMetrics? Metrics { get; init; }
+}
+```
+
+Concatenating every `AudioChunk.AudioData` in order reconstructs a valid WAV file.
 
 ### `QwenTtsOptions`
 
@@ -298,6 +344,23 @@ Output:
   [14:32:15] Decoding waveform via vocoder...
   [14:32:16] Writing WAV file...
   [14:32:16] Saved progress_demo.wav (322560 samples, 13.44s)
+```
+
+### Streaming to an HTTP response or file sink
+
+```csharp
+await foreach (var update in pipeline.GetStreamingAudioAsync(
+    text: "Stream this clip in ordered WAV chunks.",
+    speaker: "ryan",
+    language: "english",
+    cancellationToken: cancellationToken))
+{
+    if (update.Kind == TextToSpeechUpdateKind.SessionOpen)
+        Console.WriteLine($"{update.MediaType} {update.SampleRate}Hz progressive={update.IsProgressive}");
+
+    if (update.Kind == TextToSpeechUpdateKind.AudioChunk)
+        await destination.WriteAsync(update.AudioData!, cancellationToken);
+}
 ```
 
 ### Batch processing multiple texts
