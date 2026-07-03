@@ -7,7 +7,7 @@ using ElBruno.QwenTTS.Models;
 namespace ElBruno.QwenTTS.Pipeline;
 
 /// <summary>
-/// Orchestrates the full TTS pipeline: text → tokenize → LM → vocoder → WAV.
+/// Orchestrates the full TTS pipeline: text → tokenize → LM → vocoder → PCM/WAV.
 /// </summary>
 public sealed class TtsPipeline : ITtsPipeline
 {
@@ -18,8 +18,6 @@ public sealed class TtsPipeline : ITtsPipeline
     private readonly QwenModelVariant _variant;
     private readonly TtsConcurrencyGate _concurrencyGate;
     private const string StreamingMediaType = "audio/wav";
-
-    private sealed record SynthesisArtifacts(float[] Waveform, TtsSynthesisMetrics Metrics);
 
     /// <summary>
     /// Creates a TtsPipeline from a local model directory.
@@ -53,6 +51,36 @@ public sealed class TtsPipeline : ITtsPipeline
     public int MaxConcurrency => _concurrencyGate.MaxConcurrency;
 
     /// <summary>
+    /// Synthesizes speech and returns normalized float PCM samples in memory.
+    /// </summary>
+    public Task<TtsAudioResult> SynthesizeToPcmAsync(
+       string text,
+       string speaker,
+       string language = "auto",
+       string? instruct = null,
+       IProgress<string>? progress = null,
+       CancellationToken cancellationToken = default)
+       => SynthesizeToPcmCoreAsync(text, speaker, language, instruct, progress, cancellationToken);
+
+    /// <summary>
+    /// Synthesizes speech and returns an in-memory WAV payload.
+    /// </summary>
+    public async Task<ReadOnlyMemory<byte>> SynthesizeWavAsync(
+       string text,
+       string speaker,
+       string language = "auto",
+       string? instruct = null,
+       IProgress<string>? progress = null,
+       CancellationToken cancellationToken = default)
+    {
+       var audio = await SynthesizeToPcmAsync(text, speaker, language, instruct, progress, cancellationToken);
+
+       progress?.Report("Encoding WAV bytes...");
+       cancellationToken.ThrowIfCancellationRequested();
+       return await Task.Run(audio.ToWavBytes, cancellationToken);
+    }
+
+    /// <summary>
     /// Synthesizes speech from text and saves the output to a WAV file.
     /// </summary>
     /// <param name="text">Input text to synthesize. Must not be null, empty, and cannot exceed 10,000 characters.</param>
@@ -82,7 +110,7 @@ public sealed class TtsPipeline : ITtsPipeline
         IProgress<string>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        var artifacts = await SynthesizeToWaveformAsync(
+        var audio = await SynthesizeToPcmAsync(
             text,
             speaker,
             language,
@@ -92,17 +120,17 @@ public sealed class TtsPipeline : ITtsPipeline
 
         progress?.Report("Writing WAV file...");
         cancellationToken.ThrowIfCancellationRequested();
-        await Task.Run(() => WavWriter.Write(outputPath, artifacts.Waveform, sampleRate: WavWriter.DefaultSampleRate), cancellationToken);
+        await Task.Run(() => WavWriter.Write(outputPath, audio.Samples.Span, sampleRate: audio.SampleRate, channels: audio.Channels), cancellationToken);
 
-        var duration = artifacts.Waveform.Length / (double)WavWriter.DefaultSampleRate;
+        var metrics = audio.Metrics;
         progress?.Report(
-            $"Saved {Path.GetFileName(outputPath)} ({artifacts.Waveform.Length} samples, {duration:F2}s) " +
-            $"[queue {artifacts.Metrics.QueueLatency.TotalSeconds:F2}s, first audio {artifacts.Metrics.FirstAudioLatency.TotalSeconds:F2}s, total {artifacts.Metrics.TotalLatency.TotalSeconds:F2}s]");
+            $"Saved {Path.GetFileName(outputPath)} ({audio.SampleCount} samples, {audio.Duration.TotalSeconds:F2}s) " +
+            $"[queue {metrics.QueueLatency.TotalSeconds:F2}s, first audio {metrics.FirstAudioLatency.TotalSeconds:F2}s, total {metrics.TotalLatency.TotalSeconds:F2}s]");
         Console.WriteLine(
-            $"Saved {outputPath} ({artifacts.Waveform.Length} samples, {duration:F2}s) " +
-            $"[queue {artifacts.Metrics.QueueLatency.TotalSeconds:F2}s, first audio {artifacts.Metrics.FirstAudioLatency.TotalSeconds:F2}s, total {artifacts.Metrics.TotalLatency.TotalSeconds:F2}s]");
+            $"Saved {outputPath} ({audio.SampleCount} samples, {audio.Duration.TotalSeconds:F2}s) " +
+            $"[queue {metrics.QueueLatency.TotalSeconds:F2}s, first audio {metrics.FirstAudioLatency.TotalSeconds:F2}s, total {metrics.TotalLatency.TotalSeconds:F2}s]");
 
-        return artifacts.Metrics;
+        return metrics;
     }
 
     /// <summary>
@@ -129,7 +157,7 @@ public sealed class TtsPipeline : ITtsPipeline
             IsProgressive = false
         };
 
-        var artifacts = await SynthesizeToWaveformAsync(
+        var audio = await SynthesizeToPcmAsync(
             text,
             speaker,
             language,
@@ -138,9 +166,9 @@ public sealed class TtsPipeline : ITtsPipeline
             cancellationToken);
 
         foreach (var chunk in WavWriter.EnumerateWavChunks(
-            artifacts.Waveform,
-            sampleRate: WavWriter.DefaultSampleRate,
-            channels: WavWriter.DefaultChannels,
+            audio.Samples,
+            sampleRate: audio.SampleRate,
+            channels: audio.Channels,
             maxChunkBytes: maxChunkBytes))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -149,9 +177,9 @@ public sealed class TtsPipeline : ITtsPipeline
                 Kind = TextToSpeechUpdateKind.AudioChunk,
                 AudioData = chunk,
                 MediaType = StreamingMediaType,
-                SampleRate = WavWriter.DefaultSampleRate,
-                Channels = WavWriter.DefaultChannels,
-                BitsPerSample = WavWriter.DefaultBitsPerSample,
+                SampleRate = audio.SampleRate,
+                Channels = audio.Channels,
+                BitsPerSample = audio.BitsPerSample,
                 IsProgressive = false
             };
         }
@@ -160,11 +188,11 @@ public sealed class TtsPipeline : ITtsPipeline
         {
             Kind = TextToSpeechUpdateKind.SessionClose,
             MediaType = StreamingMediaType,
-            SampleRate = WavWriter.DefaultSampleRate,
-            Channels = WavWriter.DefaultChannels,
-            BitsPerSample = WavWriter.DefaultBitsPerSample,
+            SampleRate = audio.SampleRate,
+            Channels = audio.Channels,
+            BitsPerSample = audio.BitsPerSample,
             IsProgressive = false,
-            Metrics = artifacts.Metrics
+            Metrics = audio.Metrics
         };
     }
 
@@ -181,7 +209,7 @@ public sealed class TtsPipeline : ITtsPipeline
         CancellationToken cancellationToken = default)
         => SynthesizeStreamingAsync(text, speaker, language, instruct, progress, maxChunkBytes, cancellationToken);
 
-    private async Task<SynthesisArtifacts> SynthesizeToWaveformAsync(
+    private async Task<TtsAudioResult> SynthesizeToPcmCoreAsync(
         string text,
         string speaker,
         string language,
@@ -231,7 +259,14 @@ public sealed class TtsPipeline : ITtsPipeline
             OutputSamples = waveform.Length
         };
 
-        return new SynthesisArtifacts(waveform, metrics);
+        return new TtsAudioResult
+        {
+            Samples = waveform,
+            SampleRate = WavWriter.DefaultSampleRate,
+            Channels = WavWriter.DefaultChannels,
+            BitsPerSample = WavWriter.DefaultBitsPerSample,
+            Metrics = metrics
+        };
     }
 
     private static void ValidateSynthesisText(string text)
@@ -258,6 +293,30 @@ public sealed class TtsPipeline : ITtsPipeline
                                 string language = "auto", string? instruct = null,
                                 IProgress<string>? progress = null)
         => SynthesizeAsync(text, speaker.ToSpeakerName(), outputPath, language, instruct, progress);
+
+    /// <summary>
+    /// Synthesizes speech using a strongly-typed voice preset and returns PCM samples in memory.
+    /// </summary>
+    public Task<TtsAudioResult> SynthesizeToPcmAsync(
+        string text,
+        QwenVoicePreset speaker,
+        string language = "auto",
+        string? instruct = null,
+        IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default)
+        => SynthesizeToPcmAsync(text, speaker.ToSpeakerName(), language, instruct, progress, cancellationToken);
+
+    /// <summary>
+    /// Synthesizes speech using a strongly-typed voice preset and returns a WAV payload in memory.
+    /// </summary>
+    public Task<ReadOnlyMemory<byte>> SynthesizeWavAsync(
+        string text,
+        QwenVoicePreset speaker,
+        string language = "auto",
+        string? instruct = null,
+        IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default)
+        => SynthesizeWavAsync(text, speaker.ToSpeakerName(), language, instruct, progress, cancellationToken);
 
     /// <summary>
     /// Creates a TtsPipeline, automatically downloading model files if they are missing.

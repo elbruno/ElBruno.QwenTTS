@@ -1,4 +1,5 @@
 using ElBruno.QwenTTS.Audio;
+using Xunit;
 
 namespace ElBruno.QwenTTS.Core.Tests;
 
@@ -94,6 +95,21 @@ public class WavWriterTests : IDisposable
 
         Assert.True(WavWriter.EnumerateWavChunks(samples, sampleRate: 24000, maxChunkBytes: 512).Count() > 1);
         Assert.Equal(expected.Length, actual.Length);
+        Assert.True(expected.SequenceEqual(actual));
+    }
+
+    [Fact]
+    public void ToArray_MatchesFileOutput()
+    {
+        var path = Path.Combine(_tempDir, "memory.wav");
+        var samples = new float[2048];
+        for (var i = 0; i < samples.Length; i++)
+            samples[i] = (float)Math.Sin(2 * Math.PI * 330 * i / 24000.0) * 0.4f;
+
+        WavWriter.Write(path, samples, sampleRate: 24000);
+        var expected = File.ReadAllBytes(path);
+        var actual = WavWriter.ToArray(samples, sampleRate: 24000);
+
         Assert.True(expected.SequenceEqual(actual));
     }
 

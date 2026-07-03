@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-07-03
+
+### Added
+- `TtsPipeline.SynthesizeToPcmAsync()` for returning normalized in-memory PCM samples and synthesis metadata without requiring an output path
+- `TtsPipeline.SynthesizeWavAsync()` for returning complete in-memory WAV payloads from the same synthesis path
+
+### Changed
+- File-based synthesis and `QwenTextToSpeechClient.SynthesizeToMemoryAsync()` now reuse the shared in-memory synthesis path instead of round-tripping through a temporary file
+
+### Documentation
+- Updated README and core library docs with the new in-memory PCM/WAV APIs and sample normalization contract
+
 ## [1.5.0] - 2026-07-03
 
 ### Added

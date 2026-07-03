@@ -4,8 +4,8 @@ namespace ElBruno.QwenTTS.Pipeline;
 
 /// <summary>
 /// A production-ready <see cref="ITextToSpeechClient"/> backed by QwenTTS.
-/// Provides thread-safe lazy initialization, in-memory synthesis (with automatic
-/// temp file cleanup), streaming support, and proper resource disposal.
+/// Provides thread-safe lazy initialization, in-memory synthesis, streaming
+/// support, and proper resource disposal.
 /// </summary>
 /// <remarks>
 /// The underlying <see cref="TtsPipeline"/> is lazily initialized on first use
@@ -99,27 +99,21 @@ public sealed class QwenTextToSpeechClient : ITextToSpeechClient
         var instruct = options?.Instruct;
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Write to temp file, read into memory, then clean up
-        var tempPath = Path.Combine(Path.GetTempPath(), $"qwentts_{Guid.NewGuid():N}.wav");
-        try
-        {
-            var metrics = await _pipeline!.SynthesizeWithMetricsAsync(
-                text, voice, tempPath, language, instruct, cancellationToken: cancellationToken);
-            var audioData = await File.ReadAllBytesAsync(tempPath, cancellationToken);
+        var audio = await _pipeline!.SynthesizeToPcmAsync(
+            text,
+            voice,
+            language,
+            instruct,
+            cancellationToken: cancellationToken);
 
-            return new TextToSpeechResponse
-            {
-                AudioData = audioData,
-                MediaType = "audio/wav",
-                SampleRate = ElBruno.QwenTTS.Audio.WavWriter.DefaultSampleRate,
-                ModelId = options?.ModelId ?? "qwen3-tts",
-                Metrics = metrics,
-            };
-        }
-        finally
+        return new TextToSpeechResponse
         {
-            try { File.Delete(tempPath); } catch { /* cleanup best-effort */ }
-        }
+            AudioData = audio.ToWavBytes().ToArray(),
+            MediaType = "audio/wav",
+            SampleRate = audio.SampleRate,
+            ModelId = options?.ModelId ?? "qwen3-tts",
+            Metrics = audio.Metrics,
+        };
     }
 
     /// <inheritdoc />

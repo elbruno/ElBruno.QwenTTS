@@ -2,8 +2,7 @@ namespace ElBruno.QwenTTS.Pipeline;
 
 /// <summary>
 /// A high-level text-to-speech client aligned with Microsoft.Extensions.AI patterns.
-/// Provides thread-safe lazy initialization, in-memory synthesis, streaming support,
-/// and automatic temp file cleanup.
+/// Provides thread-safe lazy initialization, in-memory synthesis, and streaming support.
 /// </summary>
 public interface ITextToSpeechClient : IDisposable
 {

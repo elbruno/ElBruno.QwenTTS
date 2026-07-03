@@ -1,5 +1,6 @@
 using ElBruno.QwenTTS.Pipeline;
 using Microsoft.Extensions.DependencyInjection;
+using Xunit;
 
 namespace ElBruno.QwenTTS.Core.Tests;
 
@@ -106,6 +107,53 @@ public class QwenTextToSpeechClientTests : IDisposable
         Assert.Equal(TimeSpan.Zero, response.Metrics.QueueLatency);
         Assert.Equal(TimeSpan.Zero, response.Metrics.FirstAudioLatency);
         Assert.Equal(TimeSpan.Zero, response.Metrics.TotalLatency);
+    }
+
+    [Fact]
+    public void TtsAudioResult_ReportsDurationAndEncodesWavBytes()
+    {
+        var result = new TtsAudioResult
+        {
+            Samples = new float[48000],
+            SampleRate = 24000,
+            Channels = 1,
+            Metrics = new TtsSynthesisMetrics { OutputSamples = 48000 }
+        };
+
+        var wavBytes = result.ToWavBytes().ToArray();
+
+        Assert.Equal(48000, result.SampleCount);
+        Assert.Equal(TimeSpan.FromSeconds(2), result.Duration);
+        Assert.Equal((byte)'R', wavBytes[0]);
+        Assert.Equal((byte)'I', wavBytes[1]);
+        Assert.Equal((byte)'F', wavBytes[2]);
+        Assert.Equal((byte)'F', wavBytes[3]);
+        Assert.Equal(44 + 48000 * 2, wavBytes.Length);
+    }
+
+    [Fact]
+    public async Task SynthesizeToMemoryAsync_UsesPipelineInMemoryAudio()
+    {
+        var fakePipeline = new FakeTtsPipeline();
+        using var client = new QwenTextToSpeechClient(
+            defaultVoice: "ryan",
+            defaultLanguage: "english",
+            modelDir: null,
+            repoId: null,
+            variant: QwenModelVariant.Qwen06B,
+            sessionOptionsFactory: null,
+            vocoderSessionOptionsFactory: null,
+            maxConcurrency: 1,
+            pipelineFactory: _ => Task.FromResult<ITtsPipeline>(fakePipeline));
+
+        var response = await client.SynthesizeToMemoryAsync("Hello from memory");
+
+        Assert.Equal("audio/wav", response.MediaType);
+        Assert.Equal(24000, response.SampleRate);
+        Assert.Equal(4, response.Metrics.OutputSamples);
+        Assert.Equal(new byte[] { 82, 73, 70, 70 }, response.AudioData[..4]);
+        Assert.Equal(1, fakePipeline.SynthesizeToPcmCallCount);
+        Assert.Equal(0, fakePipeline.SynthesizeWithMetricsCallCount);
     }
 
     [Fact]
@@ -269,9 +317,53 @@ public class QwenTextToSpeechClientTests : IDisposable
 
     private sealed class FakeTtsPipeline : ITtsPipeline
     {
+        public int SynthesizeToPcmCallCount { get; private set; }
+        public int SynthesizeWithMetricsCallCount { get; private set; }
+
         public IReadOnlyCollection<string> Speakers => ["ryan"];
 
         public QwenModelVariant ModelVariant => QwenModelVariant.Qwen06B;
+
+        public Task<TtsAudioResult> SynthesizeToPcmAsync(
+            string text,
+            string speaker,
+            string language = "auto",
+            string? instruct = null,
+            IProgress<string>? progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            SynthesizeToPcmCallCount++;
+            return Task.FromResult(new TtsAudioResult
+            {
+                Samples = new float[] { 0f, 0.5f, -0.5f, 1f },
+                SampleRate = 24000,
+                Channels = 1,
+                Metrics = new TtsSynthesisMetrics
+                {
+                    GeneratedFrames = 2,
+                    OutputSamples = 4
+                }
+            });
+        }
+
+        public Task<ReadOnlyMemory<byte>> SynthesizeWavAsync(
+            string text,
+            string speaker,
+            string language = "auto",
+            string? instruct = null,
+            IProgress<string>? progress = null,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new TtsAudioResult
+            {
+                Samples = new float[] { 0f, 0.5f, -0.5f, 1f },
+                SampleRate = 24000,
+                Channels = 1,
+                Metrics = new TtsSynthesisMetrics
+                {
+                    GeneratedFrames = 2,
+                    OutputSamples = 4
+                }
+            }.ToWavBytes());
 
         public Task SynthesizeAsync(string text, string speaker, string outputPath, string language = "auto", string? instruct = null, IProgress<string>? progress = null)
             => throw new NotSupportedException();
@@ -349,7 +441,10 @@ public class QwenTextToSpeechClientTests : IDisposable
             string? instruct = null,
             IProgress<string>? progress = null,
             CancellationToken cancellationToken = default)
-            => Task.FromResult(new TtsSynthesisMetrics());
+        {
+            SynthesizeWithMetricsCallCount++;
+            return Task.FromResult(new TtsSynthesisMetrics());
+        }
 
         public void Dispose()
         {

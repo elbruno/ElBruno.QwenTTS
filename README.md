@@ -31,6 +31,7 @@ Pre-exported ONNX models are hosted on HuggingFace:
 - **Bounded Concurrency + Cancellation** — Configure max concurrent syntheses and cancel queued or in-flight requests at safe boundaries
 - **Latency Metrics** — Capture queue, first-audio, and total synthesis latency from the high-level client
 - **Streaming Audio Updates** — Emit ordered WAV chunks with format metadata and explicit progressive-vs-chunked capability flags
+- **In-Memory PCM/WAV APIs** — Get normalized PCM samples or WAV bytes without writing a temp/output file
 - **24 kHz WAV Output** — High-quality mono audio
 
 ---
@@ -64,6 +65,18 @@ var metrics = await sharedPipeline.SynthesizeWithMetricsAsync(
     "serena",
     "queued.wav");
 Console.WriteLine($"First audio: {metrics.FirstAudioLatency.TotalSeconds:F2}s");
+
+// Keep the audio in memory instead of writing a file first
+var pcm = await sharedPipeline.SynthesizeToPcmAsync(
+    "Return normalized PCM samples in memory.",
+    "ryan",
+    "english");
+var wavBytes = await sharedPipeline.SynthesizeWavAsync(
+    "Return WAV bytes in memory too.",
+    "ryan",
+    "english");
+await File.WriteAllBytesAsync("memory.wav", wavBytes.ToArray());
+Console.WriteLine($"{pcm.SampleCount} samples, duration {pcm.Duration.TotalSeconds:F2}s");
 
 // Stream WAV chunks without building a second full-audio byte[]
 await foreach (var update in sharedPipeline.GetStreamingAudioAsync(

@@ -40,6 +40,14 @@ await pipeline.SynthesizeAsync(
     speaker: "ryan",
     outputPath: "output.wav"
 );
+
+// Or keep the audio in memory
+var pcm = await pipeline.SynthesizeToPcmAsync(
+    text: "Return PCM samples without an output file.",
+    speaker: "ryan");
+var wav = await pipeline.SynthesizeWavAsync(
+    text: "Return WAV bytes without an output file.",
+    speaker: "ryan");
 ```
 
 > **Note:** Use `TtsPipeline.CreateAsync()` for automatic model management. Use `new TtsPipeline(modelDir)` only when you know the models are already present.
@@ -111,6 +119,40 @@ public IReadOnlyCollection<string> Speakers { get; }
 Returns available speaker voice names from the model. Current speakers: `ryan`, `serena`, `vivian`, `aiden`, `eric`, `dylan`, `uncle_fu`, `ono_anna`, `sohee`.
 
 #### Methods
+
+```csharp
+public async Task<TtsAudioResult> SynthesizeToPcmAsync(
+    string text,
+    string speaker,
+    string language = "auto",
+    string? instruct = null,
+    IProgress<string>? progress = null,
+    CancellationToken cancellationToken = default)
+```
+
+Returns normalized float PCM samples in the `[-1.0, 1.0]` range, along with sample metadata, derived duration, and request metrics.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Samples` | `ReadOnlyMemory<float>` | PCM samples in the `[-1.0, 1.0]` range |
+| `SampleRate` | `int` | Output sample rate (24 kHz by default) |
+| `Channels` | `int` | Number of output channels (currently `1`) |
+| `BitsPerSample` | `int` | WAV PCM bit depth used when encoding bytes (`16`) |
+| `SampleCount` | `int` | Total PCM sample count |
+| `Duration` | `TimeSpan` | Duration derived from sample count and format metadata |
+| `Metrics` | `TtsSynthesisMetrics` | Queue, first-audio, and total synthesis timings |
+
+```csharp
+public async Task<ReadOnlyMemory<byte>> SynthesizeWavAsync(
+    string text,
+    string speaker,
+    string language = "auto",
+    string? instruct = null,
+    IProgress<string>? progress = null,
+    CancellationToken cancellationToken = default)
+```
+
+Returns a complete in-memory WAV payload without requiring an output file path.
 
 ```csharp
 public async Task SynthesizeAsync(

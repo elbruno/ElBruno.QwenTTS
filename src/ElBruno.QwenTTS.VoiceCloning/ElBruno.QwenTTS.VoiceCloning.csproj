@@ -15,7 +15,7 @@
     <PackageIcon>nuget_01.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>tts;text-to-speech;voice-cloning;qwen;onnx;ai;local;speech-synthesis;ecapa-tdnn;speaker-encoder</PackageTags>
-    <Version>1.5.0</Version>
+    <Version>1.6.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

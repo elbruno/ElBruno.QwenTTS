@@ -3,8 +3,7 @@ using System.Buffers.Binary;
 namespace ElBruno.QwenTTS.Audio;
 
 /// <summary>
-/// Writes float32 PCM samples to a standard WAV file.
-/// Produces 16-bit PCM WAV at the specified sample rate (default 24 kHz).
+/// Encodes float32 PCM samples as standard 16-bit PCM WAV data.
 /// </summary>
 internal static class WavWriter
 {
@@ -20,7 +19,7 @@ internal static class WavWriter
     /// <param name="samples">Float32 PCM samples in [-1.0, 1.0] range.</param>
     /// <param name="sampleRate">Sample rate in Hz (default 24000 for Qwen3-TTS).</param>
     /// <param name="channels">Number of audio channels (default 1 = mono).</param>
-    public static void Write(string path, float[] samples, int sampleRate = DefaultSampleRate, int channels = DefaultChannels)
+    public static void Write(string path, ReadOnlySpan<float> samples, int sampleRate = DefaultSampleRate, int channels = DefaultChannels)
     {
         using var stream = File.Create(path);
         stream.Write(CreateHeader(samples.Length, sampleRate, channels));
@@ -28,16 +27,26 @@ internal static class WavWriter
     }
 
     /// <summary>
+    /// Writes float32 samples to an in-memory WAV payload as 16-bit PCM.
+    /// </summary>
+    public static byte[] ToArray(ReadOnlySpan<float> samples, int sampleRate = DefaultSampleRate, int channels = DefaultChannels)
+    {
+        var wavBytes = new byte[HeaderSize + GetPcmByteLength(samples.Length)];
+        CreateHeader(samples.Length, sampleRate, channels).CopyTo(wavBytes, 0);
+        WritePcmSamples(samples, 0, samples.Length, wavBytes.AsSpan(HeaderSize));
+        return wavBytes;
+    }
+
+    /// <summary>
     /// Enumerates ordered WAV chunks where simple byte concatenation reconstructs a valid WAV file.
     /// The first chunk contains the WAV header plus initial PCM bytes; later chunks contain PCM bytes only.
     /// </summary>
     public static IEnumerable<byte[]> EnumerateWavChunks(
-        float[] samples,
+        ReadOnlyMemory<float> samples,
         int sampleRate = DefaultSampleRate,
         int channels = DefaultChannels,
         int maxChunkBytes = 32 * 1024)
     {
-        ArgumentNullException.ThrowIfNull(samples);
         if (maxChunkBytes <= HeaderSize)
         {
             throw new ArgumentOutOfRangeException(
@@ -51,7 +60,7 @@ internal static class WavWriter
         var firstChunkPcmBytes = Math.Min(totalPcmBytes, maxChunkBytes - header.Length);
         var firstChunk = new byte[header.Length + firstChunkPcmBytes];
         header.CopyTo(firstChunk, 0);
-        WritePcmSamples(samples, 0, firstChunkPcmBytes / sizeof(short), firstChunk.AsSpan(header.Length));
+        WritePcmSamples(samples.Span, 0, firstChunkPcmBytes / sizeof(short), firstChunk.AsSpan(header.Length));
         yield return firstChunk;
 
         var samplesPerChunk = Math.Max(1, maxChunkBytes / sizeof(short));
@@ -60,7 +69,7 @@ internal static class WavWriter
         {
             var chunkSampleCount = Math.Min(samplesPerChunk, samples.Length - writtenSamples);
             var chunk = new byte[GetPcmByteLength(chunkSampleCount)];
-            WritePcmSamples(samples, writtenSamples, chunkSampleCount, chunk);
+            WritePcmSamples(samples.Span, writtenSamples, chunkSampleCount, chunk);
             yield return chunk;
             writtenSamples += chunkSampleCount;
         }
@@ -93,7 +102,7 @@ internal static class WavWriter
 
     private static int GetPcmByteLength(int sampleCount) => checked(sampleCount * sizeof(short));
 
-    private static void WritePcmSamples(Stream stream, float[] samples)
+    private static void WritePcmSamples(Stream stream, ReadOnlySpan<float> samples)
     {
         var buffer = new byte[Math.Min(samples.Length, 4096) * sizeof(short)];
         var offset = 0;
@@ -107,7 +116,7 @@ internal static class WavWriter
         }
     }
 
-    private static void WritePcmSamples(float[] samples, int startSample, int sampleCount, Span<byte> destination)
+    private static void WritePcmSamples(ReadOnlySpan<float> samples, int startSample, int sampleCount, Span<byte> destination)
     {
         for (var index = 0; index < sampleCount; index++)
         {

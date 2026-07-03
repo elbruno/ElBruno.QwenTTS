@@ -11,7 +11,7 @@ public sealed class TtsSynthesisMetrics
     /// <summary>Time from request start until waveform samples are ready in memory.</summary>
     public TimeSpan FirstAudioLatency { get; init; }
 
-    /// <summary>Total time from request start until the final WAV output is written.</summary>
+    /// <summary>Total time from request start until synthesis metrics are captured after vocoder decode.</summary>
     public TimeSpan TotalLatency { get; init; }
 
     /// <summary>Number of generated codec frames.</summary>
