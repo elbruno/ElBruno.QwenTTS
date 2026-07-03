@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Real `Microsoft.Extensions.AI.ITextToSpeechClient` support on `QwenTextToSpeechClient`, backed by the existing `TtsPipeline` in-memory synthesis path
+- `QwenTextToSpeechMetadataKeys` for the adapter metadata contract (`variant`, `speaker`, `language`, `instruct`, `voice_cloning`, `execution_provider`)
+
+### Changed
+- `AddQwenTextToSpeechClient()` now registers both the legacy high-level interface and `Microsoft.Extensions.AI.ITextToSpeechClient` to the same singleton instance
+- `QwenTextToSpeechClient` now honors configured default instruct text and reports the configured execution provider through MEAI metadata
+
+### Fixed
+- MEAI `GetAudioAsync()` and `GetStreamingAudioAsync()` now expose preset voice, language, instruct, cancellation, and WAV MIME type correctly without using a temporary file
+- Unsupported MEAI voice-cloning input now fails with a clear capability error instead of being ignored
+
+### Documentation
+- Updated README and core library docs with Microsoft.Extensions.AI usage, metadata keys, and adapter limitations
+
 ## [1.6.0] - 2026-07-03
 
 ### Added

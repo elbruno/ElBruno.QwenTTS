@@ -219,6 +219,69 @@ public void Dispose()
 
 Releases all ONNX sessions, tokenizer, and embedding resources. Always dispose when done.
 
+### `QwenTextToSpeechClient`
+
+`QwenTextToSpeechClient` keeps the existing high-level convenience APIs and also implements `Microsoft.Extensions.AI.ITextToSpeechClient` through an adapter layer over `TtsPipeline`.
+
+```csharp
+public sealed class QwenTextToSpeechClient :
+    ITextToSpeechClient,
+    Microsoft.Extensions.AI.ITextToSpeechClient
+```
+
+The MEAI surface maps directly onto the in-memory pipeline methods, so `GetAudioAsync()` returns WAV data without a temporary file and `GetStreamingAudioAsync()` forwards ordered streaming updates through the MEAI response-update contract.
+
+```csharp
+using ElBruno.QwenTTS.Pipeline;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+
+var services = new ServiceCollection();
+services.AddQwenTextToSpeechClient(options =>
+{
+    options.ModelVariant = QwenModelVariant.Qwen17B;
+    options.ExecutionProvider = ExecutionProvider.DirectML;
+    options.InstructText = "Read with warmth";
+});
+
+using var provider = services.BuildServiceProvider();
+var client = provider.GetRequiredService<ITextToSpeechClient>();
+
+var response = await client.GetAudioAsync(
+    "Hello from MEAI",
+    new TextToSpeechOptions
+    {
+        VoiceId = "serena",
+        Language = "english",
+        AdditionalProperties = new()
+        {
+            [QwenTextToSpeechMetadataKeys.Instruct] = "speak with excitement"
+        }
+    });
+
+var wav = (DataContent)response.Contents.Single();
+await File.WriteAllBytesAsync("meai.wav", wav.Data.ToArray());
+```
+
+#### MEAI Metadata
+
+The adapter populates `AdditionalProperties` on MEAI responses and streaming updates with the following keys:
+
+| Key | Meaning |
+|-----|---------|
+| `elbruno.qwentts.variant` | Model variant (`0.6B`, `1.7B`) |
+| `elbruno.qwentts.speaker` | Resolved speaker/voice |
+| `elbruno.qwentts.language` | Resolved language |
+| `elbruno.qwentts.instruct` | Instruct text when supplied |
+| `elbruno.qwentts.voice_cloning` | Always `false` for this adapter |
+| `elbruno.qwentts.execution_provider` | Configured execution provider (`Cpu`, `Cuda`, `DirectML`) |
+
+#### MEAI Limitations
+
+- Output format is WAV only (`audio/wav`).
+- `Speed`, `Pitch`, and `Volume` are rejected with a clear capability error.
+- Voice-cloning input is rejected with a clear capability error; use `ElBruno.QwenTTS.VoiceCloning` for reference-audio synthesis.
+
 ### `ModelDownloader`
 
 Static utility class for downloading and verifying ONNX model files.
@@ -310,12 +373,14 @@ Concatenating every `AudioChunk.AudioData` in order reconstructs a valid WAV fil
 
 ### `QwenTtsOptions`
 
-DI registration accepts a `MaxConcurrency` setting:
+DI registration accepts model, execution-provider, instruct, and concurrency settings:
 
 ```csharp
 builder.Services.AddQwenTextToSpeechClient(options =>
 {
     options.ModelVariant = QwenModelVariant.Qwen17B;
+    options.ExecutionProvider = ExecutionProvider.Cuda;
+    options.InstructText = "Read with warmth";
     options.MaxConcurrency = 2;
 });
 ```

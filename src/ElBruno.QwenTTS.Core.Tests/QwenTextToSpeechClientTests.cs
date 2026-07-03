@@ -1,5 +1,6 @@
 using ElBruno.QwenTTS.Pipeline;
 using Microsoft.Extensions.DependencyInjection;
+using Meai = Microsoft.Extensions.AI;
 using Xunit;
 
 namespace ElBruno.QwenTTS.Core.Tests;
@@ -138,9 +139,11 @@ public class QwenTextToSpeechClientTests : IDisposable
         using var client = new QwenTextToSpeechClient(
             defaultVoice: "ryan",
             defaultLanguage: "english",
+            defaultInstruct: null,
             modelDir: null,
             repoId: null,
             variant: QwenModelVariant.Qwen06B,
+            executionProvider: ExecutionProvider.Cpu,
             sessionOptionsFactory: null,
             vocoderSessionOptionsFactory: null,
             maxConcurrency: 1,
@@ -154,6 +157,28 @@ public class QwenTextToSpeechClientTests : IDisposable
         Assert.Equal(new byte[] { 82, 73, 70, 70 }, response.AudioData[..4]);
         Assert.Equal(1, fakePipeline.SynthesizeToPcmCallCount);
         Assert.Equal(0, fakePipeline.SynthesizeWithMetricsCallCount);
+    }
+
+    [Fact]
+    public async Task SynthesizeToMemoryAsync_UsesDefaultInstructWhenRequestOmitsIt()
+    {
+        var fakePipeline = new FakeTtsPipeline();
+        using var client = new QwenTextToSpeechClient(
+            defaultVoice: "ryan",
+            defaultLanguage: "english",
+            defaultInstruct: "Read warmly",
+            modelDir: null,
+            repoId: null,
+            variant: QwenModelVariant.Qwen17B,
+            executionProvider: ExecutionProvider.Cpu,
+            sessionOptionsFactory: null,
+            vocoderSessionOptionsFactory: null,
+            maxConcurrency: 1,
+            pipelineFactory: _ => Task.FromResult<ITtsPipeline>(fakePipeline));
+
+        await client.SynthesizeToMemoryAsync("Hello from memory");
+
+        Assert.Equal("Read warmly", fakePipeline.LastInstruct);
     }
 
     [Fact]
@@ -204,9 +229,11 @@ public class QwenTextToSpeechClientTests : IDisposable
         using var client = new QwenTextToSpeechClient(
             defaultVoice: "ryan",
             defaultLanguage: "english",
+            defaultInstruct: null,
             modelDir: null,
             repoId: null,
             variant: QwenModelVariant.Qwen06B,
+            executionProvider: ExecutionProvider.Cpu,
             sessionOptionsFactory: null,
             vocoderSessionOptionsFactory: null,
             maxConcurrency: 1,
@@ -240,9 +267,11 @@ public class QwenTextToSpeechClientTests : IDisposable
         using var client = new QwenTextToSpeechClient(
             defaultVoice: "ryan",
             defaultLanguage: "english",
+            defaultInstruct: null,
             modelDir: null,
             repoId: null,
             variant: QwenModelVariant.Qwen06B,
+            executionProvider: ExecutionProvider.Cpu,
             sessionOptionsFactory: null,
             vocoderSessionOptionsFactory: null,
             maxConcurrency: 1,
@@ -267,6 +296,121 @@ public class QwenTextToSpeechClientTests : IDisposable
     }
 
     [Fact]
+    public async Task GetAudioAsync_MapsMicrosoftExtensionsAiResponse()
+    {
+        var fakePipeline = new FakeTtsPipeline();
+        using var client = new QwenTextToSpeechClient(
+            defaultVoice: "ryan",
+            defaultLanguage: "english",
+            defaultInstruct: "Read warmly",
+            modelDir: null,
+            repoId: null,
+            variant: QwenModelVariant.Qwen17B,
+            executionProvider: ExecutionProvider.DirectML,
+            sessionOptionsFactory: null,
+            vocoderSessionOptionsFactory: null,
+            maxConcurrency: 1,
+            pipelineFactory: _ => Task.FromResult<ITtsPipeline>(fakePipeline));
+
+        var options = new Meai.TextToSpeechOptions
+        {
+            VoiceId = "serena",
+            Language = "spanish",
+            ModelId = "qwen3-tts-custom",
+            AdditionalProperties = new Meai.AdditionalPropertiesDictionary
+            {
+                [QwenTextToSpeechMetadataKeys.Instruct] = "Speak with excitement"
+            }
+        };
+
+        var response = await ((Meai.ITextToSpeechClient)client).GetAudioAsync("Hola", options);
+
+        var audio = Assert.IsType<Meai.DataContent>(Assert.Single(response.Contents));
+        Assert.Equal("audio/wav", audio.MediaType);
+        Assert.True(audio.Data.Length > 4);
+        Assert.Equal("serena", fakePipeline.LastSpeaker);
+        Assert.Equal("spanish", fakePipeline.LastLanguage);
+        Assert.Equal("Speak with excitement", fakePipeline.LastInstruct);
+        Assert.Equal("1.7B", response.AdditionalProperties![QwenTextToSpeechMetadataKeys.Variant]);
+        Assert.Equal("serena", response.AdditionalProperties[QwenTextToSpeechMetadataKeys.Speaker]);
+        Assert.Equal("spanish", response.AdditionalProperties[QwenTextToSpeechMetadataKeys.Language]);
+        Assert.Equal("Speak with excitement", response.AdditionalProperties[QwenTextToSpeechMetadataKeys.Instruct]);
+        Assert.Equal("DirectML", response.AdditionalProperties[QwenTextToSpeechMetadataKeys.ExecutionProvider]);
+        Assert.Equal(false, response.AdditionalProperties[QwenTextToSpeechMetadataKeys.VoiceCloning]);
+        Assert.Equal("qwen3-tts-custom", response.ModelId);
+        Assert.IsType<TextToSpeechResponse>(response.RawRepresentation);
+    }
+
+    [Fact]
+    public async Task GetAudioAsync_RejectsUnsupportedVoiceCloningInput()
+    {
+        using var client = new QwenTextToSpeechClient();
+        var options = new Meai.TextToSpeechOptions
+        {
+            AdditionalProperties = new Meai.AdditionalPropertiesDictionary
+            {
+                [QwenTextToSpeechMetadataKeys.VoiceCloning] = new Meai.DataContent(new byte[] { 1, 2, 3 }, "audio/wav")
+            }
+        };
+
+        var error = await Assert.ThrowsAsync<NotSupportedException>(
+            () => ((Meai.ITextToSpeechClient)client).GetAudioAsync("Hello", options));
+
+        Assert.Contains("voice-cloning", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GetStreamingAudioAsync_MapsMicrosoftExtensionsAiUpdates()
+    {
+        using var client = new QwenTextToSpeechClient(
+            defaultVoice: "ryan",
+            defaultLanguage: "english",
+            defaultInstruct: "Read warmly",
+            modelDir: null,
+            repoId: null,
+            variant: QwenModelVariant.Qwen17B,
+            executionProvider: ExecutionProvider.Cuda,
+            sessionOptionsFactory: null,
+            vocoderSessionOptionsFactory: null,
+            maxConcurrency: 1,
+            pipelineFactory: _ => Task.FromResult<ITtsPipeline>(new FakeTtsPipeline()));
+
+        var updates = new List<Meai.TextToSpeechResponseUpdate>();
+        var options = new Meai.TextToSpeechOptions
+        {
+            AdditionalProperties = new Meai.AdditionalPropertiesDictionary
+            {
+                [QwenTextToSpeechMetadataKeys.Instruct] = "Speak with excitement"
+            }
+        };
+
+        await foreach (var update in ((Meai.ITextToSpeechClient)client).GetStreamingAudioAsync("Hello", options))
+            updates.Add(update);
+
+        Assert.Collection(
+            updates,
+            update =>
+            {
+                Assert.Equal(Meai.TextToSpeechResponseUpdateKind.SessionOpen, update.Kind);
+                Assert.Empty(update.Contents);
+                Assert.Equal("ryan", update.AdditionalProperties![QwenTextToSpeechMetadataKeys.Speaker]);
+                Assert.Equal("Cuda", update.AdditionalProperties[QwenTextToSpeechMetadataKeys.ExecutionProvider]);
+            },
+            update =>
+            {
+                Assert.Equal(Meai.TextToSpeechResponseUpdateKind.AudioUpdated, update.Kind);
+                var chunk = Assert.IsType<Meai.DataContent>(Assert.Single(update.Contents));
+                Assert.Equal("audio/wav", chunk.MediaType);
+            },
+            update => Assert.Equal(Meai.TextToSpeechResponseUpdateKind.AudioUpdated, update.Kind),
+            update =>
+            {
+                Assert.Equal(Meai.TextToSpeechResponseUpdateKind.SessionClose, update.Kind);
+                Assert.IsType<TextToSpeechStreamingUpdate>(update.RawRepresentation);
+            });
+    }
+
+    [Fact]
     public async Task SynthesizeStreamingAsync_ThrowsWhenDisposed()
     {
         var client = new QwenTextToSpeechClient();
@@ -285,7 +429,9 @@ public class QwenTextToSpeechClientTests : IDisposable
         services.AddQwenTextToSpeechClient();
 
         var descriptor = Assert.Single(services, d => d.ServiceType == typeof(ITextToSpeechClient));
+        var meaiDescriptor = Assert.Single(services, d => d.ServiceType == typeof(Meai.ITextToSpeechClient));
         Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
+        Assert.Equal(ServiceLifetime.Singleton, meaiDescriptor.Lifetime);
     }
 
     [Fact]
@@ -300,7 +446,34 @@ public class QwenTextToSpeechClientTests : IDisposable
         });
 
         var descriptor = Assert.Single(services, d => d.ServiceType == typeof(ITextToSpeechClient));
+        var meaiDescriptor = Assert.Single(services, d => d.ServiceType == typeof(Meai.ITextToSpeechClient));
         Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
+        Assert.Equal(ServiceLifetime.Singleton, meaiDescriptor.Lifetime);
+    }
+
+    [Fact]
+    public void AddQwenTextToSpeechClient_ResolvesSameConcreteInstanceForBothInterfaces()
+    {
+        var services = new ServiceCollection();
+        services.AddQwenTextToSpeechClient();
+
+        using var provider = services.BuildServiceProvider();
+        var legacyClient = provider.GetRequiredService<ITextToSpeechClient>();
+        var meaiClient = provider.GetRequiredService<Meai.ITextToSpeechClient>();
+
+        Assert.Same(legacyClient, meaiClient);
+    }
+
+    [Fact]
+    public void GetService_ReturnsMetadata()
+    {
+        using var client = new QwenTextToSpeechClient();
+
+        var metadata = Assert.IsType<Meai.TextToSpeechClientMetadata>(
+            ((Meai.ITextToSpeechClient)client).GetService(typeof(Meai.TextToSpeechClientMetadata), serviceKey: null));
+
+        Assert.Equal("ElBruno.QwenTTS", metadata.ProviderName);
+        Assert.Equal("qwen3-tts", metadata.DefaultModelId);
     }
 
     [Fact]
@@ -319,6 +492,9 @@ public class QwenTextToSpeechClientTests : IDisposable
     {
         public int SynthesizeToPcmCallCount { get; private set; }
         public int SynthesizeWithMetricsCallCount { get; private set; }
+        public string? LastSpeaker { get; private set; }
+        public string? LastLanguage { get; private set; }
+        public string? LastInstruct { get; private set; }
 
         public IReadOnlyCollection<string> Speakers => ["ryan"];
 
@@ -333,6 +509,9 @@ public class QwenTextToSpeechClientTests : IDisposable
             CancellationToken cancellationToken = default)
         {
             SynthesizeToPcmCallCount++;
+            LastSpeaker = speaker;
+            LastLanguage = language;
+            LastInstruct = instruct;
             return Task.FromResult(new TtsAudioResult
             {
                 Samples = new float[] { 0f, 0.5f, -0.5f, 1f },

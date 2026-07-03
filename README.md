@@ -32,6 +32,7 @@ Pre-exported ONNX models are hosted on HuggingFace:
 - **Latency Metrics** — Capture queue, first-audio, and total synthesis latency from the high-level client
 - **Streaming Audio Updates** — Emit ordered WAV chunks with format metadata and explicit progressive-vs-chunked capability flags
 - **In-Memory PCM/WAV APIs** — Get normalized PCM samples or WAV bytes without writing a temp/output file
+- **Microsoft.Extensions.AI Integration** — Resolve `ITextToSpeechClient` from DI and return in-memory WAV audio through the MEAI contract
 - **24 kHz WAV Output** — High-quality mono audio
 
 ---
@@ -107,6 +108,42 @@ dotnet run --project src/ElBruno.QwenTTS -- --model-dir models --variant 1.7b --
 ```
 
 Models are downloaded automatically if not present in the `--model-dir` directory.
+
+### Microsoft.Extensions.AI
+
+```csharp
+using ElBruno.QwenTTS.Pipeline;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+
+var services = new ServiceCollection();
+services.AddQwenTextToSpeechClient(options =>
+{
+    options.ModelVariant = QwenModelVariant.Qwen17B;
+    options.ExecutionProvider = ExecutionProvider.Cuda;
+    options.InstructText = "Speak with warmth";
+});
+
+using var provider = services.BuildServiceProvider();
+var client = provider.GetRequiredService<ITextToSpeechClient>();
+
+var response = await client.GetAudioAsync(
+    "Hello from Microsoft.Extensions.AI.",
+    new TextToSpeechOptions
+    {
+        VoiceId = "serena",
+        Language = "english",
+        AdditionalProperties = new()
+        {
+            [QwenTextToSpeechMetadataKeys.Instruct] = "speak with excitement"
+        }
+    });
+
+var wav = (DataContent)response.Contents.Single();
+await File.WriteAllBytesAsync("meai.wav", wav.Data.ToArray());
+```
+
+The adapter returns `audio/wav` and populates response metadata with `QwenTextToSpeechMetadataKeys`. Voice-cloning input is not supported through the MEAI adapter; use `ElBruno.QwenTTS.VoiceCloning` for reference-audio synthesis.
 
 ### Voice Cloning
 

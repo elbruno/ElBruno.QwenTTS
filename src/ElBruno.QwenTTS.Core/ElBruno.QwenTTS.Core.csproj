@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>CS1591</NoWarn>
+    <NoWarn>CS1591;MEAI001</NoWarn>
     <PackageId>ElBruno.QwenTTS</PackageId>
     <Description>Run Qwen3-TTS text-to-speech locally from C# using ONNX Runtime. Models download automatically from HuggingFace on first run.</Description>
     <Authors>Bruno Capuano</Authors>
@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <PackageReference Include="ElBruno.HuggingFace.Downloader" Version="0.5.0" />
+    <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.7.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.6" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.24.2" />
     <PackageReference Include="Microsoft.ML.Tokenizers" Version="2.0.0" />

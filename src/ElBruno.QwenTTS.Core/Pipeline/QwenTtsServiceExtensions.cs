@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.ML.OnnxRuntime;
+using Meai = Microsoft.Extensions.AI;
 
 namespace ElBruno.QwenTTS.Pipeline;
 
@@ -61,14 +62,18 @@ public static class QwenTtsServiceExtensions
         var factory = ResolveSessionOptionsFactory(options);
         var vocoderFactory = ResolveVocoderSessionOptionsFactory(options);
 
-        services.AddSingleton<ITextToSpeechClient>(
+        services.AddSingleton(
             _ => new QwenTextToSpeechClient(
+                defaultInstruct: options.InstructText,
                 modelDir: options.ModelPath,
                 repoId: options.HuggingFaceRepo,
                 variant: options.ModelVariant,
+                executionProvider: options.ExecutionProvider,
                 sessionOptionsFactory: factory,
                 vocoderSessionOptionsFactory: vocoderFactory,
                 maxConcurrency: options.MaxConcurrency));
+        services.AddSingleton<ITextToSpeechClient>(sp => sp.GetRequiredService<QwenTextToSpeechClient>());
+        services.AddSingleton<Meai.ITextToSpeechClient>(sp => sp.GetRequiredService<QwenTextToSpeechClient>());
 
         return services;
     }
