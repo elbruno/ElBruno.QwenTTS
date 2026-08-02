@@ -1,0 +1,792 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>ElBruno.QwenTTS.Core</name>
+    </assembly>
+    <members>
+        <member name="T:ElBruno.QwenTTS.Audio.WavWriter">
+            <summary>
+            Writes float32 PCM samples to a standard WAV file.
+            Produces 16-bit PCM WAV at the specified sample rate (default 24 kHz).
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Audio.WavWriter.Write(System.String,System.Single[],System.Int32,System.Int32)">
+            <summary>
+            Writes float32 samples to a WAV file as 16-bit PCM.
+            </summary>
+            <param name="path">Output file path.</param>
+            <param name="samples">Float32 PCM samples in [-1.0, 1.0] range.</param>
+            <param name="sampleRate">Sample rate in Hz (default 24000 for Qwen3-TTS).</param>
+            <param name="channels">Number of audio channels (default 1 = mono).</param>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Models.EmbeddingStore">
+            <summary>
+            Loads and provides access to all embedding matrices (.npy files).
+            Includes text embeddings, projection layers, codec embeddings, and speaker IDs.
+            </summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Models.EmbeddingStore.HiddenSize">
+            <summary>Talker hidden_size derived from loaded embedding dimensions.</summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Models.EmbeddingStore.TextHiddenSize">
+            <summary>Text embedding dimension derived from loaded data.</summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Models.EmbeddingStore.CpHiddenSize">
+            <summary>Code Predictor embedding dimension derived from loaded data.</summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Models.EmbeddingStore.HasCpProjection">
+            <summary>Whether CP projection weights are loaded (true for 1.7B with re-exported code_predictor).</summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Models.EmbeddingStore.CpModelHiddenSize">
+            <summary>Authoritative Code Predictor model hidden_size from config.json (for ONNX input dim).</summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.EmbeddingStore.TextEmbedding(System.Int32,System.Span{System.Single})">
+            <summary>
+            Looks up text embedding for a token ID and writes to output.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.EmbeddingStore.TextProjection(System.ReadOnlySpan{System.Single},System.Span{System.Single})">
+            <summary>
+            Applies text projection MLP: output = fc2(silu(fc1(input)))
+            Maps from text_hidden_size → talker hidden_size.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.EmbeddingStore.TalkerCodecEmbedding(System.Int32,System.Span{System.Single})">
+            <summary>
+            Looks up talker codec embedding for a token ID.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.EmbeddingStore.CpCodecEmbedding(System.Int32,System.Int32,System.Span{System.Single})">
+            <summary>
+            Looks up CP codec embedding for a group and token ID.
+            groupIndex is 0-14 (maps to cp_codec_embedding_0..14).
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.EmbeddingStore.CpProjection(System.ReadOnlySpan{System.Single},System.Span{System.Single})">
+            <summary>
+            Applies the CP projection: output = weight @ input + bias.
+            Maps from talker hidden_size (2048 for 1.7B) → cp_hidden_size (1024).
+            Only available when <see cref="P:ElBruno.QwenTTS.Models.EmbeddingStore.HasCpProjection"/> is true.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.EmbeddingStore.ProjectedCpCodecEmbedding(System.Int32,System.Int32,System.Span{System.Single})">
+            <summary>
+            Looks up pre-projected CP codec embedding (projected from talker space to CP input space at init).
+            Avoids per-step matrix-vector multiplies during inference.
+            Only available when <see cref="P:ElBruno.QwenTTS.Models.EmbeddingStore.HasCpProjection"/> is true.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.EmbeddingStore.ProjectedTalkerCodecEmbedding(System.Int32,System.Span{System.Single})">
+            <summary>
+            Looks up pre-projected talker codec embedding (projected from talker space to CP input space at init).
+            Avoids per-step matrix-vector multiplies during inference.
+            Only available when <see cref="P:ElBruno.QwenTTS.Models.EmbeddingStore.HasCpProjection"/> is true.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.EmbeddingStore.GetSpeakerId(System.String)">
+            <summary>
+            Gets the speaker token ID for a speaker name.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.EmbeddingStore.GetAvailableSpeakers">
+            <summary>
+            Gets the list of available speaker names.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.EmbeddingStore.GetSpeakerEmbedding(System.Int32)">
+            <summary>
+            Gets the talker codec embedding for a speaker as a float array.
+            Used for similarity search and speaker matching.
+            </summary>
+            <param name="speakerId">Speaker token ID (codec embedding token).</param>
+            <returns>Embedding vector (<see cref="P:ElBruno.QwenTTS.Models.EmbeddingStore.HiddenSize"/> dimensions).</returns>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.EmbeddingStore.GetAllSpeakerEmbeddings">
+            <summary>
+            Gets all speaker embeddings as a collection for similarity search.
+            </summary>
+            <returns>Tuples of (speakerName, embedding) for all available speakers.</returns>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.EmbeddingStore.MatMul(System.Single[0:,0:],System.ReadOnlySpan{System.Single},System.Span{System.Single})">
+            <summary>
+            Matrix-vector multiply: output = weight @ input
+            weight is (M, N), input is (N,), output is (M,)
+            </summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Models.ModelConfig">
+            <summary>
+            Model configuration loaded from config.json
+            </summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Models.LanguageModel">
+            <summary>
+            ONNX language model for Qwen3-TTS.
+            Runs autoregressive inference with KV-cache to generate audio codes
+            from tokenized text input.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.LanguageModel.GenerateWithSpeakerId(System.Int32[],System.Int32,System.String,System.Int32,System.Single,System.Int32,System.Single,System.Single)">
+            <summary>
+            Generate audio codes using an explicit speaker ID. Pass -1 to omit the speaker token
+            from the codec prefix (used by the Base model where voice identity comes from a speaker embedding).
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.LanguageModel.GenerateWithSpeakerEmbedding(System.Int32[],System.Single[],System.String,System.Int32,System.Single,System.Int32,System.Single,System.Single)">
+            <summary>
+            Generate audio codes using a speaker embedding vector (e.g., from ECAPA-TDNN).
+            The 1024-dim embedding is injected at the speaker position in the codec prefix,
+            replacing the preset speaker token lookup. Used for voice cloning with the Base model.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.LanguageModel.GenerateWithSpeakerEmbeddingAndRefText(System.Int32[],System.Single[],System.String,System.Int32[],System.Int64[0:,0:,0:],System.Int32,System.Single,System.Int32,System.Single,System.Single)">
+            <summary>
+            Generate audio codes using a speaker embedding and optional ICL reference data.
+            When refTokenIds and refAudioCodes are provided, enables In-Context Learning mode
+            where the model uses both reference text and reference audio codes for higher-quality
+            voice cloning.
+            </summary>
+            <param name="tokenIds">Target text token IDs from the prompt builder.</param>
+            <param name="speakerEmbedding">1024-dim ECAPA-TDNN speaker embedding.</param>
+            <param name="language">Language code (e.g., "english", "russian", "chinese", "auto").</param>
+            <param name="refTokenIds">Optional reference text token IDs for ICL mode.</param>
+            <param name="refAudioCodes">Optional reference audio codes [1, T, 16] for ICL mode.</param>
+            <param name="maxNewTokens">Maximum number of audio frames to generate.</param>
+            <param name="temperature">Sampling temperature.</param>
+            <param name="topK">Top-k sampling parameter.</param>
+            <param name="topP">Top-p (nucleus) sampling parameter.</param>
+            <param name="repetitionPenalty">Repetition penalty factor.</param>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.LanguageModel.BuildCpPrefillDirect(System.Single[],System.ReadOnlySpan{System.Single},System.Int32,System.ReadOnlySpan{System.Single},System.Int32)">
+            <summary>
+            Builds CP prefill buffer by copying hidden state and group0 embedding directly (no projection).
+            Buffer layout: [hidden[0..cpInputDim], group0[0..cpInputDim]]
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.LanguageModel.AccumulateCpEmbedding(System.Single[],System.ReadOnlySpan{System.Single},System.Int32)">
+            <summary>
+            Accumulates a CP codec embedding into the next talker input buffer.
+            Only the first cpHiddenSize elements are accumulated (CP space may be smaller than talker space).
+            </summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Models.NpyReader">
+            <summary>
+            Loads NumPy .npy files (format v1.0/v2.0) into C# arrays.
+            Supports float32 and int64 dtypes, 1D and 2D arrays only.
+            </summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Models.SpeakerSimilaritySearch">
+            <summary>
+            Top-K heap-based speaker similarity search using cosine similarity.
+            Finds the K most similar speaker embeddings from a reference collection.
+            Time complexity: O(n log k) vs O(n log n) for full sort.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.SpeakerSimilaritySearch.FindTopK(System.ReadOnlySpan{System.Single},System.Collections.Generic.IEnumerable{System.ValueTuple{System.String,System.Single[]}},System.Int32)">
+            <summary>
+            Finds the top K most similar speakers to a query embedding.
+            </summary>
+            <param name="queryEmbedding">Query speaker embedding (normalized or unnormalized).</param>
+            <param name="referenceEmbeddings">Collection of reference embeddings with IDs.</param>
+            <param name="k">Number of top results to return.</param>
+            <returns>Top K matches ordered by similarity (highest first).</returns>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.SpeakerSimilaritySearch.Normalize(System.ReadOnlySpan{System.Single},System.Span{System.Single})">
+            <summary>
+            Normalizes a vector to unit length (L2 norm = 1).
+            Uses SIMD-accelerated operations.
+            </summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Models.SpeakerSimilaritySearch.MinHeap">
+            <summary>
+            Min-heap that maintains the top K maximum values.
+            When full, only accepts values larger than the minimum.
+            </summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Models.SpeakerMatch">
+            <summary>
+            Represents a speaker match result with ID and similarity score.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.SpeakerMatch.#ctor(System.String,System.Single)">
+            <summary>
+            Represents a speaker match result with ID and similarity score.
+            </summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Models.TextTokenizer">
+            <summary>
+            GPT-2 style BPE tokenizer for Qwen3-TTS.
+            Loads vocab.json and merges.txt to produce token IDs identical to
+            the Python HuggingFace tokenizer (Qwen2Tokenizer).
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.TextTokenizer.#ctor(System.String)">
+            <summary>
+            Loads the BPE tokenizer from vocab.json and merges.txt in <paramref name="modelDir"/>.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.TextTokenizer.Encode(System.String)">
+            <summary>
+            Encodes text into BPE token IDs. Handles special tokens in the input
+            (e.g. &lt;|im_start|&gt;) via the pre-tokenizer.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.TextTokenizer.Decode(System.Int32[])">
+            <summary>
+            Decodes token IDs back to text (for debugging / verification).
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.TextTokenizer.BuildCustomVoicePrompt(System.String,System.String,System.String,System.String)">
+             <summary>
+             Builds the full Qwen3-TTS CustomVoice prompt token sequence.
+             Wraps the text in the chat template and optionally prepends an instruct turn.
+             </summary>
+             <remarks>
+             Output token layout (without instruct):
+               [im_start, assistant, \n, ...text tokens..., im_end, \n, im_start, assistant, \n]
+            
+             With instruct prepended:
+               [im_start, user, \n, ...instruct tokens..., im_end, \n, ...main tokens above...]
+            
+             The caller (embedding builder) splits this into role / text / suffix per TOKENIZER.MD §4.
+             </remarks>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Models.Vocoder">
+            <summary>
+            Loads and runs the vocoder ONNX model.
+            Converts discrete audio codes (16 RVQ codebooks) to PCM waveform at 24 kHz.
+            Input shape: (1, 16, T) int64 — Output shape: (1, 1, T*1920) float32.
+            </summary>
+        </member>
+        <member name="F:ElBruno.QwenTTS.Models.Vocoder.SamplesPerFrame">
+            <summary>Number of PCM samples per code frame (24000 Hz / 12 Hz = 1920).</summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.Vocoder.#ctor(System.String,System.Func{Microsoft.ML.OnnxRuntime.SessionOptions})">
+            <summary>
+            Creates a vocoder wrapper. Session is loaded lazily on first Decode call.
+            </summary>
+            <param name="modelPath">Path to the vocoder ONNX model.</param>
+            <param name="sessionOptionsFactory">Optional factory for ONNX Runtime session options (e.g., for GPU acceleration).</param>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Models.Vocoder.Decode(System.Int64[0:,0:,0:])">
+            <summary>
+            Decode audio codes to waveform.
+            </summary>
+            <param name="codes">Audio codes of shape (1, 16, T) where T is the number of timesteps.</param>
+            <returns>PCM waveform samples at 24 kHz, values in [-1, 1].</returns>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.ExecutionProvider">
+            <summary>
+            GPU/CPU execution provider for ONNX Runtime sessions.
+            </summary>
+        </member>
+        <member name="F:ElBruno.QwenTTS.Pipeline.ExecutionProvider.Cpu">
+            <summary>CPU execution (default). No additional NuGet packages required.</summary>
+        </member>
+        <member name="F:ElBruno.QwenTTS.Pipeline.ExecutionProvider.Cuda">
+            <summary>
+            NVIDIA GPU via CUDA. Requires <c>Microsoft.ML.OnnxRuntime.Gpu</c> NuGet package
+            and CUDA Toolkit + cuDNN installed.
+            </summary>
+        </member>
+        <member name="F:ElBruno.QwenTTS.Pipeline.ExecutionProvider.DirectML">
+            <summary>
+            DirectML GPU (NVIDIA, AMD, Intel on Windows 10/11).
+            Requires <c>Microsoft.ML.OnnxRuntime.DirectML</c> NuGet package.
+            Models must be patched with <c>python/patch_models_for_dml.py</c>.
+            Uses hybrid mode: GPU for language model, CPU for vocoder.
+            </summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.ITextToSpeechClient">
+            <summary>
+            A high-level text-to-speech client aligned with Microsoft.Extensions.AI patterns.
+            Provides thread-safe lazy initialization, in-memory synthesis, streaming support,
+            and automatic temp file cleanup.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.ITextToSpeechClient.SynthesizeToMemoryAsync(System.String,ElBruno.QwenTTS.Pipeline.TextToSpeechOptions,System.Threading.CancellationToken)">
+            <summary>
+            Synthesizes speech from text and returns audio data in memory.
+            The pipeline is lazily initialized on first call (thread-safe).
+            </summary>
+            <param name="text">Text to synthesize.</param>
+            <param name="options">Optional synthesis options (voice, language, etc.).</param>
+            <param name="cancellationToken">Cancellation token.</param>
+            <returns>A response containing audio data and metadata.</returns>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.ITextToSpeechClient.SynthesizeStreamingAsync(System.String,ElBruno.QwenTTS.Pipeline.TextToSpeechOptions,System.Threading.CancellationToken)">
+            <summary>
+            Synthesizes speech and yields streaming updates with session lifecycle events.
+            </summary>
+            <param name="text">Text to synthesize.</param>
+            <param name="options">Optional synthesis options.</param>
+            <param name="cancellationToken">Cancellation token.</param>
+            <returns>An async enumerable of streaming updates (open → chunk(s) → close).</returns>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.ITtsPipeline">
+            <summary>
+            Abstraction for text-to-speech synthesis pipelines.
+            Enables dependency injection, mocking, and testability.
+            </summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.ITtsPipeline.Speakers">
+            <summary>Available speaker names from the model.</summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.ITtsPipeline.ModelVariant">
+            <summary>The model variant this pipeline was created with.</summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.ITtsPipeline.SynthesizeAsync(System.String,System.String,System.String,System.String,System.String,System.IProgress{System.String})">
+            <summary>
+            Synthesizes speech from text and saves to a WAV file.
+            </summary>
+            <param name="text">Text to synthesize.</param>
+            <param name="speaker">Speaker name (e.g., "ryan") or <see cref="T:ElBruno.QwenTTS.Pipeline.QwenVoicePreset"/> string value.</param>
+            <param name="outputPath">Output WAV file path.</param>
+            <param name="language">Language code ("auto", "english", "chinese", etc.).</param>
+            <param name="instruct">Optional instruction for speech style.</param>
+            <param name="progress">Optional progress callback.</param>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.ModelDownloader">
+            <summary>
+            Downloads Qwen3-TTS ONNX model files from a HuggingFace repository.
+            Uses the ElBruno.HuggingFace.Downloader package for robust downloading with progress reporting.
+            </summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.ModelDownloader.DefaultModelDir">
+            <summary>
+            Default shared model directory root: %LOCALAPPDATA%/ElBruno/QwenTTS (Windows)
+            or ~/.local/share/ElBruno/QwenTTS (Linux/macOS).
+            For variant-specific directories, use <see cref="M:ElBruno.QwenTTS.Pipeline.QwenModelVariantConfig.GetDefaultModelDir(ElBruno.QwenTTS.Pipeline.QwenModelVariant)"/>.
+            </summary>
+        </member>
+        <member name="F:ElBruno.QwenTTS.Pipeline.ModelDownloader.Extra06BFiles">
+            <summary>
+            Additional files required only by the 0.6B variant (vocoder data file).
+            </summary>
+        </member>
+        <member name="F:ElBruno.QwenTTS.Pipeline.ModelDownloader.Extra17BFiles">
+            <summary>
+            Additional files required only by the 1.7B variant (vocoder data, CP projection weights, and code predictor data).
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.ModelDownloader.GetExpectedFiles(ElBruno.QwenTTS.Pipeline.QwenModelVariant)">
+            <summary>
+            Returns the expected file list for a given model variant.
+            Both variants include vocoder.onnx.data (split ONNX external data).
+            The 0.6B variant has no additional files beyond the shared set.
+            The 1.7B variant additionally includes code_predictor.onnx.data and CP projection weight files.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.ModelDownloader.IsModelDownloaded(System.String,ElBruno.QwenTTS.Pipeline.QwenModelVariant)">
+            <summary>
+            Returns true if the model directory contains all required files.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.ModelDownloader.IsModelReady(System.String)">
+            <summary>Alias for <see cref="M:ElBruno.QwenTTS.Pipeline.ModelDownloader.IsModelDownloaded(System.String,ElBruno.QwenTTS.Pipeline.QwenModelVariant)"/>.</summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.ModelDownloader.GetMissingFiles(System.String,ElBruno.QwenTTS.Pipeline.QwenModelVariant)">
+            <summary>
+            Returns the list of files that are missing from the model directory.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.ModelDownloader.DownloadModelAsync(System.String,System.String,System.IProgress{ElBruno.QwenTTS.Pipeline.ModelDownloadProgress},System.Threading.CancellationToken,ElBruno.QwenTTS.Pipeline.QwenModelVariant)">
+            <summary>
+            Downloads all missing model files from HuggingFace with byte-level progress.
+            Skips files that already exist locally.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.ModelDownloader.EnsureModelAsync(System.String,System.String,System.IProgress{ElBruno.QwenTTS.Pipeline.ModelDownloadProgress},System.Threading.CancellationToken,ElBruno.QwenTTS.Pipeline.QwenModelVariant)">
+            <summary>
+            Ensures model files are present, downloading them if needed.
+            Returns the model directory path.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.ModelDownloader.ResolveForVariant(ElBruno.QwenTTS.Pipeline.QwenModelVariant,System.String,System.String)">
+            <summary>
+            Resolves the model directory and repo ID for a given variant.
+            If <paramref name="modelDir"/> is null, uses the variant-specific default directory.
+            If <paramref name="repoId"/> is null, uses the variant's default repo.
+            </summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.ModelDownloadProgress">
+            <summary>
+            Progress information for model download operations.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.ModelDownloadProgress.#ctor(System.Int32,System.Int32,System.String,System.String,System.Int64,System.Int64)">
+            <summary>
+            Progress information for model download operations.
+            </summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.ModelDownloadProgress.FilePercentage">
+            <summary>File-level percentage (0–100).</summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.ModelDownloadProgress.BytePercentage">
+            <summary>Byte-level percentage for the current file (0–100).</summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.OrtSessionHelper">
+            <summary>
+            Helper methods for creating ONNX Runtime SessionOptions with different execution providers.
+            
+            Usage: Pass the desired factory method to TtsPipeline or VoiceClonePipeline constructors.
+            The consumer must reference the appropriate NuGet package for their chosen GPU backend:
+              - CPU (default): Microsoft.ML.OnnxRuntime
+              - CUDA: Microsoft.ML.OnnxRuntime.Gpu
+              - DirectML: Microsoft.ML.OnnxRuntime.DirectML
+            
+            Note: GPU NuGet packages are mutually exclusive — only one can be referenced per project.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.OrtSessionHelper.CreateCpuOptions">
+            <summary>
+            Creates SessionOptions for CPU execution (default behavior).
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.OrtSessionHelper.CreateCudaOptions">
+            <summary>
+            Creates SessionOptions for CUDA GPU execution on the default device (GPU 0).
+            Requires the <c>Microsoft.ML.OnnxRuntime.Gpu</c> NuGet package and CUDA Toolkit + cuDNN installed.
+            Falls back to CPU if CUDA is unavailable.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.OrtSessionHelper.CreateCudaOptions(System.Int32)">
+            <summary>
+            Creates SessionOptions for CUDA GPU execution.
+            Requires the <c>Microsoft.ML.OnnxRuntime.Gpu</c> NuGet package and CUDA Toolkit + cuDNN installed.
+            Falls back to CPU if CUDA is unavailable.
+            </summary>
+            <param name="deviceId">GPU device ID.</param>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.OrtSessionHelper.CreateDirectMlOptions">
+            <summary>
+            Creates SessionOptions for DirectML GPU execution on the default device (GPU 0).
+            Requires the <c>Microsoft.ML.OnnxRuntime.DirectML</c> NuGet package.
+            Falls back to CPU if DirectML is unavailable.
+            </summary>
+            <remarks>
+            Memory pattern optimization is disabled because the autoregressive language model uses
+            dynamic KV-cache shapes that grow each decode step, which is incompatible with DML's
+            memory pattern assumptions. Sequential execution mode is used for stability.
+            </remarks>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.OrtSessionHelper.CreateDirectMlOptions(System.Int32)">
+            <summary>
+            Creates SessionOptions for DirectML GPU execution (Windows 10/11 — supports NVIDIA, AMD, and Intel GPUs).
+            Requires the <c>Microsoft.ML.OnnxRuntime.DirectML</c> NuGet package.
+            Falls back to CPU if DirectML is unavailable.
+            </summary>
+            <remarks>
+            Memory pattern optimization is disabled because the autoregressive language model uses
+            dynamic KV-cache shapes that grow each decode step, which is incompatible with DML's
+            memory pattern assumptions. Sequential execution mode is used for stability.
+            </remarks>
+            <param name="deviceId">GPU device ID.</param>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.QwenLanguageOption">
+            <summary>
+            Shared catalog of supported TTS language choices.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.QwenLanguageOption.#ctor(System.String,System.String)">
+            <summary>
+            Shared catalog of supported TTS language choices.
+            </summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.QwenModelVariant">
+            <summary>
+            Identifies a Qwen3-TTS model size variant.
+            </summary>
+        </member>
+        <member name="F:ElBruno.QwenTTS.Pipeline.QwenModelVariant.Qwen06B">
+            <summary>0.6B parameter model (default). Talker hidden_size=1024.</summary>
+        </member>
+        <member name="F:ElBruno.QwenTTS.Pipeline.QwenModelVariant.Qwen17B">
+            <summary>1.7B parameter model. Talker hidden_size=2048. Supports instruction control.</summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.QwenModelVariantConfig">
+            <summary>
+            Provides configuration values that differ between Qwen model variants.
+            At download time these values select the correct HuggingFace repo and
+            local storage path. At runtime the actual dimensions come from <c>config.json</c>.
+            </summary>
+        </member>
+        <member name="F:ElBruno.QwenTTS.Pipeline.QwenModelVariantConfig.Default">
+            <summary>Default variant when none is specified.</summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.QwenModelVariantConfig.GetHiddenSize(ElBruno.QwenTTS.Pipeline.QwenModelVariant)">
+            <summary>Returns the expected Talker LM hidden size for a variant.</summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.QwenModelVariantConfig.GetIntermediateSize(ElBruno.QwenTTS.Pipeline.QwenModelVariant)">
+            <summary>Returns the expected Talker LM intermediate (MLP) size for a variant.</summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.QwenModelVariantConfig.GetRepoId(ElBruno.QwenTTS.Pipeline.QwenModelVariant)">
+            <summary>Returns the HuggingFace repository ID for a variant.</summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.QwenModelVariantConfig.GetModelSubDir(ElBruno.QwenTTS.Pipeline.QwenModelVariant)">
+            <summary>
+            Returns the model subdirectory name for a variant.
+            Used to keep different model files separate under the shared cache root.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.QwenModelVariantConfig.GetDefaultModelDir(ElBruno.QwenTTS.Pipeline.QwenModelVariant)">
+            <summary>
+            Returns the full default model directory for a variant.
+            The 0.6B variant uses the legacy root path (backward compatible).
+            Other variants use a size-specific subdirectory.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.QwenModelVariantConfig.SupportsInstruct(ElBruno.QwenTTS.Pipeline.QwenModelVariant)">
+            <summary>Returns whether a variant supports instruction control (emotion, rate, timbre).</summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.QwenModelVariantConfig.GetAllVariants">
+            <summary>Returns all defined model variants.</summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.QwenTextToSpeechClient">
+            <summary>
+            A production-ready <see cref="T:ElBruno.QwenTTS.Pipeline.ITextToSpeechClient"/> backed by QwenTTS.
+            Provides thread-safe lazy initialization, in-memory synthesis (with automatic
+            temp file cleanup), streaming support, and proper resource disposal.
+            </summary>
+            <remarks>
+            The underlying <see cref="T:ElBruno.QwenTTS.Pipeline.TtsPipeline"/> is lazily initialized on first use
+            and safely shared across concurrent callers via <see cref="T:System.Threading.SemaphoreSlim"/>.
+            Models are automatically downloaded from HuggingFace if not present.
+            </remarks>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.QwenTextToSpeechClient.#ctor(System.String,System.String,System.String,System.String,ElBruno.QwenTTS.Pipeline.QwenModelVariant,System.Func{Microsoft.ML.OnnxRuntime.SessionOptions},System.Func{Microsoft.ML.OnnxRuntime.SessionOptions})">
+            <summary>
+            Creates a new <see cref="T:ElBruno.QwenTTS.Pipeline.QwenTextToSpeechClient"/>.
+            </summary>
+            <param name="defaultVoice">Default speaker name (e.g., "ryan", "serena"). Default: "ryan".</param>
+            <param name="defaultLanguage">Default language (e.g., "english", "auto"). Default: "auto".</param>
+            <param name="modelDir">Optional model directory. When null, uses the variant-specific default.</param>
+            <param name="repoId">HuggingFace repository ID. When null, uses the variant's default repo.</param>
+            <param name="variant">Model size variant. Defaults to 0.6B.</param>
+            <param name="sessionOptionsFactory">Optional ONNX Runtime session options factory (e.g., for GPU).</param>
+            <param name="vocoderSessionOptionsFactory">Optional separate factory for the vocoder model.</param>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.QwenTextToSpeechClient.SynthesizeToMemoryAsync(System.String,ElBruno.QwenTTS.Pipeline.TextToSpeechOptions,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.QwenTextToSpeechClient.SynthesizeStreamingAsync(System.String,ElBruno.QwenTTS.Pipeline.TextToSpeechOptions,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.QwenTextToSpeechClient.Dispose">
+            <summary>Disposes the underlying pipeline, semaphore, and any held resources.</summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.QwenTtsOptions">
+            <summary>
+            Configuration options for QwenTTS pipeline.
+            </summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.QwenTtsOptions.ModelPath">
+            <summary>
+            Path to local model directory. When null, uses the variant-specific default shared location.
+            </summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.QwenTtsOptions.HuggingFaceRepo">
+            <summary>
+            HuggingFace repository ID for model download.
+            When null, automatically determined from <see cref="P:ElBruno.QwenTTS.Pipeline.QwenTtsOptions.ModelVariant"/>.
+            </summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.QwenTtsOptions.ModelVariant">
+            <summary>
+            Model size variant. Defaults to <see cref="F:ElBruno.QwenTTS.Pipeline.QwenModelVariant.Qwen06B"/>.
+            </summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.QwenTtsOptions.ExecutionProvider">
+            <summary>
+            Execution provider for GPU/CPU selection. Default: <see cref="F:ElBruno.QwenTTS.Pipeline.ExecutionProvider.Cpu"/>.
+            </summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.QwenTtsOptions.GpuDeviceId">
+            <summary>
+            GPU device ID when using CUDA or DirectML. Default: 0.
+            </summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.QwenTtsOptions.InstructText">
+            <summary>
+            Default instruction text for speech style control (e.g., "Read with a calm, warm tone").
+            Only effective when <see cref="P:ElBruno.QwenTTS.Pipeline.QwenTtsOptions.ModelVariant"/> is <see cref="F:ElBruno.QwenTTS.Pipeline.QwenModelVariant.Qwen17B"/> or higher.
+            Ignored for 0.6B models which do not support instruction control.
+            </summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.QwenTtsOptions.SessionOptionsFactory">
+            <summary>
+            Optional custom session options factory. When set, overrides <see cref="P:ElBruno.QwenTTS.Pipeline.QwenTtsOptions.ExecutionProvider"/>.
+            Use this for advanced scenarios not covered by the enum.
+            </summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.QwenTtsServiceExtensions">
+            <summary>
+            Extension methods for registering QwenTTS services with dependency injection.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.QwenTtsServiceExtensions.AddQwenTts(Microsoft.Extensions.DependencyInjection.IServiceCollection)">
+            <summary>
+            Registers <see cref="T:ElBruno.QwenTTS.Pipeline.ITtsPipeline"/> as a singleton service using default options.
+            Models are automatically downloaded on first use.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.QwenTtsServiceExtensions.AddQwenTts(Microsoft.Extensions.DependencyInjection.IServiceCollection,System.Action{ElBruno.QwenTTS.Pipeline.QwenTtsOptions})">
+            <summary>
+            Registers <see cref="T:ElBruno.QwenTTS.Pipeline.ITtsPipeline"/> as a singleton service with the specified options.
+            Models are automatically downloaded on first use.
+            </summary>
+            <param name="services">The service collection.</param>
+            <param name="configure">Action to configure <see cref="T:ElBruno.QwenTTS.Pipeline.QwenTtsOptions"/>.</param>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.QwenTtsServiceExtensions.AddQwenTextToSpeechClient(Microsoft.Extensions.DependencyInjection.IServiceCollection,System.Action{ElBruno.QwenTTS.Pipeline.QwenTtsOptions})">
+            <summary>
+            Registers <see cref="T:ElBruno.QwenTTS.Pipeline.ITextToSpeechClient"/> as a singleton service with the specified options.
+            Provides thread-safe lazy initialization, in-memory synthesis, and streaming support.
+            Models are automatically downloaded on first use.
+            </summary>
+            <param name="services">The service collection.</param>
+            <param name="configure">Optional action to configure <see cref="T:ElBruno.QwenTTS.Pipeline.QwenTtsOptions"/>.</param>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.QwenVoicePreset">
+            <summary>
+            Pre-defined voice presets for Qwen3-TTS CustomVoice model.
+            Use <see cref="M:ElBruno.QwenTTS.Pipeline.QwenVoicePresetExtensions.ToSpeakerName(ElBruno.QwenTTS.Pipeline.QwenVoicePreset)"/> to convert to the string speaker name.
+            </summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.QwenVoicePresetExtensions">
+            <summary>
+            Extension methods for <see cref="T:ElBruno.QwenTTS.Pipeline.QwenVoicePreset"/>.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.QwenVoicePresetExtensions.ToSpeakerName(ElBruno.QwenTTS.Pipeline.QwenVoicePreset)">
+            <summary>
+            Converts a voice preset to the speaker name string used by the model.
+            </summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.TextToSpeechOptions">
+            <summary>
+            Options for a text-to-speech synthesis request.
+            </summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.TextToSpeechOptions.VoiceId">
+            <summary>Speaker/voice identifier (e.g., "ryan", "serena").</summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.TextToSpeechOptions.Language">
+            <summary>Language code (e.g., "english", "auto").</summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.TextToSpeechOptions.Instruct">
+            <summary>Optional instruction for speech style (e.g., "speak with excitement").</summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.TextToSpeechOptions.ModelId">
+            <summary>Optional model identifier for the response metadata.</summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.TextToSpeechResponse">
+            <summary>
+            Response from a text-to-speech synthesis request.
+            Contains audio data and metadata about the generated audio.
+            </summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.TextToSpeechResponse.AudioData">
+            <summary>Raw audio bytes (WAV format).</summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.TextToSpeechResponse.MediaType">
+            <summary>MIME type of the audio data (e.g., "audio/wav").</summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.TextToSpeechResponse.SampleRate">
+            <summary>Sample rate in Hz.</summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.TextToSpeechResponse.ModelId">
+            <summary>Model identifier used for synthesis.</summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.TextToSpeechUpdateKind">
+            <summary>
+            Kind of streaming update during text-to-speech synthesis.
+            </summary>
+        </member>
+        <member name="F:ElBruno.QwenTTS.Pipeline.TextToSpeechUpdateKind.SessionOpen">
+            <summary>Synthesis session has opened.</summary>
+        </member>
+        <member name="F:ElBruno.QwenTTS.Pipeline.TextToSpeechUpdateKind.AudioChunk">
+            <summary>An audio chunk is available.</summary>
+        </member>
+        <member name="F:ElBruno.QwenTTS.Pipeline.TextToSpeechUpdateKind.SessionClose">
+            <summary>Synthesis session has closed.</summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.TextToSpeechStreamingUpdate">
+            <summary>
+            A streaming update from a text-to-speech synthesis operation.
+            </summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.TextToSpeechStreamingUpdate.Kind">
+            <summary>The kind of update.</summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.TextToSpeechStreamingUpdate.AudioData">
+            <summary>Audio data for <see cref="F:ElBruno.QwenTTS.Pipeline.TextToSpeechUpdateKind.AudioChunk"/> updates. Null for other kinds.</summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.TextToSpeechStreamingUpdate.SampleRate">
+            <summary>Sample rate in Hz. Present on <see cref="F:ElBruno.QwenTTS.Pipeline.TextToSpeechUpdateKind.AudioChunk"/> updates.</summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.Pipeline.TtsPipeline">
+            <summary>
+            Orchestrates the full TTS pipeline: text → tokenize → LM → vocoder → WAV.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.TtsPipeline.#ctor(System.String,System.Func{Microsoft.ML.OnnxRuntime.SessionOptions},System.Func{Microsoft.ML.OnnxRuntime.SessionOptions},ElBruno.QwenTTS.Pipeline.QwenModelVariant)">
+            <summary>
+            Creates a TtsPipeline from a local model directory.
+            </summary>
+            <param name="modelDir">Directory containing ONNX models, embeddings, and tokenizer.</param>
+            <param name="sessionOptionsFactory">Optional factory for ONNX Runtime session options (e.g., for GPU acceleration). When null, uses CPU with max optimization.</param>
+            <param name="vocoderSessionOptionsFactory">Optional separate factory for the vocoder model. Useful when GPU EP doesn't support vocoder ops (e.g., DirectML). When null, uses sessionOptionsFactory.</param>
+            <param name="variant">Model size variant. Used to determine feature support (e.g., instruction control).</param>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.TtsPipeline.Speakers">
+            <summary>Available speaker names from the model.</summary>
+        </member>
+        <member name="P:ElBruno.QwenTTS.Pipeline.TtsPipeline.ModelVariant">
+            <summary>The model variant this pipeline was created with.</summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.TtsPipeline.SynthesizeAsync(System.String,System.String,System.String,System.String,System.String,System.IProgress{System.String})">
+            <summary>
+            Synthesizes speech from text and saves the output to a WAV file.
+            </summary>
+            <param name="text">Input text to synthesize. Must not be null, empty, and cannot exceed 10,000 characters.</param>
+            <param name="speaker">Speaker name (must exist in model embeddings).</param>
+            <param name="outputPath">Path where the output WAV file will be saved.</param>
+            <param name="language">Language code (default: "auto" for auto-detection).</param>
+            <param name="instruct">Optional instruction prompt for voice style modification.</param>
+            <param name="progress">Optional progress reporter.</param>
+            <exception cref="T:System.ArgumentNullException">Thrown when text is null.</exception>
+            <exception cref="T:System.ArgumentException">Thrown when text is empty or exceeds 10,000 characters.</exception>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.TtsPipeline.SynthesizeAsync(System.String,ElBruno.QwenTTS.Pipeline.QwenVoicePreset,System.String,System.String,System.String,System.IProgress{System.String})">
+            <summary>
+            Synthesizes speech using a strongly-typed voice preset.
+            </summary>
+            <param name="text">Input text to synthesize. Must not be null, empty, and cannot exceed 10,000 characters.</param>
+            <param name="speaker">Voice preset (enum) to use for synthesis.</param>
+            <param name="outputPath">Path where the output WAV file will be saved.</param>
+            <param name="language">Language code (default: "auto" for auto-detection).</param>
+            <param name="instruct">Optional instruction prompt for voice style modification.</param>
+            <param name="progress">Optional progress reporter.</param>
+            <exception cref="T:System.ArgumentNullException">Thrown when text is null.</exception>
+            <exception cref="T:System.ArgumentException">Thrown when text is empty or exceeds 10,000 characters.</exception>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.TtsPipeline.CreateAsync(System.String,System.String,System.IProgress{System.String},System.Func{Microsoft.ML.OnnxRuntime.SessionOptions},System.Func{Microsoft.ML.OnnxRuntime.SessionOptions},ElBruno.QwenTTS.Pipeline.QwenModelVariant,System.Threading.CancellationToken)">
+            <summary>
+            Creates a TtsPipeline, automatically downloading model files if they are missing.
+            </summary>
+            <param name="modelDir">Directory to store/load model files. When null, uses the variant-specific default location.</param>
+            <param name="repoId">HuggingFace repository ID. When null with a variant, uses the variant's default repo.</param>
+            <param name="progress">Optional progress callback for download status.</param>
+            <param name="sessionOptionsFactory">Optional factory for ONNX Runtime session options (e.g., for GPU acceleration).</param>
+            <param name="vocoderSessionOptionsFactory">Optional separate factory for the vocoder model (e.g., CPU fallback for DirectML).</param>
+            <param name="variant">Model size variant. Defaults to 0.6B for backward compatibility.</param>
+            <param name="cancellationToken">Cancellation token.</param>
+        </member>
+        <member name="M:ElBruno.QwenTTS.Pipeline.TtsPipeline.CreateAsync(System.String,System.IProgress{ElBruno.QwenTTS.Pipeline.ModelDownloadProgress},System.String,System.Func{Microsoft.ML.OnnxRuntime.SessionOptions},System.Func{Microsoft.ML.OnnxRuntime.SessionOptions},ElBruno.QwenTTS.Pipeline.QwenModelVariant,System.Threading.CancellationToken)">
+            <summary>
+            Creates a TtsPipeline with detailed download progress reporting.
+            </summary>
+        </member>
+    </members>
+</doc>

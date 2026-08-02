@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>ElBruno.QwenTTS.BlazorComponents</name>
+    </assembly>
+    <members>
+        <member name="T:ElBruno.QwenTTS.BlazorComponents.Extensions.QwenTtsBlazorComponentsServiceExtensions">
+            <summary>
+            Registers services required by ElBruno.QwenTTS Blazor components.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.BlazorComponents.Extensions.QwenTtsBlazorComponentsServiceExtensions.AddQwenTtsBlazorComponents(Microsoft.Extensions.DependencyInjection.IServiceCollection)">
+            <summary>
+            Adds Qwen TTS Blazor component services.
+            </summary>
+        </member>
+        <member name="T:ElBruno.QwenTTS.BlazorComponents.Models.VoiceCloningSampleOption">
+            <summary>
+            Describes an audio sample that can be selected as a voice cloning reference.
+            </summary>
+        </member>
+        <member name="M:ElBruno.QwenTTS.BlazorComponents.Models.VoiceCloningSampleOption.#ctor(System.String,System.String,System.String,System.String,System.String)">
+            <summary>
+            Describes an audio sample that can be selected as a voice cloning reference.
+            </summary>
+        </member>
+    </members>
+</doc>

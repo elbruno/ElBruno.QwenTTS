@@ -1,0 +1,201 @@
+@page "/"
+@rendermode InteractiveServer
+
+<PageTitle>Blazor QwenTTS Components Demo</PageTitle>
+
+<h1>ElBruno.QwenTTS.BlazorComponents</h1>
+<p class="qwen-muted">Demo app for issue #62 showing all five reusable components.</p>
+
+<ModelDownloadStatus
+    ModelName="Qwen3-TTS Model"
+    IsReady="@_modelReady"
+    IsInitializing="@_isInitializing"
+    IsModelDownloaded="@_isModelDownloaded"
+    ModelDirectory="@_modelDir"
+    DownloadProgress="@_downloadProgress"
+    Error="@_modelError"
+    OnInitializeRequested="SimulateModelInitialization" />
+
+<TtsInputPanel
+    Title="TTS Input Panel"
+    Text="@_text"
+    TextChanged="OnTextChanged"
+    SelectedLanguage="@_language"
+    SelectedLanguageChanged="OnLanguageChanged"
+    SelectedSpeaker="@_speaker"
+    SelectedSpeakerChanged="OnSpeakerChanged"
+    InstructText="@_instruct"
+    InstructTextChanged="OnInstructChanged"
+    SupportsInstruct="true"
+    Speakers="@_speakers"
+    IsGenerating="@_isGenerating"
+    IsGenerateDisabled="@(!_modelReady || _isGenerating || string.IsNullOrWhiteSpace(_text))"
+    OnGenerateRequested="GenerateAsync" />
+
+<SynthesisProgressBar
+    IsActive="@_isGenerating"
+    StatusMessage="@_progressStatus"
+    CompletedSteps="@_completedSteps"
+    TotalSteps="@_totalSteps" />
+
+<VoiceCloningSamplePicker
+    Samples="@_voiceSamples"
+    SelectedSampleId="@_selectedSampleId"
+    SelectedSampleIdChanged="OnSelectedSampleIdChanged"
+    OnSampleSelected="OnSampleSelected" />
+
+<VoiceSamplePlayer
+    Label="Standalone VoiceSamplePlayer"
+    AudioUrl="@_selectedAudioUrl"
+    ShowDownload="false"
+    EmptyMessage="Pick a sample to preview it here." />
+
+@if (!string.IsNullOrWhiteSpace(_lastGenerationMessage))
+{
+    <div class="alert alert-success mt-3">@_lastGenerationMessage</div>
+}
+
+@code {
+    private readonly string _modelDir = ModelDownloader.DefaultModelDir;
+    private bool _isModelDownloaded;
+    private bool _isInitializing;
+    private bool _modelReady;
+    private string? _modelError;
+    private ModelDownloadProgress? _downloadProgress;
+
+    private string _text = "Hello from the reusable Blazor QwenTTS component library.";
+    private string _language = "english";
+    private string _speaker = "ryan";
+    private string _instruct = "Read with a calm, friendly tone.";
+    private bool _isGenerating;
+    private int _completedSteps;
+    private int _totalSteps;
+    private string _progressStatus = "Idle";
+    private string? _lastGenerationMessage;
+
+    private string? _selectedSampleId;
+    private string? _selectedAudioUrl;
+    private readonly List<string> _speakers = ["ryan", "sarah", "andrew", "elena"];
+    private readonly List<VoiceCloningSampleOption> _voiceSamples =
+    [
+        new(
+            Id: "sample-en",
+            DisplayName: "English sample",
+            AudioUrl: "https://upload.wikimedia.org/wikipedia/commons/4/45/En-us-example.ogg",
+            Transcript: "The quick brown fox jumps over the lazy dog.",
+            Description: "Short English phrase"),
+        new(
+            Id: "sample-es",
+            DisplayName: "Spanish sample",
+            AudioUrl: "https://upload.wikimedia.org/wikipedia/commons/c/c8/Es-hola.ogg",
+            Transcript: "Hola, esta es una muestra de referencia.",
+            Description: "Short Spanish phrase")
+    ];
+
+    protected override void OnInitialized()
+    {
+        _isModelDownloaded = false;
+        _modelReady = false;
+    }
+
+    private async Task SimulateModelInitialization()
+    {
+        _modelError = null;
+        _isInitializing = true;
+        _modelReady = false;
+        _downloadProgress = null;
+
+        try
+        {
+            for (var i = 1; i <= 5; i++)
+            {
+                _downloadProgress = new ModelDownloadProgress(
+                    CurrentFile: i,
+                    TotalFiles: 5,
+                    FileName: $"model-part-{i}.onnx",
+                    Message: $"Downloading file {i}/5",
+                    BytesDownloaded: i * 20,
+                    TotalBytes: 100);
+                StateHasChanged();
+                await Task.Delay(300);
+            }
+
+            _isModelDownloaded = true;
+            _modelReady = true;
+            _downloadProgress = null;
+        }
+        catch (Exception ex)
+        {
+            _modelError = ex.Message;
+        }
+        finally
+        {
+            _isInitializing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GenerateAsync()
+    {
+        _lastGenerationMessage = null;
+        _isGenerating = true;
+        _completedSteps = 0;
+        _totalSteps = 3;
+
+        for (var i = 1; i <= _totalSteps; i++)
+        {
+            _progressStatus = i switch
+            {
+                1 => "Tokenizing input...",
+                2 => "Running language model...",
+                _ => "Decoding waveform..."
+            };
+            _completedSteps = i;
+            StateHasChanged();
+            await Task.Delay(450);
+        }
+
+        _progressStatus = "Complete!";
+        _isGenerating = false;
+        _lastGenerationMessage = $"Synthesis finished for speaker '{_speaker}' in '{_language}'.";
+    }
+
+    private Task OnSampleSelected(VoiceCloningSampleOption option)
+    {
+        _selectedSampleId = option.Id;
+        _selectedAudioUrl = option.AudioUrl;
+        return Task.CompletedTask;
+    }
+
+    private Task OnSelectedSampleIdChanged(string? sampleId)
+    {
+        _selectedSampleId = sampleId;
+        var sample = _voiceSamples.FirstOrDefault(x => x.Id == sampleId);
+        _selectedAudioUrl = sample?.AudioUrl;
+        return Task.CompletedTask;
+    }
+
+    private Task OnTextChanged(string value)
+    {
+        _text = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnLanguageChanged(string value)
+    {
+        _language = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnSpeakerChanged(string value)
+    {
+        _speaker = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnInstructChanged(string value)
+    {
+        _instruct = value;
+        return Task.CompletedTask;
+    }
+}

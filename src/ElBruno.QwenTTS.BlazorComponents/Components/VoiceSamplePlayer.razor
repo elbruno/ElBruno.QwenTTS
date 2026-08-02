@@ -1,0 +1,49 @@
+<div class="qwen-audio-card">
+    @if (!string.IsNullOrWhiteSpace(Label))
+    {
+        <div class="qwen-audio-title">@Label</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(ResolvedAudioUrl))
+    {
+        <audio controls src="@ResolvedAudioUrl" preload="@Preload" autoplay="@AutoPlay"></audio>
+        @if (ShowDownload)
+        {
+            <div style="margin-top:0.4rem;">
+                <a href="@ResolvedAudioUrl" download="@DownloadFileName" class="btn btn-sm btn-outline-primary">⬇ Download WAV</a>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="qwen-muted">@EmptyMessage</div>
+    }
+</div>
+
+@code {
+    [Parameter] public Stream? AudioStream { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public bool AutoPlay { get; set; }
+    [Parameter] public string? AudioUrl { get; set; }
+    [Parameter] public bool ShowDownload { get; set; } = true;
+    [Parameter] public string DownloadFileName { get; set; } = "sample.wav";
+    [Parameter] public string Preload { get; set; } = "metadata";
+    [Parameter] public string EmptyMessage { get; set; } = "No audio available.";
+
+    private string? ResolvedAudioUrl { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (AudioStream is not null)
+        {
+            if (AudioStream.CanSeek)
+                AudioStream.Position = 0;
+
+            using var buffer = new MemoryStream();
+            await AudioStream.CopyToAsync(buffer);
+            ResolvedAudioUrl = $"data:audio/wav;base64,{Convert.ToBase64String(buffer.ToArray())}";
+            return;
+        }
+
+        ResolvedAudioUrl = AudioUrl;
+    }
+}

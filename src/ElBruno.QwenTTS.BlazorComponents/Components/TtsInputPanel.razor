@@ -1,0 +1,124 @@
+<div class="qwen-card">
+    <h3>@Title</h3>
+    <textarea class="form-control" rows="@Rows" placeholder="@Placeholder" value="@Text" @oninput="OnTextChanged"></textarea>
+
+    <div class="qwen-inline">
+        <div>
+            <label class="form-label">Language</label>
+            <select class="form-select form-select-sm" value="@SelectedLanguage" @onchange="OnLanguageChanged">
+                @foreach (var language in LanguageOptions)
+                {
+                    <option value="@language.Value">@language.Label</option>
+                }
+            </select>
+        </div>
+
+        @if (SpeakerOptions.Count > 0)
+        {
+            <div>
+                <label class="form-label">Speaker</label>
+                <select class="form-select form-select-sm" value="@SelectedSpeaker" @onchange="OnSpeakerChanged">
+                    @foreach (var speaker in SpeakerOptions)
+                    {
+                        <option value="@speaker">@speaker</option>
+                    }
+                </select>
+            </div>
+        }
+    </div>
+
+    <div style="margin-top:0.5rem;">
+        <label class="form-label">Instruction</label>
+        <input class="form-control form-control-sm" value="@InstructText" @oninput="OnInstructChanged" disabled="@(!SupportsInstruct)" placeholder="@(SupportsInstruct ? "Optional style instruction" : "Requires a model variant with instruct support")" />
+    </div>
+
+    <div class="qwen-footer-row">
+        <span class="qwen-muted">@Text.Length character(s)</span>
+        <button class="btn btn-primary" @onclick="HandleGenerateAsync" disabled="@IsGenerateDisabled">
+            @if (IsGenerating)
+            {
+                <span class="spinner-border spinner-border-sm me-2"></span>
+                <span>Generating...</span>
+            }
+            else
+            {
+                <span>@GenerateButtonText</span>
+            }
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public IQwenTtsService? TtsService { get; set; }
+    [Parameter] public string? VoicePreset { get; set; }
+    [Parameter] public EventCallback<Stream> OnAudioReady { get; set; }
+    [Parameter] public string Title { get; set; } = "Input";
+    [Parameter] public string Placeholder { get; set; } = "Enter text to synthesize...";
+    [Parameter] public string GenerateButtonText { get; set; } = "Generate Speech";
+    [Parameter] public int Rows { get; set; } = 4;
+    [Parameter] public string Text { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> TextChanged { get; set; }
+    [Parameter] public string SelectedLanguage { get; set; } = "auto";
+    [Parameter] public EventCallback<string> SelectedLanguageChanged { get; set; }
+    [Parameter] public string SelectedSpeaker { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> SelectedSpeakerChanged { get; set; }
+    [Parameter] public string InstructText { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> InstructTextChanged { get; set; }
+    [Parameter] public IReadOnlyList<string> Speakers { get; set; } = [];
+    [Parameter] public IReadOnlyList<QwenLanguageOption> Languages { get; set; } = [];
+    [Parameter] public bool SupportsInstruct { get; set; }
+    [Parameter] public bool IsGenerating { get; set; }
+    [Parameter] public bool IsGenerateDisabled { get; set; }
+    [Parameter] public EventCallback OnGenerateRequested { get; set; }
+
+    private IReadOnlyList<QwenLanguageOption> LanguageOptions =>
+        Languages.Count > 0 ? Languages : QwenLanguageCatalog.Options;
+
+    private IReadOnlyList<string> SpeakerOptions => Speakers ?? [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (SpeakerOptions.Count > 0 &&
+            !SpeakerOptions.Contains(SelectedSpeaker, StringComparer.OrdinalIgnoreCase))
+        {
+            SelectedSpeaker = SpeakerOptions[0];
+            await SelectedSpeakerChanged.InvokeAsync(SelectedSpeaker);
+        }
+    }
+
+    private async Task OnTextChanged(ChangeEventArgs args)
+    {
+        Text = args.Value?.ToString() ?? string.Empty;
+        await TextChanged.InvokeAsync(Text);
+    }
+
+    private async Task OnLanguageChanged(ChangeEventArgs args)
+    {
+        SelectedLanguage = args.Value?.ToString() ?? "auto";
+        await SelectedLanguageChanged.InvokeAsync(SelectedLanguage);
+    }
+
+    private async Task OnSpeakerChanged(ChangeEventArgs args)
+    {
+        SelectedSpeaker = args.Value?.ToString() ?? string.Empty;
+        await SelectedSpeakerChanged.InvokeAsync(SelectedSpeaker);
+    }
+
+    private async Task OnInstructChanged(ChangeEventArgs args)
+    {
+        InstructText = args.Value?.ToString() ?? string.Empty;
+        await InstructTextChanged.InvokeAsync(InstructText);
+    }
+
+    private async Task HandleGenerateAsync()
+    {
+        if (OnGenerateRequested.HasDelegate)
+            await OnGenerateRequested.InvokeAsync();
+
+        if (TtsService is not null && OnAudioReady.HasDelegate && !string.IsNullOrWhiteSpace(Text))
+        {
+            var audio = await TtsService.SynthesizeAsync(Text, VoicePreset);
+            await OnAudioReady.InvokeAsync(audio);
+        }
+    }
+}

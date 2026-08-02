@@ -1,0 +1,123 @@
+.qwen-card {
+    border: 1px solid #d7dbe2;
+    border-radius: 10px;
+    padding: 1rem;
+    background: #fff;
+    margin-bottom: 1rem;
+}
+
+.qwen-card h3 {
+    margin: 0 0 0.75rem 0;
+    font-size: 1.05rem;
+}
+
+.qwen-muted {
+    font-size: 0.84rem;
+    color: #667085;
+}
+
+.qwen-error {
+    color: #b42318;
+    font-size: 0.9rem;
+}
+
+.qwen-track {
+    width: 100%;
+    height: 10px;
+    background: #eaecf0;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.qwen-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6941c6, #7f56d9);
+    transition: width .25s ease;
+}
+
+.qwen-progress-container {
+    margin: 0.75rem 0;
+}
+
+.qwen-progress-label {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.35rem;
+    font-size: 0.82rem;
+    color: #667085;
+}
+
+.qwen-indeterminate {
+    width: 40%;
+    animation: qwen-slide 1.2s infinite;
+}
+
+@keyframes qwen-slide {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(250%); }
+}
+
+.qwen-inline {
+    margin-top: 0.7rem;
+    display: grid;
+    gap: 0.7rem;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.qwen-footer-row {
+    margin-top: 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.qwen-audio-card {
+    border: 1px solid #e4e7ec;
+    border-radius: 8px;
+    padding: 0.8rem;
+    background: #fcfcfd;
+}
+
+.qwen-audio-card audio {
+    width: 100%;
+}
+
+.qwen-audio-title {
+    font-weight: 600;
+    margin-bottom: 0.45rem;
+}
+
+.qwen-sample-grid {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.qwen-sample-item {
+    text-align: left;
+    border: 1px solid #d0d5dd;
+    border-radius: 8px;
+    background: #fff;
+    padding: 0.55rem 0.7rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.qwen-sample-item span {
+    margin-top: 0.15rem;
+    font-size: 0.8rem;
+    color: #667085;
+}
+
+.qwen-sample-item.selected {
+    border-color: #7f56d9;
+    background: #f9f5ff;
+}
+
+.qwen-transcript {
+    margin-top: 0.6rem;
+    padding: 0.65rem;
+    border-radius: 8px;
+    border: 1px solid #eaecf0;
+    background: #f8fafc;
+    font-size: 0.86rem;
+}
