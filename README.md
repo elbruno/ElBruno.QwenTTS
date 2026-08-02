@@ -15,6 +15,14 @@ Pre-exported ONNX models are hosted on HuggingFace:
 [**elbruno/Qwen3-TTS-12Hz-1.7B-CustomVoice-ONNX**](https://huggingface.co/elbruno/Qwen3-TTS-12Hz-1.7B-CustomVoice-ONNX) (1.7B preset voices + instruct) |
 [**elbruno/Qwen3-TTS-12Hz-0.6B-Base-ONNX**](https://huggingface.co/elbruno/Qwen3-TTS-12Hz-0.6B-Base-ONNX) (voice cloning)
 
+## What's New
+
+- Russian language support across CLI, web app, file reader, and client defaults
+- Voice cloning package (`ElBruno.QwenTTS.VoiceCloning`) with ICL mode improvements
+- 1.7B model variant with natural-language instruct control
+- GPU acceleration options (CUDA and DirectML)
+- Blazor web UI for text-to-speech and voice cloning
+
 ## Features
 
 - **Local TTS Inference** — Run Qwen3-TTS entirely on your machine using ONNX Runtime
@@ -232,6 +240,10 @@ Open [http://localhost:5153](http://localhost:5153) — two pages:
 | [CLI Reference](docs/cli-reference.md) | All command options, speakers, and examples |
 | [File Reader](docs/file-reader.md) | Batch audio generation from text and SRT files |
 | [Web App](docs/web-app.md) | Blazor web UI for speech generation |
+| [Blazor Components](docs/blazor-components.md) | Reusable Razor components package for TTS and voice cloning UIs |
+| [Blazor Demo Sample](docs/blazor-qwen-tts-demo.md) | How to run and validate the BlazorQwenTtsDemo sample app |
+| [Release Validation Checklist](docs/release-validation-checklist.md) | Issue/PR validation and merge-to-release gates |
+| [What's New Policy](docs/whats-new-policy.md) | Rules for maintaining the README "What's New" section |
 | [Architecture](docs/architecture.md) | Pipeline design, model components, project structure |
 | [Exporting Models](docs/exporting-models.md) | Re-exporting ONNX models from PyTorch weights |
 | [Voice Cloning](docs/voice-cloning.md) | Clone any voice from a 3-second reference audio |

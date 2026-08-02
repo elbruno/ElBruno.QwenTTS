@@ -1,0 +1,72 @@
+<div class="qwen-card">
+    @if (IsReady)
+    {
+        <h3>✅ @DisplayName Ready</h3>
+        <div class="qwen-muted">@ReadyMessage</div>
+    }
+    else if (DownloadProgress is not null)
+    {
+        <h3>⬇️ Downloading @DisplayName</h3>
+        <div class="qwen-track" style="margin-bottom:0.5rem;">
+            <div class="qwen-fill" style="width:@DownloadProgress.FilePercentage.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></div>
+        </div>
+        <div class="qwen-muted">
+            [@DownloadProgress.CurrentFile/@DownloadProgress.TotalFiles] @DownloadProgress.Message
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(Error))
+    {
+        <h3>⚠️ @DisplayName Error</h3>
+        <div class="qwen-error">@Error</div>
+        @if (OnInitializeRequested.HasDelegate)
+        {
+            <button class="btn btn-sm btn-primary mt-2" @onclick="OnInitializeRequested">Retry</button>
+        }
+    }
+    else if (!IsModelDownloaded && !IsInitializing)
+    {
+        <h3>📦 @DisplayName Not Found</h3>
+        <div class="qwen-muted" style="margin-bottom:0.5rem;">
+            @MissingMessage
+        </div>
+        @if (!string.IsNullOrWhiteSpace(ModelDirectory))
+        {
+            <div class="qwen-muted">
+                <span class="me-1">Location:</span><code>@ModelDirectory</code>
+            </div>
+        }
+        @if (OnInitializeRequested.HasDelegate)
+        {
+            <button class="btn btn-primary mt-2" @onclick="OnInitializeRequested">⬇️ Download Model</button>
+        }
+    }
+    else
+    {
+        <h3>⏳ Loading @DisplayName...</h3>
+        <div class="qwen-muted">@LoadingMessage</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string ModelName { get; set; } = "Model";
+    [Parameter] public string ModelId { get; set; } = string.Empty;
+    [Parameter] public bool IsReady { get; set; }
+    [Parameter] public bool IsInitializing { get; set; }
+    [Parameter] public bool IsModelDownloaded { get; set; }
+    [Parameter] public string? ModelDirectory { get; set; }
+    [Parameter] public ModelDownloadProgress? DownloadProgress { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public string ReadyMessage { get; set; } = "Model files are loaded.";
+    [Parameter] public string MissingMessage { get; set; } = "Download is required before synthesis.";
+    [Parameter] public string LoadingMessage { get; set; } = "Model files found — loading ONNX sessions...";
+    [Parameter] public EventCallback OnInitializeRequested { get; set; }
+    [Parameter] public EventCallback OnModelReady { get; set; }
+
+    private string DisplayName => string.IsNullOrWhiteSpace(ModelId) ? ModelName : ModelId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsReady && OnModelReady.HasDelegate)
+            await OnModelReady.InvokeAsync();
+    }
+}

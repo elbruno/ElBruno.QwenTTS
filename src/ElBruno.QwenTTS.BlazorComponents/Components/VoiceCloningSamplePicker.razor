@@ -1,0 +1,87 @@
+<div class="qwen-card">
+    <h3>@Title</h3>
+    <InputFile OnChange="OnReferenceAudioChangedAsync" accept=".wav,.mp3,audio/wav,audio/mpeg" />
+    @if (SampleList.Count == 0)
+    {
+        <div class="qwen-muted">No samples configured.</div>
+    }
+    else
+    {
+        <div class="qwen-sample-grid">
+            @foreach (var sample in SampleList)
+            {
+                <button class="qwen-sample-item @(sample.Id == SelectedSampleId ? "selected" : "")"
+                        @onclick="() => SelectSampleAsync(sample)">
+                    <strong>@sample.DisplayName</strong>
+                    @if (!string.IsNullOrWhiteSpace(sample.Description))
+                    {
+                        <span>@sample.Description</span>
+                    }
+                </button>
+            }
+        </div>
+
+        @if (SelectedSample is not null)
+        {
+            <div style="margin-top:0.85rem;">
+                <VoiceSamplePlayer
+                    Label="@($"Selected sample: {SelectedSample.DisplayName}")"
+                    AudioUrl="@SelectedSample.AudioUrl"
+                    ShowDownload="@ShowDownload" />
+            </div>
+
+            @if (ShowTranscript && !string.IsNullOrWhiteSpace(SelectedSample.Transcript))
+            {
+                <div class="qwen-transcript">@SelectedSample.Transcript</div>
+            }
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public IVoiceCloningService? VoiceCloningService { get; set; }
+    [Parameter] public EventCallback<VoiceEmbedding> OnVoiceReady { get; set; }
+    [Parameter] public string Title { get; set; } = "Reference Voice Samples";
+    [Parameter] public IReadOnlyList<VoiceCloningSampleOption> Samples { get; set; } = [];
+    [Parameter] public string? SelectedSampleId { get; set; }
+    [Parameter] public EventCallback<string?> SelectedSampleIdChanged { get; set; }
+    [Parameter] public EventCallback<VoiceCloningSampleOption> OnSampleSelected { get; set; }
+    [Parameter] public bool ShowTranscript { get; set; } = true;
+    [Parameter] public bool ShowDownload { get; set; } = false;
+
+    private IReadOnlyList<VoiceCloningSampleOption> SampleList => Samples ?? [];
+
+    private VoiceCloningSampleOption? SelectedSample =>
+        SampleList.FirstOrDefault(x => string.Equals(x.Id, SelectedSampleId, StringComparison.Ordinal));
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (SelectedSampleId is null && SampleList.Count > 0)
+        {
+            var first = SampleList[0];
+            SelectedSampleId = first.Id;
+            await SelectedSampleIdChanged.InvokeAsync(first.Id);
+            if (OnSampleSelected.HasDelegate)
+                await OnSampleSelected.InvokeAsync(first);
+        }
+    }
+
+    private async Task SelectSampleAsync(VoiceCloningSampleOption sample)
+    {
+        SelectedSampleId = sample.Id;
+        await SelectedSampleIdChanged.InvokeAsync(sample.Id);
+        if (OnSampleSelected.HasDelegate)
+            await OnSampleSelected.InvokeAsync(sample);
+    }
+
+    private async Task OnReferenceAudioChangedAsync(InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+        if (file is null || VoiceCloningService is null || !OnVoiceReady.HasDelegate)
+            return;
+
+        await using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+        var embedding = await VoiceCloningService.CloneAsync(stream);
+        await OnVoiceReady.InvokeAsync(embedding);
+    }
+}

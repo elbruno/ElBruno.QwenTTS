@@ -1,0 +1,45 @@
+@if (IsActive)
+{
+    <div class="qwen-progress-container">
+        <div class="qwen-track progress">
+            @if (Indeterminate)
+            {
+                <div class="qwen-fill qwen-indeterminate"></div>
+            }
+            else
+            {
+                <div class="qwen-fill progress-bar" style="width:@ComputedPercentage.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></div>
+            }
+        </div>
+        <div class="qwen-progress-label">
+            <span>@StatusMessage</span>
+            @if (ShowChunkCount && !Indeterminate && TotalSteps > 0)
+            {
+                <span>@CompletedSteps / @TotalSteps</span>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public IQwenTtsService? TtsService { get; set; }
+    [Parameter] public bool ShowChunkCount { get; set; } = true;
+    [Parameter] public bool IsActive { get; set; }
+    [Parameter] public bool Indeterminate { get; set; }
+    [Parameter] public int CompletedSteps { get; set; }
+    [Parameter] public int TotalSteps { get; set; }
+    [Parameter] public double? Percentage { get; set; }
+    [Parameter] public string StatusMessage { get; set; } = "Working...";
+
+    private double ComputedPercentage
+    {
+        get
+        {
+            if (Percentage.HasValue)
+                return Math.Clamp(Percentage.Value, 0, 100);
+            if (TotalSteps <= 0)
+                return 0;
+            return Math.Clamp(CompletedSteps * 100.0 / TotalSteps, 0, 100);
+        }
+    }
+}
