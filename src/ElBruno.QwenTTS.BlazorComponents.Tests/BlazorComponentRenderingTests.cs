@@ -79,4 +79,51 @@ public sealed class BlazorComponentRenderingTests : TestContext
 
         Assert.True(cut.FindAll(".progress, progress, .progress-bar").Count > 0);
     }
+
+    [Fact]
+    public void VoiceCloneReferenceAudioInput_RendersWavInputWithoutRecording()
+    {
+        var type = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Components.VoiceCloneReferenceAudioInput");
+
+        var cut = RenderByType(type, ComponentParameter.CreateParameter("EnableRecording", false));
+
+        var input = cut.Find("input[type='file']");
+        Assert.Contains(".wav", input.GetAttribute("accept"), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Maximum file size: 1 MiB.", cut.Markup);
+    }
+
+    [Fact]
+    public void VoiceCloneReferenceAudioInput_ShowsUnavailableRecordingState()
+    {
+        JSInterop.Setup<bool>("qwenTtsRecording.isAvailable").SetResult(false);
+        var type = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Components.VoiceCloneReferenceAudioInput");
+
+        var cut = RenderByType(type);
+
+        Assert.Contains("Browser recording is unavailable.", cut.Markup);
+        Assert.NotNull(cut.Find("button").GetAttribute("disabled"));
+    }
+
+    [Fact]
+    public void VoiceCloneForm_RendersOptionalTranscriptAndDisabledSubmit()
+    {
+        var type = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Components.VoiceCloneForm");
+
+        var cut = RenderByType(type, ComponentParameter.CreateParameter("IsDisabled", true));
+
+        Assert.Equal(2, cut.FindAll("textarea").Count);
+        Assert.NotNull(cut.Find("button").GetAttribute("disabled"));
+    }
+
+    [Fact]
+    public void VoiceCloneWorkflowStatus_RendersProgressMessage()
+    {
+        var type = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Components.VoiceCloneWorkflowStatus");
+        var progressType = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Models.VoiceCloneProgress");
+        var progress = Activator.CreateInstance(progressType, "Preparing reference audio", 50d, false);
+
+        var cut = RenderByType(type, ComponentParameter.CreateParameter("Progress", progress));
+
+        Assert.Contains("Preparing reference audio", cut.Markup);
+    }
 }

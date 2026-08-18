@@ -1,0 +1,22 @@
+@if (Progress is not null || !string.IsNullOrWhiteSpace(Error))
+{
+    <div class="qwen-card qwen-voice-clone-status" role="status">
+        @if (!string.IsNullOrWhiteSpace(Error))
+        {
+            <div class="qwen-error" role="alert">@Error</div>
+        }
+        else if (Progress is not null)
+        {
+            <SynthesisProgressBar IsActive="true"
+                                  Indeterminate="@Progress.IsIndeterminate"
+                                  Percentage="@Progress.Percentage"
+                                  StatusMessage="@Progress.Message"
+                                  ShowChunkCount="false" />
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public VoiceCloneProgress? Progress { get; set; }
+    [Parameter] public string? Error { get; set; }
+}

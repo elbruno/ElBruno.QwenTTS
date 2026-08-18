@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using ElBruno.QwenTTS.BlazorComponents.Models;
 using ElBruno.QwenTTS.BlazorComponents.Tests.TestHelpers;
 
 namespace ElBruno.QwenTTS.BlazorComponents.Tests;
@@ -71,5 +72,33 @@ public class BlazorComponentContractsTests
 
         var showChunkCount = BlazorComponentsTestHelpers.RequireParameterProperty(type, "ShowChunkCount");
         Assert.Equal(typeof(bool), showChunkCount.PropertyType);
+    }
+
+    [Fact]
+    public void VoiceCloneReferenceAudioInput_ExposesHostOwnedCallbacks()
+    {
+        var type = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Components.VoiceCloneReferenceAudioInput");
+
+        Assert.Equal(typeof(bool), BlazorComponentsTestHelpers.RequireParameterProperty(type, "Disabled").PropertyType);
+        Assert.Equal(typeof(long), BlazorComponentsTestHelpers.RequireParameterProperty(type, "MaxFileSize").PropertyType);
+        Assert.Equal(typeof(EventCallback<>), BlazorComponentsTestHelpers.RequireParameterProperty(type, "ValueChanged").PropertyType.GetGenericTypeDefinition());
+    }
+
+    [Fact]
+    public void VoiceCloneReferenceAudioLimit_FitsWithinSignalRPayloadBudget()
+    {
+        Assert.Equal(1 * 1024 * 1024, VoiceCloneReferenceAudioLimits.MaxPayloadBytes);
+        Assert.True((VoiceCloneReferenceAudioLimits.MaxPayloadBytes * 4 / 3) < 2 * 1024 * 1024);
+    }
+
+    [Fact]
+    public void VoiceCloneForm_ExposesRequestAndCancellationCallbacks()
+    {
+        var type = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Components.VoiceCloneForm");
+
+        var submit = BlazorComponentsTestHelpers.RequireParameterProperty(type, "OnSubmit");
+        Assert.Equal(typeof(EventCallback<>), submit.PropertyType.GetGenericTypeDefinition());
+        Assert.Equal("VoiceCloneRequest", submit.PropertyType.GetGenericArguments()[0].Name);
+        Assert.Equal(typeof(EventCallback), BlazorComponentsTestHelpers.RequireParameterProperty(type, "OnCancel").PropertyType);
     }
 }
