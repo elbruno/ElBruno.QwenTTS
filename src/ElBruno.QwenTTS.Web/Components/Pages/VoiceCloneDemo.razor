@@ -1,0 +1,131 @@
+@page "/voice-clone-demo"
+@rendermode InteractiveServer
+
+<PageTitle>Voice Clone Demo — Qwen TTS</PageTitle>
+
+<div class="main-content">
+    <h1>Voice cloning demo</h1>
+    <p class="qwen-muted">This route exercises the component callbacks with deterministic local audio; it never loads models or accesses external services.</p>
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <VoiceCloneReferenceAudioInput Value="@_referenceAudio"
+                                           ValueChanged="SetReferenceAsync"
+                                           OnError="SetErrorAsync"
+                                           Disabled="@_isSubmitting" />
+            <VoiceCloneForm Text="@_text"
+                            TextChanged="SetTextAsync"
+                            ReferenceAudio="@_referenceAudio"
+                            ReferenceTranscript="@_transcript"
+                            ReferenceTranscriptChanged="SetTranscriptAsync"
+                            IsSubmitting="@_isSubmitting"
+                            OnSubmit="GenerateAsync"
+                            OnCancel="Cancel" />
+            <VoiceCloneWorkflowStatus Progress="@_progress" Error="@_error" />
+        </div>
+        <div class="col-lg-5">
+            <div class="tts-card">
+                <h3>Simulated output</h3>
+                @if (_resultUrl is null)
+                {
+                    <div class="output-empty">Submit a request to generate deterministic sample audio.</div>
+                }
+                else
+                {
+                    <VoiceSamplePlayer Label="Demo output" AudioUrl="@_resultUrl" DownloadFileName="voice-clone-demo.wav" />
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private VoiceCloneReferenceAudio? _referenceAudio;
+    private string _text = string.Empty;
+    private string? _transcript;
+    private string? _resultUrl;
+    private string? _error;
+    private VoiceCloneProgress? _progress;
+    private bool _isSubmitting;
+    private CancellationTokenSource? _cancellation;
+
+    private Task SetReferenceAsync(VoiceCloneReferenceAudio? value)
+    {
+        _referenceAudio = value;
+        return Task.CompletedTask;
+    }
+
+    private Task SetErrorAsync(string error)
+    {
+        _error = error;
+        return Task.CompletedTask;
+    }
+
+    private Task SetTextAsync(string value)
+    {
+        _text = value;
+        return Task.CompletedTask;
+    }
+
+    private Task SetTranscriptAsync(string? value)
+    {
+        _transcript = value;
+        return Task.CompletedTask;
+    }
+
+    private async Task GenerateAsync(VoiceCloneRequest request)
+    {
+        _error = null;
+        _isSubmitting = true;
+        _cancellation = new CancellationTokenSource();
+        try
+        {
+            _progress = new VoiceCloneProgress("Preparing deterministic demo audio...", IsIndeterminate: true);
+            await Task.Delay(100, _cancellation.Token);
+            _cancellation.Token.ThrowIfCancellationRequested();
+            _resultUrl = $"data:audio/wav;base64,{Convert.ToBase64String(CreateSilentWav())}";
+            _progress = new VoiceCloneProgress(
+                string.IsNullOrWhiteSpace(request.ReferenceTranscript)
+                    ? "Complete: embedding-only demo."
+                    : "Complete: ICL transcript demo.",
+                100);
+        }
+        catch (OperationCanceledException)
+        {
+            _error = "Demo generation was cancelled.";
+        }
+        finally
+        {
+            _cancellation?.Dispose();
+            _cancellation = null;
+            _isSubmitting = false;
+        }
+    }
+
+    private Task Cancel()
+    {
+        _cancellation?.Cancel();
+        return Task.CompletedTask;
+    }
+
+    private static byte[] CreateSilentWav()
+    {
+        const int sampleRate = 8000;
+        const int dataLength = sampleRate / 10 * 2;
+        var bytes = new byte[44 + dataLength];
+        bytes[0] = (byte)'R'; bytes[1] = (byte)'I'; bytes[2] = (byte)'F'; bytes[3] = (byte)'F';
+        BitConverter.GetBytes(36 + dataLength).CopyTo(bytes, 4);
+        bytes[8] = (byte)'W'; bytes[9] = (byte)'A'; bytes[10] = (byte)'V'; bytes[11] = (byte)'E';
+        bytes[12] = (byte)'f'; bytes[13] = (byte)'m'; bytes[14] = (byte)'t'; bytes[15] = (byte)' ';
+        BitConverter.GetBytes(16).CopyTo(bytes, 16);
+        BitConverter.GetBytes((short)1).CopyTo(bytes, 20);
+        BitConverter.GetBytes((short)1).CopyTo(bytes, 22);
+        BitConverter.GetBytes(sampleRate).CopyTo(bytes, 24);
+        BitConverter.GetBytes(sampleRate * 2).CopyTo(bytes, 28);
+        BitConverter.GetBytes((short)2).CopyTo(bytes, 32);
+        BitConverter.GetBytes((short)16).CopyTo(bytes, 34);
+        bytes[36] = (byte)'d'; bytes[37] = (byte)'a'; bytes[38] = (byte)'t'; bytes[39] = (byte)'a';
+        BitConverter.GetBytes(dataLength).CopyTo(bytes, 40);
+        return bytes;
+    }
+}

@@ -1,0 +1,208 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JsRuntime
+
+<div class="qwen-card qwen-reference-audio-input">
+    <h3>@Title</h3>
+    <label class="form-label" for="@InputId">@UploadLabel</label>
+    <div class="qwen-muted">Maximum file size: 1 MiB.</div>
+    <InputFile id="@InputId"
+               class="form-control"
+               OnChange="OnFileChangedAsync"
+               accept=".wav,audio/wav,audio/x-wav"
+               disabled="@Disabled" />
+
+    @if (EnableRecording)
+    {
+        <div class="qwen-recording-actions">
+            @if (IsRecording)
+            {
+                <button type="button" class="btn btn-danger" @onclick="StopRecordingAsync" disabled="@Disabled">
+                    Stop recording
+                </button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-outline-primary" @onclick="StartRecordingAsync" disabled="@(!CanRecord)">
+                    Record reference audio
+                </button>
+            }
+        </div>
+
+        @if (RecordingAvailabilityMessage is not null)
+        {
+            <div class="qwen-muted" role="status">@RecordingAvailabilityMessage</div>
+        }
+    }
+
+    @if (Value is not null)
+    {
+        <div class="qwen-muted" role="status">Selected: @Value.FileName</div>
+    }
+
+    @if (ValidationMessage is not null)
+    {
+        <div class="qwen-error" role="alert">@ValidationMessage</div>
+    }
+</div>
+
+@code {
+    private readonly string InputId = $"qwen-reference-audio-{Guid.NewGuid():N}";
+    private string? ValidationMessage;
+    private string? RecordingAvailabilityMessage;
+    private bool? IsRecordingAvailable;
+
+    [Parameter] public string Title { get; set; } = "Reference audio";
+    [Parameter] public string UploadLabel { get; set; } = "Upload a WAV file";
+    [Parameter] public VoiceCloneReferenceAudio? Value { get; set; }
+    [Parameter] public EventCallback<VoiceCloneReferenceAudio?> ValueChanged { get; set; }
+    [Parameter] public EventCallback<string> OnError { get; set; }
+    [Parameter] public EventCallback<bool> RecordingAvailabilityChanged { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool EnableRecording { get; set; } = true;
+    [Parameter] public long MaxFileSize { get; set; } = VoiceCloneReferenceAudioLimits.MaxPayloadBytes;
+
+    private bool IsRecording { get; set; }
+    private bool CanRecord => !Disabled && IsRecordingAvailable == true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !EnableRecording)
+            return;
+
+        try
+        {
+            IsRecordingAvailable = await JsRuntime.InvokeAsync<bool>("qwenTtsRecording.isAvailable");
+            RecordingAvailabilityMessage = IsRecordingAvailable == true
+                ? null
+                : "Browser recording is unavailable.";
+        }
+        catch (JSException)
+        {
+            IsRecordingAvailable = false;
+            RecordingAvailabilityMessage = "Browser recording is unavailable.";
+        }
+
+        await RecordingAvailabilityChanged.InvokeAsync(IsRecordingAvailable == true);
+        StateHasChanged();
+    }
+
+    private async Task OnFileChangedAsync(InputFileChangeEventArgs args)
+    {
+        if (Disabled)
+            return;
+
+        var file = args.File;
+        if (!IsWaveFile(file.Name, file.ContentType))
+        {
+            await SetErrorAsync("Reference audio must be a WAV file.");
+            return;
+        }
+
+        try
+        {
+            await using var stream = file.OpenReadStream(MaxFileSize);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer);
+            await SetValueAsync(new VoiceCloneReferenceAudio(
+                file.Name,
+                string.IsNullOrWhiteSpace(file.ContentType) ? "audio/wav" : file.ContentType,
+                buffer.ToArray(),
+                VoiceCloneReferenceAudioSource.Upload));
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException)
+        {
+            await SetErrorAsync($"Unable to read the reference audio: {ex.Message}");
+        }
+    }
+
+    private async Task StartRecordingAsync()
+    {
+        if (!CanRecord)
+        {
+            await SetErrorAsync("Browser recording is unavailable.");
+            return;
+        }
+
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("qwenTtsRecording.start");
+            IsRecording = true;
+            ValidationMessage = null;
+        }
+        catch (JSException)
+        {
+            IsRecordingAvailable = false;
+            RecordingAvailabilityMessage = "Browser recording is unavailable.";
+            await SetErrorAsync(RecordingAvailabilityMessage);
+        }
+    }
+
+    private async Task StopRecordingAsync()
+    {
+        try
+        {
+            var recording = await JsRuntime.InvokeAsync<BrowserRecording>("qwenTtsRecording.stop", MaxFileSize);
+            if (recording is null || string.IsNullOrWhiteSpace(recording.DataBase64))
+            {
+                await SetErrorAsync("No reference audio was recorded.");
+                return;
+            }
+
+            var content = Convert.FromBase64String(recording.DataBase64);
+            if (content.LongLength > MaxFileSize)
+            {
+                await SetErrorAsync($"Recorded audio exceeds the {MaxFileSize} byte limit.");
+                return;
+            }
+
+            await SetValueAsync(new VoiceCloneReferenceAudio(
+                string.IsNullOrWhiteSpace(recording.FileName) ? "recording.wav" : recording.FileName,
+                string.IsNullOrWhiteSpace(recording.ContentType) ? "audio/wav" : recording.ContentType,
+                content,
+                VoiceCloneReferenceAudioSource.Recording));
+        }
+        catch (Exception ex) when (ex is JSException or FormatException)
+        {
+            await SetErrorAsync($"Unable to use the recorded audio: {ex.Message}");
+        }
+        finally
+        {
+            IsRecording = false;
+        }
+    }
+
+    private async Task SetValueAsync(VoiceCloneReferenceAudio value)
+    {
+        ValidationMessage = null;
+        Value = value;
+        await ValueChanged.InvokeAsync(value);
+    }
+
+    private async Task SetErrorAsync(string message)
+    {
+        ValidationMessage = message;
+        await OnError.InvokeAsync(message);
+    }
+
+    private static bool IsWaveFile(string fileName, string? contentType) =>
+        fileName.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) &&
+        (string.IsNullOrWhiteSpace(contentType) ||
+         string.Equals(contentType, "audio/wav", StringComparison.OrdinalIgnoreCase) ||
+         string.Equals(contentType, "audio/x-wav", StringComparison.OrdinalIgnoreCase));
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!IsRecording)
+            return;
+
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("qwenTtsRecording.dispose");
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    private sealed record BrowserRecording(string? FileName, string? ContentType, string? DataBase64);
+}

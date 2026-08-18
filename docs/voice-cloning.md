@@ -112,7 +112,7 @@ python export_embeddings.py --model-dir models/Qwen3-TTS-0.6B-Base --output-dir 
 
 ## Web UI
 
-The Blazor web app includes a **Voice Clone** page with a browser-based interface — no code needed:
+The Blazor web app includes a **Voice Clone** page built from reusable RCL controls:
 
 ```bash
 dotnet run --project src/ElBruno.QwenTTS.Web
@@ -120,9 +120,11 @@ dotnet run --project src/ElBruno.QwenTTS.Web
 
 Open [http://localhost:5153/voice-clone](http://localhost:5153/voice-clone) to:
 
-1. **Record** your voice directly from the microphone (auto-converted to 24 kHz mono WAV)
-2. **Upload** a previously recorded WAV file
-3. **Preview and download** the reference audio
-4. **Type text** and generate speech with the cloned voice
+1. **Record** browser audio as a mono 16-bit PCM WAV, or upload a WAV file
+2. **Preview and download** the host-saved reference audio
+3. Optionally enter its transcript to enable ICL voice cloning
+4. **Type text**, submit the request, and download the generated WAV
 
-See [docs/web-app.md](web-app.md) for full web app documentation.
+The controls do not perform filesystem work, model setup, or inference. The Web host owns reference persistence, Base-model readiness/download, serialized inference, cancellation, and generated-file retention. Browser recording requires microphone permission, `getUserMedia`, and `AudioContext`; the UI explicitly reports unsupported browsers or unavailable APIs. The model-free callback-flow demo is available at [http://localhost:5153/voice-clone-demo](http://localhost:5153/voice-clone-demo).
+
+See [Web App](web-app.md) and [Blazor Components](blazor-components.md) for host integration details.

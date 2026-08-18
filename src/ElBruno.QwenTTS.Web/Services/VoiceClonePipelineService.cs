@@ -9,7 +9,8 @@ namespace ElBruno.QwenTTS.Web.Services;
 /// </summary>
 public sealed class VoiceClonePipelineService : IDisposable
 {
-    private VoiceClonePipeline? _pipeline;
+    private IVoiceClonePipeline? _pipeline;
+    private readonly IVoiceClonePipelineFactory _pipelineFactory;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private readonly string _outputDir;
     private readonly string _referenceDir;
@@ -20,16 +21,20 @@ public sealed class VoiceClonePipelineService : IDisposable
 
     public bool IsReady => _isReady;
     public bool IsInitializing => _isInitializing;
-    public bool IsModelDownloaded => VoiceCloningDownloader.IsModelDownloaded(_modelDir);
+    public bool IsModelDownloaded => _pipelineFactory.IsModelDownloaded(_modelDir);
 
     public string ModelDirectory => _modelDir;
 
     public event Action<ModelDownloadProgress>? OnDownloadProgress;
 
-    public VoiceClonePipelineService(IConfiguration config, IWebHostEnvironment env,
-                                      ILogger<VoiceClonePipelineService> logger)
+    public VoiceClonePipelineService(
+        IConfiguration config,
+        IWebHostEnvironment env,
+        ILogger<VoiceClonePipelineService> logger,
+        IVoiceClonePipelineFactory? pipelineFactory = null)
     {
         _logger = logger;
+        _pipelineFactory = pipelineFactory ?? new VoiceClonePipelineFactory();
         var modelDir = config["VoiceClone:ModelDir"];
         if (string.IsNullOrEmpty(modelDir))
         {
@@ -65,8 +70,7 @@ public sealed class VoiceClonePipelineService : IDisposable
             _logger.LogInformation("Initializing voice clone pipeline (models downloaded: {Downloaded})",
                 IsModelDownloaded);
             var progress = new Progress<ModelDownloadProgress>(p => OnDownloadProgress?.Invoke(p));
-            _pipeline = await VoiceClonePipeline.CreateAsync(_modelDir, progress,
-                cancellationToken: cancellationToken);
+            _pipeline = await _pipelineFactory.CreateAsync(_modelDir, progress, cancellationToken);
             _isReady = true;
             _logger.LogInformation("Voice clone pipeline ready");
         }
@@ -155,6 +159,51 @@ public sealed class VoiceClonePipelineService : IDisposable
         var fi = new FileInfo(filePath);
         _logger.LogInformation("Voice clone generation complete — {File} ({Bytes} bytes) in {Elapsed:F1}s",
             fileName, fi.Length, sw.Elapsed.TotalSeconds);
+
+        return $"/generated/{fileName}";
+    }
+
+    /// <summary>
+    /// Generates speech from a saved reference WAV, optionally using its transcript for ICL mode.
+    /// </summary>
+    public async Task<string> GenerateAsync(string text, string referenceAudioPath, string? referenceTranscript,
+                                            string language, IProgress<string>? progress = null,
+                                            CancellationToken cancellationToken = default)
+    {
+        if (!_isReady)
+            throw new InvalidOperationException("Pipeline not initialized. Call InitializeAsync first.");
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var fileName = $"{Guid.NewGuid():N}.wav";
+        var filePath = Path.Combine(_outputDir, fileName);
+
+        await _semaphore.WaitAsync(cancellationToken);
+        try
+        {
+            await Task.Run(
+                () => _pipeline!.SynthesizeAsync(
+                    text,
+                    referenceAudioPath,
+                    filePath,
+                    string.IsNullOrWhiteSpace(referenceTranscript) ? null : referenceTranscript,
+                    language,
+                    progress,
+                    cancellationToken),
+                cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+        catch (Exception ex)
+        {
+            if (cancellationToken.IsCancellationRequested && File.Exists(filePath))
+                File.Delete(filePath);
+
+            _logger.LogError(ex, "Voice clone generation failed for reference {ReferencePath}", referenceAudioPath);
+            throw;
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
 
         return $"/generated/{fileName}";
     }

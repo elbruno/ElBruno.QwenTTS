@@ -71,16 +71,20 @@ public sealed class VoiceClonePipeline : IDisposable
     /// <param name="outputPath">Path to save the output WAV file.</param>
     /// <param name="language">Language code (e.g., "english", "chinese", "auto").</param>
     /// <param name="progress">Optional progress callback.</param>
+    /// <param name="cancellationToken">Cancellation token checked between inference stages.</param>
     public async Task SynthesizeAsync(string text, string referenceAudioPath, string outputPath,
-                                      string language = "auto", IProgress<string>? progress = null)
+                                      string language = "auto", IProgress<string>? progress = null,
+                                      CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Step 1: Extract speaker embedding from reference audio
         progress?.Report("Extracting speaker embedding from reference audio...");
         var speakerEmbedding = ExtractSpeakerEmbedding(referenceAudioPath);
         progress?.Report($"Speaker embedding extracted ({speakerEmbedding.Length} dimensions)");
 
         // Step 2: Synthesize using the extracted embedding
-        await SynthesizeWithEmbeddingAsync(text, speakerEmbedding, outputPath, language, progress);
+        cancellationToken.ThrowIfCancellationRequested();
+        await SynthesizeWithEmbeddingAsync(text, speakerEmbedding, outputPath, language, progress, cancellationToken);
     }
 
     /// <summary>
@@ -94,12 +98,16 @@ public sealed class VoiceClonePipeline : IDisposable
     /// <param name="refText">Transcript of the reference audio. Enables ICL mode when provided.</param>
     /// <param name="language">Language code (e.g., "english", "chinese", "auto").</param>
     /// <param name="progress">Optional progress callback.</param>
+    /// <param name="cancellationToken">Cancellation token checked between inference stages.</param>
     public async Task SynthesizeAsync(string text, string referenceAudioPath, string outputPath,
-                                      string? refText, string language = "auto", IProgress<string>? progress = null)
+                                      string? refText, string language = "auto", IProgress<string>? progress = null,
+                                      CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Step 1: Extract speaker embedding from reference audio
         progress?.Report("Extracting speaker embedding from reference audio...");
         var speakerEmbedding = ExtractSpeakerEmbedding(referenceAudioPath);
+        cancellationToken.ThrowIfCancellationRequested();
         progress?.Report($"Speaker embedding extracted ({speakerEmbedding.Length} dimensions)");
 
         if (refText != null)
@@ -108,6 +116,7 @@ public sealed class VoiceClonePipeline : IDisposable
             progress?.Report("Encoding reference audio for ICL mode...");
             var speechTokenizer = GetSpeechTokenizer();
             var refAudioCodes = speechTokenizer.EncodeFromWav(referenceAudioPath);
+            cancellationToken.ThrowIfCancellationRequested();
             int tFrames = refAudioCodes.GetLength(1);
             progress?.Report($"Reference audio encoded ({tFrames} frames)");
 
@@ -117,11 +126,11 @@ public sealed class VoiceClonePipeline : IDisposable
 
             await SynthesizeWithEmbeddingAsync(text, speakerEmbedding, outputPath,
                 refText: refText, refAudioCodes: refAudioCodes,
-                language: language, progress: progress);
+                language: language, progress: progress, cancellationToken: cancellationToken);
         }
         else
         {
-            await SynthesizeWithEmbeddingAsync(text, speakerEmbedding, outputPath, language, progress);
+            await SynthesizeWithEmbeddingAsync(text, speakerEmbedding, outputPath, language, progress, cancellationToken);
         }
     }
 
@@ -131,10 +140,11 @@ public sealed class VoiceClonePipeline : IDisposable
     /// to avoid re-encoding the reference audio each time.
     /// </summary>
     public async Task SynthesizeWithEmbeddingAsync(string text, float[] speakerEmbedding, string outputPath,
-                                                    string language = "auto", IProgress<string>? progress = null)
+                                                    string language = "auto", IProgress<string>? progress = null,
+                                                    CancellationToken cancellationToken = default)
     {
         await SynthesizeWithEmbeddingAsync(text, speakerEmbedding, outputPath,
-            refText: null, refAudioCodes: null, language: language, progress: progress);
+            refText: null, refAudioCodes: null, language: language, progress: progress, cancellationToken: cancellationToken);
     }
 
     /// <summary>
@@ -148,10 +158,13 @@ public sealed class VoiceClonePipeline : IDisposable
     /// <param name="refAudioCodes">Optional reference audio codes [1, T, 16] for ICL mode.</param>
     /// <param name="language">Language code (e.g., "english", "chinese", "auto").</param>
     /// <param name="progress">Optional progress callback.</param>
+    /// <param name="cancellationToken">Cancellation token checked at safe inference boundaries.</param>
     public async Task SynthesizeWithEmbeddingAsync(string text, float[] speakerEmbedding, string outputPath,
                                                     string? refText = null, long[,,]? refAudioCodes = null,
-                                                    string language = "auto", IProgress<string>? progress = null)
+                                                    string language = "auto", IProgress<string>? progress = null,
+                                                    CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var tokenIds = _tokenizer.BuildCustomVoicePrompt(text, "none", language, instruct: null);
         progress?.Report($"Tokenized input ({tokenIds.Length} tokens)");
         Console.WriteLine($"Generating speech ({tokenIds.Length} input tokens)...");
@@ -171,11 +184,12 @@ public sealed class VoiceClonePipeline : IDisposable
         {
             codes = _languageModel.GenerateWithSpeakerEmbeddingAndRefText(
                 tokenIds, speakerEmbedding, language,
-                refTokenIds: refTokenIds, refAudioCodes: refAudioCodes);
+                refTokenIds: refTokenIds, refAudioCodes: refAudioCodes, cancellationToken: cancellationToken);
         }
         else
         {
-            codes = _languageModel.GenerateWithSpeakerEmbedding(tokenIds, speakerEmbedding, language);
+            codes = _languageModel.GenerateWithSpeakerEmbedding(tokenIds, speakerEmbedding, language,
+                cancellationToken: cancellationToken);
         }
 
         int timesteps = codes.GetLength(2);
@@ -184,11 +198,11 @@ public sealed class VoiceClonePipeline : IDisposable
 
         // Decode to waveform via vocoder
         progress?.Report("Decoding waveform via vocoder...");
-        var waveform = _vocoder.Decode(codes);
+        var waveform = _vocoder.Decode(codes, cancellationToken);
 
         // Write WAV file
         progress?.Report("Writing WAV file...");
-        await Task.Run(() => WavWriter.Write(outputPath, waveform, sampleRate: 24000));
+        await Task.Run(() => WavWriter.Write(outputPath, waveform, sampleRate: 24000), cancellationToken);
 
         var duration = waveform.Length / 24000.0;
         progress?.Report($"Saved {Path.GetFileName(outputPath)} ({waveform.Length} samples, {duration:F2}s)");

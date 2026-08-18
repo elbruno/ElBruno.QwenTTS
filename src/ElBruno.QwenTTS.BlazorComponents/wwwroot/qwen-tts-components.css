@@ -121,3 +121,13 @@
     background: #f8fafc;
     font-size: 0.86rem;
 }
+
+.qwen-recording-actions,
+.qwen-transcript-input {
+    margin-top: 0.7rem;
+}
+
+.qwen-reference-audio-input .qwen-error,
+.qwen-voice-clone-form .qwen-error {
+    margin-top: 0.6rem;
+}

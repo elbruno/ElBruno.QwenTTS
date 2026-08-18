@@ -1,0 +1,83 @@
+<div class="qwen-card qwen-voice-clone-form" aria-busy="@IsSubmitting">
+    <h3>@Title</h3>
+    <label class="form-label" for="@TextId">Text to synthesize</label>
+    <textarea id="@TextId" class="form-control" rows="@Rows" value="@Text" @oninput="OnTextChanged" disabled="@IsDisabled"></textarea>
+
+    @if (ShowReferenceTranscript)
+    {
+        <div class="qwen-transcript-input">
+            <label class="form-label" for="@TranscriptId">Reference transcript (optional)</label>
+            <textarea id="@TranscriptId" class="form-control" rows="2" value="@ReferenceTranscript" @oninput="OnTranscriptChanged" disabled="@IsDisabled"></textarea>
+            <div class="qwen-muted">Provide this only when using ICL voice cloning.</div>
+        </div>
+    }
+
+    @if (ValidationMessage is not null)
+    {
+        <div class="qwen-error" role="alert">@ValidationMessage</div>
+    }
+
+    <div class="qwen-footer-row">
+        <button type="button" class="btn btn-primary" @onclick="SubmitAsync" disabled="@(IsDisabled || IsSubmitting)">
+            @(IsSubmitting ? "Cloning..." : SubmitButtonText)
+        </button>
+        @if (ShowCancel)
+        {
+            <button type="button" class="btn btn-outline-secondary" @onclick="OnCancel" disabled="@(!IsSubmitting)">Cancel</button>
+        }
+    </div>
+</div>
+
+@code {
+    private readonly string TextId = $"qwen-clone-text-{Guid.NewGuid():N}";
+    private readonly string TranscriptId = $"qwen-clone-transcript-{Guid.NewGuid():N}";
+    private string? ValidationMessage;
+
+    [Parameter] public string Title { get; set; } = "Clone a voice";
+    [Parameter] public string SubmitButtonText { get; set; } = "Generate speech";
+    [Parameter] public int Rows { get; set; } = 4;
+    [Parameter] public string Text { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> TextChanged { get; set; }
+    [Parameter] public VoiceCloneReferenceAudio? ReferenceAudio { get; set; }
+    [Parameter] public string? ReferenceTranscript { get; set; }
+    [Parameter] public EventCallback<string?> ReferenceTranscriptChanged { get; set; }
+    [Parameter] public bool ShowReferenceTranscript { get; set; } = true;
+    [Parameter] public bool IsSubmitting { get; set; }
+    [Parameter] public bool IsDisabled { get; set; }
+    [Parameter] public bool ShowCancel { get; set; } = true;
+    [Parameter] public EventCallback<VoiceCloneRequest> OnSubmit { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private async Task OnTextChanged(ChangeEventArgs args)
+    {
+        Text = args.Value?.ToString() ?? string.Empty;
+        await TextChanged.InvokeAsync(Text);
+    }
+
+    private async Task OnTranscriptChanged(ChangeEventArgs args)
+    {
+        ReferenceTranscript = args.Value?.ToString();
+        await ReferenceTranscriptChanged.InvokeAsync(ReferenceTranscript);
+    }
+
+    private async Task SubmitAsync()
+    {
+        ValidationMessage = null;
+        if (string.IsNullOrWhiteSpace(Text))
+        {
+            ValidationMessage = "Text is required.";
+            return;
+        }
+
+        if (ReferenceAudio is null)
+        {
+            ValidationMessage = "A reference WAV file is required.";
+            return;
+        }
+
+        await OnSubmit.InvokeAsync(new VoiceCloneRequest(
+            Text,
+            ReferenceAudio,
+            string.IsNullOrWhiteSpace(ReferenceTranscript) ? null : ReferenceTranscript));
+    }
+}

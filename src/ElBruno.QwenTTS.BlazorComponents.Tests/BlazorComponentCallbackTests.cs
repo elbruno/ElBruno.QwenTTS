@@ -1,4 +1,5 @@
 using Bunit;
+using ElBruno.QwenTTS.BlazorComponents.Models;
 using ElBruno.QwenTTS.BlazorComponents.Tests.TestHelpers;
 using Microsoft.AspNetCore.Components;
 
@@ -61,5 +62,66 @@ public sealed class BlazorComponentCallbackTests : TestContext
         await callbackValue.InvokeAsync();
 
         Assert.True(invoked);
+    }
+
+    [Fact]
+    public void VoiceCloneForm_RequiresTextAndReferenceAudio()
+    {
+        var type = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Components.VoiceCloneForm");
+        var cut = (IRenderedFragment)RenderByType(type);
+
+        cut.Find("button").Click();
+
+        Assert.Contains("Text is required.", cut.Markup);
+    }
+
+    [Fact]
+    public void VoiceCloneForm_RequiresReferenceAudio()
+    {
+        var type = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Components.VoiceCloneForm");
+        var cut = (IRenderedFragment)RenderByType(type, ComponentParameter.CreateParameter("Text", "Hello"));
+
+        cut.Find("button").Click();
+
+        Assert.Contains("A reference WAV file is required.", cut.Markup);
+    }
+
+    [Fact]
+    public void VoiceCloneForm_InvokesCancellationCallback()
+    {
+        var type = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Components.VoiceCloneForm");
+        var cancelled = false;
+        var callback = EventCallback.Factory.Create(this, () => cancelled = true);
+        var cut = (IRenderedFragment)RenderByType(type,
+            ComponentParameter.CreateParameter("IsSubmitting", true),
+            ComponentParameter.CreateParameter("OnCancel", callback));
+
+        cut.FindAll("button")[1].Click();
+
+        Assert.True(cancelled);
+    }
+
+    [Fact]
+    public void VoiceCloneForm_ForwardsOptionalTranscriptInRequest()
+    {
+        var formType = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Components.VoiceCloneForm");
+        var audio = new VoiceCloneReferenceAudio(
+            "reference.wav",
+            "audio/wav",
+            [1],
+            VoiceCloneReferenceAudioSource.Upload);
+        VoiceCloneRequest? request = null;
+        var callback = EventCallback.Factory.Create<VoiceCloneRequest>(this, value => request = value);
+
+        var cut = (IRenderedFragment)RenderByType(formType,
+            ComponentParameter.CreateParameter("Text", "Hello"),
+            ComponentParameter.CreateParameter("ReferenceAudio", audio),
+            ComponentParameter.CreateParameter("ReferenceTranscript", "Reference words"),
+            ComponentParameter.CreateParameter("OnSubmit", callback));
+
+        cut.Find("button").Click();
+
+        Assert.NotNull(request);
+        Assert.Equal("Reference words", request.ReferenceTranscript);
     }
 }
