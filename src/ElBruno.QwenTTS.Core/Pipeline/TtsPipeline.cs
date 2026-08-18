@@ -53,14 +53,27 @@ public sealed class TtsPipeline : ITtsPipeline
     /// <summary>
     /// Synthesizes speech and returns normalized float PCM samples in memory.
     /// </summary>
-    public Task<TtsAudioResult> SynthesizeToPcmAsync(
+    public async Task<TtsAudioResult> SynthesizeToPcmAsync(
        string text,
        string speaker,
        string language = "auto",
        string? instruct = null,
        IProgress<string>? progress = null,
        CancellationToken cancellationToken = default)
-       => SynthesizeToPcmCoreAsync(text, speaker, language, instruct, progress, cancellationToken);
+    {
+       using var activity = QwenTtsTelemetry.StartTextToSpeech();
+       try
+       {
+           var result = await SynthesizeToPcmCoreAsync(text, speaker, language, instruct, progress, cancellationToken);
+           activity?.SetStatus(ActivityStatusCode.Ok);
+           return result;
+       }
+       catch
+       {
+           activity?.SetStatus(ActivityStatusCode.Error);
+           throw;
+       }
+    }
 
     /// <summary>
     /// Synthesizes speech and returns an in-memory WAV payload.

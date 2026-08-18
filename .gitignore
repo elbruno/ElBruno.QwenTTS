@@ -27,11 +27,9 @@ __pycache__/
 *.pyc
 *.egg-info/
 
-# .NET build outputs
-src/*/bin/
-src/*/obj/
-tests/*/bin/
-tests/*/obj/
+# .NET build outputs (all projects, including root AppHost and samples)
+**/bin/
+**/obj/
 
 # Generated audio (web app)
 src/QwenTTS.Web/wwwroot/generated/
@@ -47,6 +45,9 @@ Thumbs.db
 .vs/
 *.user
 python/parity_outputs/
+
+# Generated Aspire agent skills
+.agents/
 
 # Squad runtime state (kept on dev branches only)
 .squad/agents/

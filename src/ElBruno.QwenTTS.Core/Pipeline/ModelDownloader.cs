@@ -1,4 +1,5 @@
 using ElBruno.HuggingFace;
+using System.Diagnostics;
 
 namespace ElBruno.QwenTTS.Pipeline;
 
@@ -108,6 +109,7 @@ public sealed class ModelDownloader
         QwenModelVariant variant = QwenModelVariant.Qwen06B)
     {
         modelDir ??= DefaultModelDir;
+        using var activity = QwenTtsTelemetry.StartModelDownload("custom-voice");
         Directory.CreateDirectory(modelDir);
 
         var files = GetExpectedFiles(variant);
@@ -133,7 +135,16 @@ public sealed class ModelDownloader
             Progress = downloadProgress
         };
 
-        await downloader.DownloadFilesAsync(request, cancellationToken);
+        try
+        {
+            await downloader.DownloadFilesAsync(request, cancellationToken);
+            activity?.SetStatus(ActivityStatusCode.Ok);
+        }
+        catch
+        {
+            activity?.SetStatus(ActivityStatusCode.Error);
+            throw;
+        }
     }
 
     /// <summary>
