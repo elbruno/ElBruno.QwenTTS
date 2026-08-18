@@ -12,7 +12,6 @@
     <Project Path="src/ElBruno.QwenTTS.VoiceCloning/ElBruno.QwenTTS.VoiceCloning.csproj" />
     <Project Path="src/ElBruno.QwenTTS.VoiceCloning.Tests/ElBruno.QwenTTS.VoiceCloning.Tests.csproj" />
     <Project Path="src/ElBruno.QwenTTS.ServiceDefaults/ElBruno.QwenTTS.ServiceDefaults.csproj" />
-    <Project Path="ElBruno.QwenTTS.AppHost/ElBruno.QwenTTS.AppHost.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Issue30_17BNoiseTest/Issue30_17BNoiseTest.csproj" />
@@ -20,5 +19,6 @@
   <Folder Name="/samples/">
     <Project Path="samples/BlazorQwenTtsDemo/BlazorQwenTtsDemo.csproj" />
     <Project Path="samples/BlazorQwenTtsDemo.Tests/BlazorQwenTtsDemo.Tests.csproj" />
+    <Project Path="samples/BlazorQwenTtsDemo.AppHost/BlazorQwenTtsDemo.AppHost.csproj" />
   </Folder>
 </Solution>

@@ -24,7 +24,13 @@ Open the local URL printed by ASP.NET Core and use the home page to test:
 
 ## Aspire
 
-`ElBruno.QwenTTS.AppHost` orchestrates this sample as its only executable resource:
+`samples/BlazorQwenTtsDemo.AppHost` orchestrates this sample as its only executable resource. From the repository root, run:
+
+```bash
+aspire start --apphost samples/BlazorQwenTtsDemo.AppHost/BlazorQwenTtsDemo.AppHost.csproj --isolated --non-interactive
+```
+
+From `samples/BlazorQwenTtsDemo.AppHost`, run:
 
 ```bash
 aspire start --isolated --non-interactive
