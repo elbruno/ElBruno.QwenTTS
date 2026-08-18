@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-08-18
+
+### Added
+- Reusable voice-cloning UI controls in `ElBruno.QwenTTS.BlazorComponents`, including reference-audio selection or recording, validation, progress, and workflow status components
+- Voice-cloning integration in the web app, plus a dedicated `/voice-clone-demo` page that demonstrates the reusable Blazor components
+- A factory abstraction for creating voice-cloning pipelines, enabling UI lifecycle and error-handling tests without model downloads
+
+### Changed
+- The web app's voice-cloning page now uses the reusable Blazor component workflow and exposes the demo in navigation
+
+### Tests
+- Added component contract, callback, rendering, web-page, demo-page, and pipeline-service coverage for the voice-cloning controls
+
+### Documentation
+- Updated the Blazor components, voice-cloning, and web-app documentation with the controls, demo, reference-audio constraints, and integration guidance
+
 ## [1.8.0] - 2026-08-18
 
 ### Added
