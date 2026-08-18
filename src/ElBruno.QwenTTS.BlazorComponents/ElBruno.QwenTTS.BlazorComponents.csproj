@@ -17,7 +17,7 @@
     <PackageIcon>nuget_01.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>blazor;components;tts;qwen;voice-cloning;onnx;ui</PackageTags>
-    <Version>1.0.0</Version>
+    <Version>1.8.0</Version>
   </PropertyGroup>
 
 

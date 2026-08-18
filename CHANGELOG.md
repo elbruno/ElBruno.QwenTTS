@@ -5,9 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.8.0] - 2026-08-18
 
 ### Added
+- `ElBruno.QwenTTS.BlazorComponents`, a reusable Razor Class Library package for Qwen TTS and voice-cloning user interfaces
 - Real `Microsoft.Extensions.AI.ITextToSpeechClient` support on `QwenTextToSpeechClient`, backed by the existing `TtsPipeline` in-memory synthesis path
 - `QwenTextToSpeechMetadataKeys` for the adapter metadata contract (`variant`, `speaker`, `language`, `instruct`, `voice_cloning`, `execution_provider`)
 
