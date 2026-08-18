@@ -1,4 +1,5 @@
 using Microsoft.ML.OnnxRuntime;
+using System.Diagnostics;
 using ElBruno.QwenTTS.Audio;
 using ElBruno.QwenTTS.Models;
 using ElBruno.QwenTTS.Pipeline;
@@ -60,7 +61,9 @@ public sealed class VoiceClonePipeline : IDisposable
     /// <returns>Speaker embedding float array (1024 dimensions).</returns>
     public float[] ExtractSpeakerEmbedding(string referenceAudioPath)
     {
-        return _speakerEncoder.EncodeFromWav(referenceAudioPath);
+        return ExecuteWithActivity(
+            "extract_embedding",
+            () => _speakerEncoder.EncodeFromWav(referenceAudioPath));
     }
 
     /// <summary>
@@ -159,10 +162,26 @@ public sealed class VoiceClonePipeline : IDisposable
     /// <param name="language">Language code (e.g., "english", "chinese", "auto").</param>
     /// <param name="progress">Optional progress callback.</param>
     /// <param name="cancellationToken">Cancellation token checked at safe inference boundaries.</param>
-    public async Task SynthesizeWithEmbeddingAsync(string text, float[] speakerEmbedding, string outputPath,
-                                                    string? refText = null, long[,,]? refAudioCodes = null,
-                                                    string language = "auto", IProgress<string>? progress = null,
-                                                    CancellationToken cancellationToken = default)
+    public Task SynthesizeWithEmbeddingAsync(string text, float[] speakerEmbedding, string outputPath,
+                                              string? refText = null, long[,,]? refAudioCodes = null,
+                                              string language = "auto", IProgress<string>? progress = null,
+                                              CancellationToken cancellationToken = default) =>
+        ExecuteWithActivityAsync(
+            "synthesize",
+            () => SynthesizeWithEmbeddingCoreAsync(
+                text,
+                speakerEmbedding,
+                outputPath,
+                refText,
+                refAudioCodes,
+                language,
+                progress,
+                cancellationToken));
+
+    private async Task SynthesizeWithEmbeddingCoreAsync(string text, float[] speakerEmbedding, string outputPath,
+                                                        string? refText, long[,,]? refAudioCodes,
+                                                        string language, IProgress<string>? progress,
+                                                        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var tokenIds = _tokenizer.BuildCustomVoicePrompt(text, "none", language, instruct: null);
@@ -207,6 +226,37 @@ public sealed class VoiceClonePipeline : IDisposable
         var duration = waveform.Length / 24000.0;
         progress?.Report($"Saved {Path.GetFileName(outputPath)} ({waveform.Length} samples, {duration:F2}s)");
         Console.WriteLine($"Saved {outputPath} ({waveform.Length} samples, {duration:F2}s)");
+    }
+
+    private static T ExecuteWithActivity<T>(string operation, Func<T> action)
+    {
+        using var activity = QwenTtsTelemetry.StartVoiceCloning(operation);
+        try
+        {
+            var result = action();
+            activity?.SetStatus(ActivityStatusCode.Ok);
+            return result;
+        }
+        catch
+        {
+            activity?.SetStatus(ActivityStatusCode.Error);
+            throw;
+        }
+    }
+
+    private static async Task ExecuteWithActivityAsync(string operation, Func<Task> action)
+    {
+        using var activity = QwenTtsTelemetry.StartVoiceCloning(operation);
+        try
+        {
+            await action();
+            activity?.SetStatus(ActivityStatusCode.Ok);
+        }
+        catch
+        {
+            activity?.SetStatus(ActivityStatusCode.Error);
+            throw;
+        }
     }
 
     /// <summary>

@@ -1,7 +1,11 @@
 using Xunit;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Reflection;
 using ElBruno.QwenTTS.VoiceCloning.Audio;
 using ElBruno.QwenTTS.VoiceCloning.Models;
 using ElBruno.QwenTTS.VoiceCloning.Pipeline;
+using ElBruno.QwenTTS.Pipeline;
 
 namespace ElBruno.QwenTTS.VoiceCloning.Tests;
 
@@ -203,6 +207,67 @@ public class VoiceClonePipelineTests
         {
             Directory.Delete(tempDir, recursive: true);
         }
+    }
+}
+
+public class VoiceClonePipelineTelemetryTests
+{
+    private static readonly SemaphoreSlim TelemetryTestGate = new(1, 1);
+
+    [Fact]
+    public void SynchronousInstrumentation_RecordsSuccessAndFailureStatuses()
+    {
+        TelemetryTestGate.Wait();
+        try
+        {
+            foreach (var operation in new[] { "extract_embedding", "synthesize" })
+            {
+                var (listener, activities) = CreateListener();
+                using (listener)
+                {
+                    var method = typeof(VoiceClonePipeline).GetMethod(
+                        "ExecuteWithActivity",
+                        BindingFlags.NonPublic | BindingFlags.Static)!;
+                    var closedMethod = method.MakeGenericMethod(typeof(int));
+
+                    var result = closedMethod.Invoke(null, [operation, new Func<int>(() => 42)]);
+                    var exception = Assert.Throws<TargetInvocationException>(() =>
+                        closedMethod.Invoke(null, [operation, new Func<int>(() => throw new InvalidOperationException())]));
+
+                    Assert.Equal(42, result);
+                    Assert.IsType<InvalidOperationException>(exception.InnerException);
+                    Assert.Equal(
+                        [ActivityStatusCode.Ok, ActivityStatusCode.Error],
+                        activities.Select(activity => activity.Status));
+                    Assert.All(activities, activity =>
+                    {
+                        Assert.Equal($"gen_ai.voice_clone.{operation}", activity.DisplayName);
+                        Assert.DoesNotContain(activity.TagObjects, tag =>
+                            tag.Key.Contains("path", StringComparison.OrdinalIgnoreCase) ||
+                            tag.Key.Contains("audio", StringComparison.OrdinalIgnoreCase) ||
+                            tag.Key.Contains("prompt", StringComparison.OrdinalIgnoreCase) ||
+                            tag.Key.Contains("embedding", StringComparison.OrdinalIgnoreCase));
+                    });
+                }
+            }
+        }
+        finally
+        {
+            TelemetryTestGate.Release();
+        }
+    }
+
+    private static (ActivityListener Listener, ConcurrentQueue<Activity> Activities) CreateListener()
+    {
+        var activities = new ConcurrentQueue<Activity>();
+        var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "ElBruno.QwenTTS",
+            Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStarted = activities.Enqueue
+        };
+        ActivitySource.AddActivityListener(listener);
+        return (listener, activities);
     }
 }
 

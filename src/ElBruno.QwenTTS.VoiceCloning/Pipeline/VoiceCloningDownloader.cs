@@ -1,5 +1,6 @@
 using ElBruno.HuggingFace;
 using ElBruno.QwenTTS.Pipeline;
+using System.Diagnostics;
 
 namespace ElBruno.QwenTTS.VoiceCloning.Pipeline;
 
@@ -86,6 +87,7 @@ public sealed class VoiceCloningDownloader
         CancellationToken cancellationToken = default)
     {
         modelDir ??= DefaultModelDir;
+        using var activity = QwenTtsTelemetry.StartModelDownload("voice-cloning");
         Directory.CreateDirectory(modelDir);
 
         using var downloader = new HuggingFaceDownloader();
@@ -109,7 +111,16 @@ public sealed class VoiceCloningDownloader
             Progress = downloadProgress
         };
 
-        await downloader.DownloadFilesAsync(request, cancellationToken);
+        try
+        {
+            await downloader.DownloadFilesAsync(request, cancellationToken);
+            activity?.SetStatus(ActivityStatusCode.Ok);
+        }
+        catch
+        {
+            activity?.SetStatus(ActivityStatusCode.Error);
+            throw;
+        }
     }
 
     private static ModelDownloadProgress MapProgress(DownloadProgress p)

@@ -1,5 +1,8 @@
 @page "/"
 @rendermode InteractiveServer
+@implements IDisposable
+@inject BaseTtsModelDownloadController BaseTtsModels
+@inject VoiceCloningModelDownloadController VoiceCloningModels
 
 <PageTitle>Blazor QwenTTS Components Demo</PageTitle>
 
@@ -7,14 +10,26 @@
 <p class="qwen-muted">Demo app for issue #62 showing all five reusable components.</p>
 
 <ModelDownloadStatus
-    ModelName="Qwen3-TTS Model"
-    IsReady="@_modelReady"
-    IsInitializing="@_isInitializing"
-    IsModelDownloaded="@_isModelDownloaded"
-    ModelDirectory="@_modelDir"
-    DownloadProgress="@_downloadProgress"
-    Error="@_modelError"
-    OnInitializeRequested="SimulateModelInitialization" />
+    ModelName="@BaseTtsModels.State.DisplayName"
+    IsReady="@BaseTtsModels.State.IsDownloaded"
+    IsInitializing="@BaseTtsModels.State.IsDownloading"
+    IsModelDownloaded="@BaseTtsModels.State.IsDownloaded"
+    DownloadProgress="@BaseTtsModels.State.Progress"
+    Error="@BaseTtsModels.State.Error"
+    ReadyMessage="Base TTS model files are available."
+    MissingMessage="Download the CustomVoice model files before generating speech."
+    OnInitializeRequested="BaseTtsModels.DownloadAsync" />
+
+<ModelDownloadStatus
+    ModelName="@VoiceCloningModels.State.DisplayName"
+    IsReady="@VoiceCloningModels.State.IsDownloaded"
+    IsInitializing="@VoiceCloningModels.State.IsDownloading"
+    IsModelDownloaded="@VoiceCloningModels.State.IsDownloaded"
+    DownloadProgress="@VoiceCloningModels.State.Progress"
+    Error="@VoiceCloningModels.State.Error"
+    ReadyMessage="Voice-cloning model files are available."
+    MissingMessage="Download the Base model files before using voice cloning."
+    OnInitializeRequested="VoiceCloningModels.DownloadAsync" />
 
 <TtsInputPanel
     Title="TTS Input Panel"
@@ -29,7 +44,7 @@
     SupportsInstruct="true"
     Speakers="@_speakers"
     IsGenerating="@_isGenerating"
-    IsGenerateDisabled="@(!_modelReady || _isGenerating || string.IsNullOrWhiteSpace(_text))"
+    IsGenerateDisabled="@(!BaseTtsModels.State.IsDownloaded || _isGenerating || string.IsNullOrWhiteSpace(_text))"
     OnGenerateRequested="GenerateAsync" />
 
 <SynthesisProgressBar
@@ -56,13 +71,6 @@
 }
 
 @code {
-    private readonly string _modelDir = ModelDownloader.DefaultModelDir;
-    private bool _isModelDownloaded;
-    private bool _isInitializing;
-    private bool _modelReady;
-    private string? _modelError;
-    private ModelDownloadProgress? _downloadProgress;
-
     private string _text = "Hello from the reusable Blazor QwenTTS component library.";
     private string _language = "english";
     private string _speaker = "ryan";
@@ -94,45 +102,10 @@
 
     protected override void OnInitialized()
     {
-        _isModelDownloaded = false;
-        _modelReady = false;
-    }
-
-    private async Task SimulateModelInitialization()
-    {
-        _modelError = null;
-        _isInitializing = true;
-        _modelReady = false;
-        _downloadProgress = null;
-
-        try
-        {
-            for (var i = 1; i <= 5; i++)
-            {
-                _downloadProgress = new ModelDownloadProgress(
-                    CurrentFile: i,
-                    TotalFiles: 5,
-                    FileName: $"model-part-{i}.onnx",
-                    Message: $"Downloading file {i}/5",
-                    BytesDownloaded: i * 20,
-                    TotalBytes: 100);
-                StateHasChanged();
-                await Task.Delay(300);
-            }
-
-            _isModelDownloaded = true;
-            _modelReady = true;
-            _downloadProgress = null;
-        }
-        catch (Exception ex)
-        {
-            _modelError = ex.Message;
-        }
-        finally
-        {
-            _isInitializing = false;
-            StateHasChanged();
-        }
+        BaseTtsModels.Changed += OnDownloadStateChanged;
+        VoiceCloningModels.Changed += OnDownloadStateChanged;
+        BaseTtsModels.Refresh();
+        VoiceCloningModels.Refresh();
     }
 
     private async Task GenerateAsync()
@@ -197,5 +170,13 @@
     {
         _instruct = value;
         return Task.CompletedTask;
+    }
+
+    private void OnDownloadStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        BaseTtsModels.Changed -= OnDownloadStateChanged;
+        VoiceCloningModels.Changed -= OnDownloadStateChanged;
     }
 }
