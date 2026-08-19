@@ -1,11 +1,75 @@
 window.qwenTtsRecording = (() => {
+    const TARGET_SAMPLE_RATE = 16000;
+
     let audioContext;
     let source;
     let processor;
     let stream;
     let chunks = [];
+    let timerIntervalId;
+    let timerStartMs;
+    let timerElement;
 
     const unavailable = () => !navigator.mediaDevices?.getUserMedia || !window.AudioContext;
+
+    const formatElapsed = totalSeconds => {
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = Math.floor(totalSeconds % 60);
+        const pad = value => String(value).padStart(2, "0");
+        return hours > 0
+            ? `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
+            : `${pad(minutes)}:${pad(seconds)}`;
+    };
+
+    const stopTimer = () => {
+        if (timerIntervalId) {
+            clearInterval(timerIntervalId);
+            timerIntervalId = undefined;
+        }
+        timerElement = undefined;
+        timerStartMs = undefined;
+    };
+
+    const startTimer = timerElementId => {
+        stopTimer();
+        if (!timerElementId) {
+            return;
+        }
+        timerStartMs = Date.now();
+        timerElement = document.getElementById(timerElementId);
+        if (timerElement) {
+            timerElement.textContent = formatElapsed(0);
+        }
+        timerIntervalId = setInterval(() => {
+            // The Blazor Server DOM patch for the timer span may not have landed
+            // yet on the very first tick, so keep retrying the lookup until found.
+            if (!timerElement) {
+                timerElement = document.getElementById(timerElementId);
+            }
+            if (!timerElement) {
+                return;
+            }
+            timerElement.textContent = formatElapsed((Date.now() - timerStartMs) / 1000);
+        }, 500);
+    };
+
+    const resampleLinear = (samples, fromRate, toRate) => {
+        if (fromRate === toRate) {
+            return samples;
+        }
+        const ratio = fromRate / toRate;
+        const newLength = Math.round(samples.length / ratio);
+        const result = new Float32Array(newLength);
+        for (let i = 0; i < newLength; i++) {
+            const srcIndex = i * ratio;
+            const lower = Math.floor(srcIndex);
+            const upper = Math.min(lower + 1, samples.length - 1);
+            const weight = srcIndex - lower;
+            result[i] = samples[lower] * (1 - weight) + samples[upper] * weight;
+        }
+        return result;
+    };
 
     const makeWav = (samples, sampleRate) => {
         const dataLength = samples.length * 2;
@@ -30,7 +94,7 @@ window.qwenTtsRecording = (() => {
 
     return {
         isAvailable: () => !unavailable(),
-        start: async () => {
+        start: async timerElementId => {
             if (unavailable()) {
                 throw new Error("Browser recording is unavailable.");
             }
@@ -43,6 +107,7 @@ window.qwenTtsRecording = (() => {
             processor.onaudioprocess = event => chunks.push(new Float32Array(event.inputBuffer.getChannelData(0)));
             source.connect(processor);
             processor.connect(audioContext.destination);
+            startTimer(timerElementId);
         },
         stop: async maxBytes => {
             if (!processor || !audioContext) {
@@ -56,10 +121,11 @@ window.qwenTtsRecording = (() => {
                 samples.set(chunk, offset);
                 offset += chunk.length;
             });
-            const bytes = makeWav(samples, audioContext.sampleRate);
+            const resampled = resampleLinear(samples, audioContext.sampleRate, TARGET_SAMPLE_RATE);
+            const bytes = makeWav(resampled, TARGET_SAMPLE_RATE);
             await window.qwenTtsRecording.dispose();
             if (bytes.byteLength > maxBytes) {
-                throw new Error(`Recorded audio exceeds the ${maxBytes} byte limit.`);
+                throw new Error(`Recorded audio exceeds the ${maxBytes} byte limit. Try a shorter recording.`);
             }
             let binary = "";
             bytes.forEach(value => binary += String.fromCharCode(value));
@@ -70,6 +136,7 @@ window.qwenTtsRecording = (() => {
             };
         },
         dispose: async () => {
+            stopTimer();
             processor?.disconnect();
             source?.disconnect();
             stream?.getTracks().forEach(track => track.stop());

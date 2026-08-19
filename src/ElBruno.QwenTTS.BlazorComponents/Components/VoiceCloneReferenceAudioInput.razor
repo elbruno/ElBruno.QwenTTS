@@ -19,6 +19,7 @@
                 <button type="button" class="btn btn-danger" @onclick="StopRecordingAsync" disabled="@Disabled">
                     Stop recording
                 </button>
+                <span class="qwen-recording-timer" id="@TimerId" role="timer">00:00</span>
             }
             else
             {
@@ -47,6 +48,7 @@
 
 @code {
     private readonly string InputId = $"qwen-reference-audio-{Guid.NewGuid():N}";
+    private readonly string TimerId = $"qwen-recording-timer-{Guid.NewGuid():N}";
     private string? ValidationMessage;
     private string? RecordingAvailabilityMessage;
     private bool? IsRecordingAvailable;
@@ -125,12 +127,14 @@
 
         try
         {
-            await JsRuntime.InvokeVoidAsync("qwenTtsRecording.start");
             IsRecording = true;
             ValidationMessage = null;
+            StateHasChanged();
+            await JsRuntime.InvokeVoidAsync("qwenTtsRecording.start", TimerId);
         }
         catch (JSException)
         {
+            IsRecording = false;
             IsRecordingAvailable = false;
             RecordingAvailabilityMessage = "Browser recording is unavailable.";
             await SetErrorAsync(RecordingAvailabilityMessage);

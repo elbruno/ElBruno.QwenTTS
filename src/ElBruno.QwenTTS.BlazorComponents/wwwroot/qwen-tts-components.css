@@ -127,6 +127,13 @@
     margin-top: 0.7rem;
 }
 
+.qwen-recording-timer {
+    margin-left: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: #c0392b;
+}
+
 .qwen-reference-audio-input .qwen-error,
 .qwen-voice-clone-form .qwen-error {
     margin-top: 0.6rem;
