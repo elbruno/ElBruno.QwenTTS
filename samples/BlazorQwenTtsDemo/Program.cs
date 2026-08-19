@@ -12,6 +12,7 @@ builder.Services.AddSingleton<BaseTtsModelDownloadAdapter>();
 builder.Services.AddSingleton<VoiceCloningModelDownloadAdapter>();
 builder.Services.AddSingleton<BaseTtsModelDownloadController>();
 builder.Services.AddSingleton<VoiceCloningModelDownloadController>();
+builder.Services.AddSingleton<VoiceClonePipelineService>();
 builder.AddServiceDefaults();
 
 var app = builder.Build();

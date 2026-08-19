@@ -128,3 +128,7 @@ Open [http://localhost:5153/voice-clone](http://localhost:5153/voice-clone) to:
 The controls do not perform filesystem work, model setup, or inference. The Web host owns reference persistence, Base-model readiness/download, serialized inference, cancellation, and generated-file retention. Browser recording requires microphone permission, `getUserMedia`, and `AudioContext`; the UI explicitly reports unsupported browsers or unavailable APIs. The model-free callback-flow demo is available at [http://localhost:5153/voice-clone-demo](http://localhost:5153/voice-clone-demo).
 
 See [Web App](web-app.md) and [Blazor Components](blazor-components.md) for host integration details.
+
+## Aspire Sample: Record-and-Clone
+
+`samples/BlazorQwenTtsDemo` (orchestrated by `samples/BlazorQwenTtsDemo.AppHost`) includes the same record-and-clone flow at `/voice-clone`, built on its own `VoiceClonePipelineService` under `samples/BlazorQwenTtsDemo/Services`. It follows the identical host-owns-persistence pattern as the Web app, reuses the sample's existing `VoiceCloningModelDownloadController` for readiness gating, and produces the same real `voice_clone.*` GenAI OpenTelemetry traces (from `VoiceClonePipeline`) — visible in the Aspire dashboard when the sample runs via `aspire start`. See [BlazorQwenTtsDemo Sample App](blazor-qwen-tts-demo.md) for details.

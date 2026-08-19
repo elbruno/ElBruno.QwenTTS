@@ -1,0 +1,221 @@
+@page "/voice-clone"
+@using ElBruno.QwenTTS.Pipeline
+@using BlazorQwenTtsDemo.Services
+@inject VoiceClonePipelineService Vc
+@implements IDisposable
+@rendermode InteractiveServer
+
+<PageTitle>Voice Clone — Qwen TTS</PageTitle>
+
+<div class="main-content">
+    <h1>Record and clone your voice</h1>
+    <p class="qwen-muted">Record a short WAV reference from your microphone (or upload one) up to 1 MiB. An optional transcript enables ICL mode.</p>
+
+    <ModelDownloadStatus ModelName="@VoiceCloningModels.State.DisplayName"
+                         IsReady="@VoiceCloningModels.State.IsDownloaded"
+                         IsInitializing="@VoiceCloningModels.State.IsDownloading"
+                         IsModelDownloaded="@VoiceCloningModels.State.IsDownloaded"
+                         DownloadProgress="@VoiceCloningModels.State.Progress"
+                         Error="@VoiceCloningModels.State.Error"
+                         ReadyMessage="Voice-cloning model files are available."
+                         MissingMessage="Download the voice-cloning model files before recording and cloning."
+                         OnInitializeRequested="VoiceCloningModels.DownloadAsync" />
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <VoiceCloneReferenceAudioInput Value="@_referenceAudio"
+                                           ValueChanged="SaveReferenceAudioAsync"
+                                           OnError="SetErrorAsync"
+                                           Disabled="@_isSubmitting" />
+
+            @if (!string.IsNullOrWhiteSpace(_referenceUrl))
+            {
+                <VoiceSamplePlayer Label="Saved reference audio" AudioUrl="@_referenceUrl" ShowDownload="true" DownloadFileName="reference.wav" />
+            }
+
+            <VoiceCloneForm Text="@_text"
+                            TextChanged="SetTextAsync"
+                            ReferenceAudio="@_referenceAudio"
+                            ReferenceTranscript="@_referenceTranscript"
+                            ReferenceTranscriptChanged="SetTranscriptAsync"
+                            IsSubmitting="@_isSubmitting"
+                            IsDisabled="@(!VoiceCloningModels.State.IsDownloaded || !Vc.IsReady || !_hasPersistedReference)"
+                            OnSubmit="GenerateAsync"
+                            OnCancel="Cancel" />
+
+            <VoiceCloneWorkflowStatus Progress="@_progress" Error="@_error" />
+        </div>
+        <div class="col-lg-5">
+            <div class="tts-card">
+                <h3>Generated audio</h3>
+                @if (_resultUrl is null)
+                {
+                    <div class="output-empty">Your cloned speech will appear here.</div>
+                }
+                else
+                {
+                    <VoiceSamplePlayer Label="Cloned voice output" AudioUrl="@_resultUrl" DownloadFileName="@_resultFileName" />
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Inject] private VoiceCloningModelDownloadController VoiceCloningModels { get; set; } = default!;
+
+    private VoiceCloneReferenceAudio? _referenceAudio;
+    private string? _referencePath;
+    private string? _referenceUrl;
+    private bool _hasPersistedReference;
+    private string _text = string.Empty;
+    private string? _referenceTranscript;
+    private string? _resultUrl;
+    private string _resultFileName = "cloned-voice.wav";
+    private string? _error;
+    private string? _initializationError;
+    private VoiceCloneProgress? _progress;
+    private bool _isSubmitting;
+    private CancellationTokenSource? _generationCancellation;
+
+    protected override async Task OnInitializedAsync()
+    {
+        VoiceCloningModels.Changed += OnDownloadStateChanged;
+        Vc.OnDownloadProgress += OnDownloadProgressUpdate;
+        VoiceCloningModels.Refresh();
+        if (VoiceCloningModels.State.IsDownloaded || Vc.IsReady)
+            await InitializeModelAsync();
+    }
+
+    public void Dispose()
+    {
+        VoiceCloningModels.Changed -= OnDownloadStateChanged;
+        Vc.OnDownloadProgress -= OnDownloadProgressUpdate;
+        _generationCancellation?.Cancel();
+        _generationCancellation?.Dispose();
+    }
+
+    private void OnDownloadStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task InitializeModelAsync()
+    {
+        _initializationError = null;
+        try
+        {
+            await Vc.InitializeAsync();
+        }
+        catch (Exception ex)
+        {
+            _initializationError = ex.Message;
+            _error = _initializationError;
+        }
+    }
+
+    private void OnDownloadProgressUpdate(ModelDownloadProgress progress) =>
+        _ = InvokeAsync(StateHasChanged);
+
+    private async Task SaveReferenceAudioAsync(VoiceCloneReferenceAudio? referenceAudio)
+    {
+        _error = null;
+        _referenceAudio = referenceAudio;
+        _referencePath = null;
+        _referenceUrl = null;
+        _hasPersistedReference = false;
+        _resultUrl = null;
+        if (referenceAudio is null)
+        {
+            return;
+        }
+
+        if (!Vc.IsReady && VoiceCloningModels.State.IsDownloaded)
+        {
+            await InitializeModelAsync();
+        }
+
+        try
+        {
+            (_referencePath, _referenceUrl) = await Vc.SaveReferenceAudioAsync(referenceAudio.Content);
+            _hasPersistedReference = true;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Unable to save the reference audio: {ex.Message}";
+        }
+    }
+
+    private Task SetErrorAsync(string error)
+    {
+        _error = error;
+        return Task.CompletedTask;
+    }
+
+    private Task SetTextAsync(string text)
+    {
+        _text = text;
+        return Task.CompletedTask;
+    }
+
+    private Task SetTranscriptAsync(string? transcript)
+    {
+        _referenceTranscript = transcript;
+        return Task.CompletedTask;
+    }
+
+    private async Task GenerateAsync(VoiceCloneRequest request)
+    {
+        if (!Vc.IsReady || !_hasPersistedReference || string.IsNullOrWhiteSpace(_referencePath))
+        {
+            _error = "The voice-cloning model and a saved reference WAV are required.";
+            return;
+        }
+
+        _error = null;
+        _resultUrl = null;
+        _isSubmitting = true;
+        _generationCancellation = new CancellationTokenSource();
+        _progress = new VoiceCloneProgress(
+            string.IsNullOrWhiteSpace(request.ReferenceTranscript)
+                ? "Generating with speaker embedding..."
+                : "Generating with ICL reference transcript...",
+            IsIndeterminate: true);
+
+        try
+        {
+            var progress = new Progress<string>(message =>
+                _ = InvokeAsync(() =>
+                {
+                    _progress = new VoiceCloneProgress(message, IsIndeterminate: true);
+                    StateHasChanged();
+                }));
+            _resultUrl = await Vc.GenerateAsync(
+                request.Text,
+                _referencePath,
+                request.ReferenceTranscript,
+                "auto",
+                progress,
+                _generationCancellation.Token);
+            _resultFileName = $"cloned-{DateTime.UtcNow:yyyyMMddHHmmss}.wav";
+            _progress = new VoiceCloneProgress("Complete.", 100);
+        }
+        catch (OperationCanceledException)
+        {
+            _error = "Voice cloning was cancelled.";
+        }
+        catch (Exception ex)
+        {
+            _error = $"Voice cloning failed: {ex.Message}";
+        }
+        finally
+        {
+            _generationCancellation?.Dispose();
+            _generationCancellation = null;
+            _isSubmitting = false;
+        }
+    }
+
+    private Task Cancel()
+    {
+        _generationCancellation?.Cancel();
+        return Task.CompletedTask;
+    }
+}
