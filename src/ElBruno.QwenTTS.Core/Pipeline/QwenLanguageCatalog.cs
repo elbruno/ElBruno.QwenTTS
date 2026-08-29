@@ -15,7 +15,11 @@ public static class QwenLanguageCatalog
         new("chinese", "Chinese"),
         new("japanese", "Japanese"),
         new("korean", "Korean"),
-        new("russian", "Russian")
+        new("russian", "Russian"),
+        new("german", "German"),
+        new("french", "French"),
+        new("portuguese", "Portuguese"),
+        new("italian", "Italian")
     ];
 
     public static readonly IReadOnlySet<string> SupportedLanguages =
