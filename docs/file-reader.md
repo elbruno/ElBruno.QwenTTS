@@ -15,7 +15,7 @@ dotnet run --project src/ElBruno.QwenTTS.FileReader -- --model-dir python/onnx_r
 | `--model-dir` | *(required)* | Path to ONNX model directory |
 | `--input` | *(required)* | Path to `.txt`, `.md`, or `.srt` file |
 | `--speaker` | `Ryan` | Speaker voice name |
-| `--language` | `auto` | Language: `english`, `spanish`, `chinese`, `japanese`, `korean`, `russian`, `auto`, etc. |
+| `--language` | `auto` | Language: `english`, `spanish`, `chinese`, `japanese`, `korean`, `russian`, `german`, `french`, `portuguese`, `italian`, or `auto` |
 | `--output-dir` | `output` | Directory for generated WAV files |
 | `--instruct` | *(none)* | Voice style instruction |
 

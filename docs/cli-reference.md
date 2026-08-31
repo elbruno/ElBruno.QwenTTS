@@ -13,7 +13,7 @@ dotnet run --project src/ElBruno.QwenTTS -- --model-dir <path> --text "<text>" [
 | `--model-dir` | *(required)* | Path to model directory (models auto-download if missing) |
 | `--text` | *(required)* | Text to synthesize |
 | `--speaker` | `Ryan` | Speaker voice name (see below) |
-| `--language` | `auto` | Language: `english`, `spanish`, `chinese`, `japanese`, `korean`, `russian`, `auto`, etc. |
+| `--language` | `auto` | Language: `english`, `spanish`, `chinese`, `japanese`, `korean`, `russian`, `german`, `french`, `portuguese`, `italian`, or `auto` |
 | `--output` | `output.wav` | Output WAV file path |
 | `--instruct` | *(none)* | Voice style instruction (e.g., "speak happily") |
 

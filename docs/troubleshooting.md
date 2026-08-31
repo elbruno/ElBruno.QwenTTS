@@ -27,6 +27,10 @@ If you see `Not a valid NPY file (bad magic)`, the C# NpyReader may be using a U
 ReadOnlySpan<byte> expected = [0x93, (byte)'N', (byte)'U', (byte)'M', (byte)'P', (byte)'Y'];
 ```
 
+## CUDA Pad Node Failure
+
+If CUDA synthesis fails with `Non-zero status code returned while running Pad node. Name:'node_pad_1'` and `Tensor shape.Size() must be >= 0` while the same text succeeds on CPU, see [GPU Acceleration → Troubleshooting](gpu-acceleration.md#cuda-pad-node-failure--tensor-shapesize-must-be--0) for workarounds. Tracked in [issue #73](https://github.com/elbruno/ElBruno.QwenTTS/issues/73).
+
 ## Model Download Issues
 
 - The setup script and download script both support resuming interrupted downloads

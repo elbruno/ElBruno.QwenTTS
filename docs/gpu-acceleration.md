@@ -144,6 +144,47 @@ Install `Microsoft.ML.OnnxRuntime.DirectML` instead of `Microsoft.ML.OnnxRuntime
 ### DirectML Reshape crash
 Delete your local model cache and re-download to get the pre-patched models. Also ensure you use `vocoderSessionOptionsFactory: OrtSessionHelper.CreateCpuOptions` for the vocoder. If using older models, run `python python/patch_models_for_dml.py <model_dir>` to patch them manually.
 
+### CUDA "Pad node" failure — `Tensor shape.Size() must be >= 0`
+
+Synthesis may fail partway through generation on the CUDA execution provider with:
+
+```
+Non-zero status code returned while running Pad node. Name:'node_pad_1'
+onnxruntime::Tensor::CalculateTensorStorageSize Tensor shape.Size() must be >= 0
+```
+
+The same text synthesizes correctly on the CPU provider, and the failure persists in hybrid mode
+(`vocoderSessionOptionsFactory: OrtSessionHelper.CreateCpuOptions`), so the failing node is in the
+language model rather than the vocoder. This is an interaction between the CUDA `Pad` kernel and the
+language model's dynamic decode shapes, not a defect in the library's own tensor shapes.
+
+Workarounds, in order of preference:
+
+1. **Use DirectML** on Windows — it supports NVIDIA GPUs and already disables memory-pattern
+   optimization for these dynamic KV-cache shapes. See [DirectML: Hybrid Mode](#directml-hybrid-mode).
+2. **Try disabling memory-pattern optimization on CUDA** by supplying your own session options.
+   This mirrors what DirectML does and costs nothing to test:
+
+   ```csharp
+   await using var pipeline = await TtsPipeline.CreateAsync(
+       sessionOptionsFactory: () =>
+       {
+           var options = new SessionOptions
+           {
+               GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
+               EnableMemoryPattern = false,
+               ExecutionMode = ExecutionMode.ORT_SEQUENTIAL
+           };
+           options.AppendExecutionProvider_CUDA();
+           options.AppendExecutionProvider_CPU();
+           return options;
+       });
+   ```
+
+3. **Fall back to CPU** (`OrtSessionHelper.CreateCpuOptions`) — slower, but always correct.
+
+Tracked in [issue #73](https://github.com/elbruno/ElBruno.QwenTTS/issues/73).
+
 ### Mixed package errors
 Only one ORT package can be referenced per project. Remove conflicting packages:
 ```bash

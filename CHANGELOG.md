@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-08-31
+
+### Added
+- German, French, Portuguese, and Italian to `QwenLanguageCatalog`, so the catalog now exposes all ten languages the Qwen3-TTS model supports (thanks @Andrea-Bruno — [#74](https://github.com/elbruno/ElBruno.QwenTTS/pull/74), resolves [#72](https://github.com/elbruno/ElBruno.QwenTTS/issues/72))
+
+### Changed
+- Updated `ElBruno.QwenTTS.ServiceDefaults` observability dependencies to the latest stable releases (OpenTelemetry 1.18.0, `Microsoft.Extensions.Http.Resilience` and `Microsoft.Extensions.ServiceDiscovery` 10.9.0)
+
+### Tests
+- Added catalog coverage asserting the full ten-language set, case-insensitive `IsSupported` matching, exclusion of `auto` from `SupportedLanguages`, unique option values, and non-empty labels
+
+### Documentation
+- Listed the four new languages in the CLI, file-reader, core-library, and web-app documentation, and in the `--language` help output of both console applications
+- Documented the known CUDA `Pad` node failure and its DirectML, memory-pattern, and CPU workarounds in the GPU-acceleration and troubleshooting guides ([#73](https://github.com/elbruno/ElBruno.QwenTTS/issues/73))
+
 ## [1.9.0] - 2026-08-18
 
 ### Added
