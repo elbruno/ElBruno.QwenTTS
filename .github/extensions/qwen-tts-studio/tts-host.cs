@@ -1,7 +1,3 @@
-#:sdk Microsoft.NET.Sdk.Web
-#:project ../../../src/ElBruno.QwenTTS.Core/ElBruno.QwenTTS.Core.csproj
-#:property PublishAot=false
-
 // Sidecar HTTP host for the qwen-tts-studio canvas.
 //
 // Keeps a single TtsPipeline warm in memory so the ~5.5 GB ONNX model is loaded
@@ -17,6 +13,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.ML.OnnxRuntime;
 using ElBruno.QwenTTS.Pipeline;
+using QwenTtsStudio;
 
 var port = int.Parse(GetOption(args, "--port") ?? "0");
 var artifactsDir = GetOption(args, "--artifacts")
@@ -26,7 +23,7 @@ var modelDir = ResolveModelDir(GetOption(args, "--model-dir"));
 Directory.CreateDirectory(artifactsDir);
 
 var engine = new Engine(modelDir, artifactsDir);
-_ = engine.InitializeAsync();
+_ = Task.Run(engine.InitializeAsync);
 
 var builder = WebApplication.CreateBuilder();
 builder.Logging.ClearProviders();
@@ -78,7 +75,27 @@ app.MapGet("/api/audio/{id}", (string id) =>
     return Results.File(path, "audio/wav", Path.GetFileName(path), enableRangeProcessing: true);
 });
 
+if (int.TryParse(GetOption(args, "--parent-pid"), out var parentPid))
+    _ = StopWithParentAsync(parentPid, app.Lifetime);
+
 app.Run();
+
+static async Task StopWithParentAsync(int parentPid, IHostApplicationLifetime lifetime)
+{
+    try
+    {
+        using var parent = Process.GetProcessById(parentPid);
+        await parent.WaitForExitAsync(lifetime.ApplicationStopping);
+        lifetime.StopApplication();
+    }
+    catch (ArgumentException)
+    {
+        lifetime.StopApplication();
+    }
+    catch (OperationCanceledException) when (lifetime.ApplicationStopping.IsCancellationRequested)
+    {
+    }
+}
 
 static string? GetOption(string[] args, string name)
 {
@@ -178,7 +195,7 @@ sealed class Engine(string modelDir, string artifactsDir)
     private readonly List<JobView> _restored = [];
     private readonly SemaphoreSlim _queue = new(1, 1);
 
-    private TtsPipeline? _pipeline;
+    private GpuFirstRunner<TtsPipeline>? _pipeline;
     private string _state = "loading";
     private string _message = "Starting up...";
     private string[] _speakers = [];
@@ -195,9 +212,20 @@ sealed class Engine(string modelDir, string artifactsDir)
                 _message = $"Downloading {missing.Count} model files from HuggingFace...";
 
             var progress = new Progress<string>(m => _message = m);
-            _pipeline = await TtsPipeline.CreateAsync(modelDir, progress: progress);
+            _pipeline = new GpuFirstRunner<TtsPipeline>(
+                OperatingSystem.IsWindows() ? async () =>
+                {
+                    _message = "Trying DirectML GPU acceleration (CPU vocoder)...";
+                    // Probe device/provider availability before the pipeline creates its lazy sessions.
+                    using var probe = OrtSessionHelper.CreateDirectMlOptions();
+                    return await TtsPipeline.CreateAsync(modelDir, progress: progress,
+                        sessionOptionsFactory: OrtSessionHelper.CreateDirectMlOptions,
+                        vocoderSessionOptionsFactory: OrtSessionHelper.CreateCpuOptions);
+                } : null,
+                () => TtsPipeline.CreateAsync(modelDir, progress: progress));
+            await _pipeline.InitializeAsync();
 
-            _speakers = [.. _pipeline.Speakers.OrderBy(s => s, StringComparer.OrdinalIgnoreCase)];
+            _speakers = [.. _pipeline.Value.Speakers.OrderBy(s => s, StringComparer.OrdinalIgnoreCase)];
             _state = "ready";
             _message = $"Model loaded from {modelDir}";
         }
@@ -220,7 +248,7 @@ sealed class Engine(string modelDir, string artifactsDir)
         activeJob = ActiveJobId()
     };
 
-    private static object RuntimeInfo()
+    private object RuntimeInfo()
     {
         var libraryAssembly = typeof(TtsPipeline).Assembly;
         var libraryVersion = libraryAssembly.GetName().Version?.ToString() ?? "unknown";
@@ -234,8 +262,10 @@ sealed class Engine(string modelDir, string artifactsDir)
             informationalVersion,
             dotnetVersion = Environment.Version.ToString(),
             onnxRuntimeVersion = typeof(InferenceSession).Assembly.GetName().Version?.ToString() ?? "unknown",
-            executionProvider = "CPU",
-            gpuAcceleration = false,
+            executionProvider = _pipeline?.ExecutionProvider ?? "Initializing",
+            gpuAcceleration = _pipeline?.GpuAcceleration ?? false,
+            vocoderExecutionProvider = "CPU",
+            fallbackReason = _pipeline?.FallbackReason,
             processArchitecture = RuntimeInformation.ProcessArchitecture.ToString(),
             osDescription = RuntimeInformation.OSDescription
         };
@@ -285,9 +315,11 @@ sealed class Engine(string modelDir, string artifactsDir)
             Report(job, $"Synthesizing with voice '{job.Speaker}' ({job.Language})...");
 
             var progress = new Progress<string>(m => Report(job, m));
-            var wav = await _pipeline!.SynthesizeWavAsync(
-                job.Text, job.Speaker, job.Language, instruct: null,
-                progress: progress, cancellationToken: job.Cancellation.Token);
+            var wav = await _pipeline!.RunAsync(
+                pipeline => pipeline.SynthesizeWavAsync(
+                    job.Text, job.Speaker, job.Language, instruct: null,
+                    progress: progress, cancellationToken: job.Cancellation.Token),
+                progress, job.Cancellation.Token);
 
             var path = Path.Combine(artifactsDir, $"{job.Id}.wav");
             await File.WriteAllBytesAsync(path, wav.ToArray(), CancellationToken.None);
