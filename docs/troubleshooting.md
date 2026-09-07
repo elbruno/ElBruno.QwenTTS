@@ -29,7 +29,7 @@ ReadOnlySpan<byte> expected = [0x93, (byte)'N', (byte)'U', (byte)'M', (byte)'P',
 
 ## CUDA Pad Node Failure
 
-If CUDA synthesis fails with `Non-zero status code returned while running Pad node. Name:'node_pad_1'` and `Tensor shape.Size() must be >= 0` while the same text succeeds on CPU, see [GPU Acceleration → Troubleshooting](gpu-acceleration.md#cuda-pad-node-failure--tensor-shapesize-must-be--0) for workarounds. Tracked in [issue #73](https://github.com/elbruno/ElBruno.QwenTTS/issues/73).
+For `Non-zero status code returned while running Pad node. Name:'node_pad_1'` together with `Tensor shape.Size() must be >= 0`, the vocoder now retries on CPU and stays there while the language model keeps its configured provider. To select a CPU vocoder upfront, pass `vocoderSessionOptionsFactory: OrtSessionHelper.CreateCpuOptions`; `null` inherits the main factory instead. See [GPU Acceleration → Troubleshooting](gpu-acceleration.md#cuda-pad-node-failure--tensor-shapesize-must-be--0) for the recovery limits and alternatives. Tracked in [issue #73](https://github.com/elbruno/ElBruno.QwenTTS/issues/73).
 
 ## Model Download Issues
 

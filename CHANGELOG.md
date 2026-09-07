@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.1-rc.1] - 2026-09-07
+
+Prerelease for validation of the vocoder CPU recovery workaround; the original GTX 1650 Ti CUDA failure has not yet been reproduced on that hardware.
+
+### Fixed
+- Retry vocoder decoding on CPU for the specific ONNX Runtime `Pad` / negative tensor-shape failure, reusing generated audio codes and keeping the language model on its configured GPU provider ([#73](https://github.com/elbruno/ElBruno.QwenTTS/issues/73))
+
+### Documentation
+- Corrected the CUDA Pad troubleshooting guidance: a null vocoder factory inherits the main factory; explicit CPU hybrid execution requires `OrtSessionHelper.CreateCpuOptions`
+
 ## [1.10.0] - 2026-08-31
 
 ### Added
