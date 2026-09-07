@@ -384,7 +384,9 @@
                     [".NET", runtime.dotnetVersion],
                     ["ONNX Runtime", runtime.onnxRuntimeVersion],
                     ["Execution provider", runtime.executionProvider],
-                    ["GPU acceleration", runtime.gpuAcceleration ? "enabled" : "disabled"],
+                    ["GPU acceleration", runtime.gpuAcceleration ? "enabled (language model)" : "disabled"],
+                    ["Vocoder", runtime.vocoderExecutionProvider || "CPU"],
+                    ["CPU fallback", runtime.fallbackReason || "not needed"],
                     ["Process", runtime.processArchitecture],
                     ["OS", runtime.osDescription],
                 ];

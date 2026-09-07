@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Compile Include="..\..\.github\extensions\qwen-tts-studio\GpuFirstRunner.cs" Link="Canvas\GpuFirstRunner.cs" />
   </ItemGroup>
 
 </Project>

@@ -20,7 +20,7 @@ import { joinSession, createCanvas, CanvasError } from "@github/copilot-sdk/exte
 
 const EXTENSION_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(EXTENSION_DIR, "..", "..", "..");
-const HOST_SCRIPT = path.join(EXTENSION_DIR, "tts-host.cs");
+const HOST_PROJECT = path.join(EXTENSION_DIR, "tts-host.csproj");
 
 // Generated WAVs outlive any single panel or session, so they go in the
 // extension's own durable artifact directory rather than in the repo.
@@ -78,7 +78,7 @@ function ensureSidecar() {
 
         const child = spawn(
             "dotnet",
-            ["run", HOST_SCRIPT, "--port", String(port), "--artifacts", ARTIFACTS_DIR],
+            ["run", "--project", HOST_PROJECT, "--no-launch-profile", "--", "--port", String(port), "--artifacts", ARTIFACTS_DIR, "--parent-pid", String(process.pid)],
             {
                 cwd: REPO_ROOT,
                 stdio: ["ignore", "pipe", "pipe"],

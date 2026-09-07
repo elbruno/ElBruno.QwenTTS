@@ -45,8 +45,8 @@ flowchart LR
 
 - `extension.mjs` declares the canvas, serves `ui.html` on a loopback port per
   panel, and proxies `/api/*` to the sidecar.
-- `tts-host.cs` is a .NET 10 [file-based app](https://learn.microsoft.com/dotnet/core/whats-new/dotnet-10/sdk#file-based-apps)
-  that references `ElBruno.QwenTTS.Core` directly. It keeps **one `TtsPipeline`
+- `tts-host.csproj` is a .NET 10 web host that references `ElBruno.QwenTTS.Core`
+  directly and includes ONNX Runtime DirectML on Windows. It keeps **one `TtsPipeline`
   warm in memory**, so the ~5.5 GB ONNX model is loaded once per extension
   lifetime rather than once per generation. Synthesis runs as a cancellable job
   that reports the pipeline's `IProgress<string>` messages.
@@ -84,24 +84,34 @@ execution details used by the sidecar:
 - `ElBruno.QwenTTS` library version and informational version
 - .NET runtime version
 - ONNX Runtime version
-- execution provider (`CPU` in the default canvas build)
-- GPU acceleration status
+- selected execution provider (`DirectML`, `CPU`, or `Initializing`)
+- GPU acceleration status for the language model
+- vocoder execution provider (CPU)
+- CPU fallback reason, if a GPU attempt failed
 - process architecture and operating system
 
-The canvas currently references the CPU ONNX Runtime package and creates the
-pipeline without CUDA or DirectML session options. GPU support is implemented
-by the core library, but enabling it for the canvas requires adding the
-matching provider package and native driver/toolkit for the machine:
-`Microsoft.ML.OnnxRuntime.Gpu` for NVIDIA CUDA or
-`Microsoft.ML.OnnxRuntime.DirectML` for Windows GPU execution. The diagnostic
-panel makes this distinction visible before investigating performance.
+On Windows the canvas automatically tries **DirectML first** on the default GPU
+(device 0), supporting NVIDIA, AMD, and Intel hardware with compatible drivers.
+No CUDA toolkit is required. The vocoder stays on CPU because its operators are
+not fully supported by DirectML; ONNX Runtime may also assign unsupported
+language-model operators to CPU.
+
+If GPU setup fails, the host initializes a CPU pipeline. ONNX sessions load lazily,
+so a GPU provider or graph failure during synthesis also disposes the GPU pipeline
+and retries that request **once on CPU**. Subsequent requests keep the CPU pipeline
+until the extension is reloaded. Cancellation and invalid-input errors do not
+trigger a retry. Runtime diagnostics show the selected backend, not a per-operator
+GPU utilization measurement, and retain any fallback reason.
+
+On non-Windows platforms this canvas uses the CPU runtime. For other GPU backends,
+see [gpu-acceleration.md](gpu-acceleration.md).
 
 ## Performance note
 
-Synthesis runs on CPU by default and is slow — expect several minutes for a few
-seconds of audio. The canvas is built around that: generation is a background
-job with live progress and a cancel button, and the model stays warm between
-requests. For faster runs, see [gpu-acceleration.md](gpu-acceleration.md).
+GPU acceleration can reduce language-model inference time, but the first generation
+also loads and prepares the ONNX sessions. CPU fallback can take several minutes
+for a few seconds of audio. Generation remains a background job with live progress
+and a cancel button, and the model stays warm between requests.
 
 ## Requirements
 
