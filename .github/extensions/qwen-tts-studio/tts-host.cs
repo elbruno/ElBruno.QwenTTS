@@ -11,8 +11,11 @@
 
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.ML.OnnxRuntime;
 using ElBruno.QwenTTS.Pipeline;
 
 var port = int.Parse(GetOption(args, "--port") ?? "0");
@@ -211,10 +214,32 @@ sealed class Engine(string modelDir, string artifactsDir)
         message = _message,
         modelDir,
         artifactsDir,
+        runtime = RuntimeInfo(),
         speakers = _speakers,
         languages = QwenLanguageCatalog.Options.Select(o => new { value = o.Value, label = o.Label }),
         activeJob = ActiveJobId()
     };
+
+    private static object RuntimeInfo()
+    {
+        var libraryAssembly = typeof(TtsPipeline).Assembly;
+        var libraryVersion = libraryAssembly.GetName().Version?.ToString() ?? "unknown";
+        var informationalVersion = libraryAssembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion ?? libraryVersion;
+
+        return new
+        {
+            libraryVersion,
+            informationalVersion,
+            dotnetVersion = Environment.Version.ToString(),
+            onnxRuntimeVersion = typeof(InferenceSession).Assembly.GetName().Version?.ToString() ?? "unknown",
+            executionProvider = "CPU",
+            gpuAcceleration = false,
+            processArchitecture = RuntimeInformation.ProcessArchitecture.ToString(),
+            osDescription = RuntimeInformation.OSDescription
+        };
+    }
 
     public Task<JobView> EnqueueAsync(GenerateRequest request)
     {

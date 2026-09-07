@@ -76,6 +76,26 @@ The canvas is also drivable by the agent through `invoke_canvas_action`:
 | `get_generation` | Status, progress messages, elapsed time and result of a job |
 | `list_generations` | Recent generations and their saved WAV file names |
 
+## Runtime diagnostics
+
+Expand **Runtime diagnostics** in the canvas to see the exact versions and
+execution details used by the sidecar:
+
+- `ElBruno.QwenTTS` library version and informational version
+- .NET runtime version
+- ONNX Runtime version
+- execution provider (`CPU` in the default canvas build)
+- GPU acceleration status
+- process architecture and operating system
+
+The canvas currently references the CPU ONNX Runtime package and creates the
+pipeline without CUDA or DirectML session options. GPU support is implemented
+by the core library, but enabling it for the canvas requires adding the
+matching provider package and native driver/toolkit for the machine:
+`Microsoft.ML.OnnxRuntime.Gpu` for NVIDIA CUDA or
+`Microsoft.ML.OnnxRuntime.DirectML` for Windows GPU execution. The diagnostic
+panel makes this distinction visible before investigating performance.
+
 ## Performance note
 
 Synthesis runs on CPU by default and is slow — expect several minutes for a few
