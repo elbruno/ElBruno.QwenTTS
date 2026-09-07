@@ -205,6 +205,30 @@
                 font-size: var(--text-code-inline, 12px);
             }
 
+            details summary {
+                cursor: pointer;
+                color: var(--text-color-muted, #59636e);
+                font-size: var(--text-body-small, 12px);
+                font-weight: var(--font-weight-semibold, 600);
+            }
+
+            .diagnostics {
+                display: grid;
+                grid-template-columns: max-content 1fr;
+                gap: 4px 12px;
+                margin-top: 10px;
+                font-size: var(--text-body-small, 12px);
+            }
+
+            .diagnostics dt {
+                color: var(--text-color-muted, #59636e);
+            }
+
+            .diagnostics dd {
+                margin: 0;
+                overflow-wrap: anywhere;
+            }
+
             .history {
                 list-style: none;
                 margin: 0;
@@ -248,6 +272,15 @@
             <h1>Qwen TTS Studio</h1>
             <span class="engine"><span class="dot" id="engine-dot"></span><span id="engine-text">Connecting…</span></span>
         </header>
+
+        <section class="card">
+            <details>
+                <summary>Runtime diagnostics</summary>
+                <dl class="diagnostics" id="diagnostics">
+                    <dt>Library</dt><dd>Loading…</dd>
+                </dl>
+            </details>
+        </section>
 
         <section class="card">
             <label for="text">Text</label>
@@ -301,6 +334,7 @@
                 bar: $("bar"),
                 dot: $("engine-dot"),
                 engine: $("engine-text"),
+                diagnostics: $("diagnostics"),
                 playerCard: $("player-card"),
                 player: $("player"),
                 playerMeta: $("player-meta"),
@@ -343,6 +377,27 @@
 
             const titleCase = (value) => value.replace(/(^|_)([a-z])/g, (_, sep, ch) => (sep ? " " : "") + ch.toUpperCase());
 
+            const renderDiagnostics = (runtime) => {
+                if (!runtime) return;
+                const values = [
+                    ["Library", `${runtime.libraryVersion} (${runtime.informationalVersion})`],
+                    [".NET", runtime.dotnetVersion],
+                    ["ONNX Runtime", runtime.onnxRuntimeVersion],
+                    ["Execution provider", runtime.executionProvider],
+                    ["GPU acceleration", runtime.gpuAcceleration ? "enabled" : "disabled"],
+                    ["Process", runtime.processArchitecture],
+                    ["OS", runtime.osDescription],
+                ];
+                els.diagnostics.innerHTML = "";
+                for (const [label, value] of values) {
+                    const term = document.createElement("dt");
+                    term.textContent = label;
+                    const detail = document.createElement("dd");
+                    detail.textContent = value;
+                    els.diagnostics.append(term, detail);
+                }
+            };
+
             const syncControls = () => {
                 const busy = Boolean(activeJobId);
                 els.generate.disabled = engineState !== "ready" || busy || !els.text.value.trim();
@@ -355,9 +410,14 @@
                     const state = await api("/state");
                     engineState = state.state;
                     artifactsDir = state.artifactsDir || "";
+                    renderDiagnostics(state.runtime);
                     els.dot.dataset.state = state.state;
                     els.engine.textContent =
-                        state.state === "ready" ? "Model ready" : state.state === "error" ? "Model error" : "Loading model…";
+                        state.state === "ready"
+                            ? `Model ready (${state.runtime?.executionProvider || "unknown"})`
+                            : state.state === "error"
+                              ? "Model error"
+                              : "Loading model…";
 
                     if (state.state !== "ready") setStatus(state.message, state.state === "error" ? "error" : "");
                     else if (!activeJobId && !currentAudioId) setStatus("");
