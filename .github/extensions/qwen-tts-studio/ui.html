@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Qwen TTS Studio</title>
+        <style>
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+            }
+
+            body {
+                margin: 0;
+                padding: 16px;
+                background: var(--background-color-default, #ffffff);
+                color: var(--text-color-default, #1f2328);
+                font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+                font-size: var(--text-body-medium, 14px);
+                line-height: var(--leading-body-medium, 20px);
+            }
+
+            h1 {
+                margin: 0;
+                font-family: var(--font-sans-display, var(--font-sans, inherit));
+                font-size: var(--text-title-medium, 20px);
+                font-weight: var(--font-weight-semibold, 600);
+                line-height: var(--leading-title-medium, 28px);
+            }
+
+            header {
+                display: flex;
+                align-items: baseline;
+                justify-content: space-between;
+                gap: 12px;
+                flex-wrap: wrap;
+                margin-bottom: 14px;
+            }
+
+            .engine {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                font-size: var(--text-body-small, 12px);
+                color: var(--text-color-muted, #59636e);
+            }
+
+            .dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: var(--true-color-yellow, #d4a72c);
+                flex: none;
+            }
+
+            .dot[data-state="ready"] {
+                background: var(--true-color-green, #1a7f37);
+            }
+
+            .dot[data-state="error"] {
+                background: var(--true-color-red, #cf222e);
+            }
+
+            .card {
+                border: 1px solid var(--border-color-default, #d1d9e0);
+                border-radius: 8px;
+                padding: 14px;
+                margin-bottom: 14px;
+            }
+
+            label {
+                display: block;
+                font-size: var(--text-body-small, 12px);
+                font-weight: var(--font-weight-semibold, 600);
+                color: var(--text-color-muted, #59636e);
+                margin-bottom: 5px;
+            }
+
+            textarea,
+            select {
+                width: 100%;
+                padding: 8px 10px;
+                border: 1px solid var(--border-color-default, #d1d9e0);
+                border-radius: 6px;
+                background: var(--background-color-default, #ffffff);
+                color: var(--text-color-default, #1f2328);
+                font-family: inherit;
+                font-size: var(--text-body-medium, 14px);
+                line-height: var(--leading-body-medium, 20px);
+            }
+
+            textarea {
+                min-height: 104px;
+                resize: vertical;
+            }
+
+            textarea:focus-visible,
+            select:focus-visible,
+            button:focus-visible {
+                outline: 2px solid var(--color-focus-outline, #0969da);
+                outline-offset: 1px;
+            }
+
+            .row {
+                display: flex;
+                gap: 12px;
+                flex-wrap: wrap;
+                margin-top: 12px;
+            }
+
+            .row > div {
+                flex: 1 1 160px;
+                min-width: 0;
+            }
+
+            .actions {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex-wrap: wrap;
+                margin-top: 14px;
+            }
+
+            button {
+                padding: 7px 14px;
+                border-radius: 6px;
+                border: 1px solid var(--border-color-default, #d1d9e0);
+                background: transparent;
+                color: var(--text-color-default, #1f2328);
+                font-family: inherit;
+                font-size: var(--text-body-medium, 14px);
+                font-weight: var(--font-weight-semibold, 600);
+                cursor: pointer;
+            }
+
+            button.primary {
+                background: var(--true-color-blue, #0969da);
+                border-color: transparent;
+                color: var(--color-white, #ffffff);
+            }
+
+            button:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+
+            .counter {
+                margin-left: auto;
+                font-size: var(--text-body-small, 12px);
+                color: var(--text-color-muted, #59636e);
+                font-variant-numeric: tabular-nums;
+            }
+
+            .status {
+                margin-top: 12px;
+                font-size: var(--text-body-small, 12px);
+                color: var(--text-color-muted, #59636e);
+                min-height: 18px;
+            }
+
+            .status[data-tone="error"] {
+                color: var(--true-color-red, #cf222e);
+            }
+
+            .bar {
+                height: 4px;
+                border-radius: 999px;
+                overflow: hidden;
+                background: var(--border-color-default, #d1d9e0);
+                margin-top: 10px;
+            }
+
+            .bar > span {
+                display: block;
+                height: 100%;
+                width: 35%;
+                border-radius: 999px;
+                background: var(--true-color-blue, #0969da);
+                animation: slide 1.4s ease-in-out infinite;
+            }
+
+            @keyframes slide {
+                0% {
+                    transform: translateX(-100%);
+                }
+                100% {
+                    transform: translateX(320%);
+                }
+            }
+
+            audio {
+                width: 100%;
+                margin-top: 4px;
+            }
+
+            .meta {
+                margin-top: 8px;
+                font-size: var(--text-body-small, 12px);
+                color: var(--text-color-muted, #59636e);
+            }
+
+            .meta code {
+                font-family: var(--font-mono, "SFMono-Regular", Consolas, monospace);
+                font-size: var(--text-code-inline, 12px);
+            }
+
+            .history {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+            }
+
+            .history li {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 7px 0;
+                border-top: 1px solid var(--border-color-default, #d1d9e0);
+                font-size: var(--text-body-small, 12px);
+            }
+
+            .history li:first-child {
+                border-top: none;
+            }
+
+            .history .text {
+                flex: 1;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .history .muted {
+                color: var(--text-color-muted, #59636e);
+                font-variant-numeric: tabular-nums;
+                flex: none;
+            }
+
+            .hidden {
+                display: none !important;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>Qwen TTS Studio</h1>
+            <span class="engine"><span class="dot" id="engine-dot"></span><span id="engine-text">Connecting…</span></span>
+        </header>
+
+        <section class="card">
+            <label for="text">Text</label>
+            <textarea id="text" placeholder="Type the text you want to hear…" maxlength="10000"></textarea>
+
+            <div class="row">
+                <div>
+                    <label for="speaker">Voice</label>
+                    <select id="speaker"></select>
+                </div>
+                <div>
+                    <label for="language">Language</label>
+                    <select id="language"></select>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="primary" id="generate" disabled>Generate audio</button>
+                <button id="cancel" class="hidden">Cancel</button>
+                <span class="counter"><span id="count">0</span> / 10000</span>
+            </div>
+
+            <div class="status" id="status"></div>
+            <div class="bar hidden" id="bar"><span></span></div>
+        </section>
+
+        <section class="card hidden" id="player-card">
+            <label for="player">Generated audio</label>
+            <audio id="player" controls preload="auto"></audio>
+            <div class="meta" id="player-meta"></div>
+            <div class="actions">
+                <button id="download">Download WAV</button>
+            </div>
+        </section>
+
+        <section class="card hidden" id="history-card">
+            <label>Recent generations</label>
+            <ul class="history" id="history"></ul>
+        </section>
+
+        <script>
+            const $ = (id) => document.getElementById(id);
+            const els = {
+                text: $("text"),
+                speaker: $("speaker"),
+                language: $("language"),
+                generate: $("generate"),
+                cancel: $("cancel"),
+                count: $("count"),
+                status: $("status"),
+                bar: $("bar"),
+                dot: $("engine-dot"),
+                engine: $("engine-text"),
+                playerCard: $("player-card"),
+                player: $("player"),
+                playerMeta: $("player-meta"),
+                download: $("download"),
+                historyCard: $("history-card"),
+                history: $("history"),
+            };
+
+            let engineState = "loading";
+            let activeJobId = null;
+            let currentAudioId = null;
+            let optionsLoaded = false;
+            let artifactsDir = "";
+
+            const api = async (path, init) => {
+                const res = await fetch(`/api${path}`, {
+                    headers: { "Content-Type": "application/json" },
+                    ...init,
+                });
+                const body = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(body.error || `Request failed (${res.status})`);
+                return body;
+            };
+
+            const setStatus = (message, tone) => {
+                els.status.textContent = message || "";
+                els.status.dataset.tone = tone || "";
+            };
+
+            const fillSelect = (select, items, selected) => {
+                select.innerHTML = "";
+                for (const item of items) {
+                    const option = document.createElement("option");
+                    option.value = item.value;
+                    option.textContent = item.label;
+                    select.append(option);
+                }
+                if (selected) select.value = selected;
+            };
+
+            const titleCase = (value) => value.replace(/(^|_)([a-z])/g, (_, sep, ch) => (sep ? " " : "") + ch.toUpperCase());
+
+            const syncControls = () => {
+                const busy = Boolean(activeJobId);
+                els.generate.disabled = engineState !== "ready" || busy || !els.text.value.trim();
+                els.cancel.classList.toggle("hidden", !busy);
+                els.bar.classList.toggle("hidden", !busy);
+            };
+
+            const refreshState = async () => {
+                try {
+                    const state = await api("/state");
+                    engineState = state.state;
+                    artifactsDir = state.artifactsDir || "";
+                    els.dot.dataset.state = state.state;
+                    els.engine.textContent =
+                        state.state === "ready" ? "Model ready" : state.state === "error" ? "Model error" : "Loading model…";
+
+                    if (state.state !== "ready") setStatus(state.message, state.state === "error" ? "error" : "");
+                    else if (!activeJobId && !currentAudioId) setStatus("");
+
+                    if (!optionsLoaded && state.speakers.length) {
+                        const params = new URLSearchParams(location.search);
+                        const wantedVoice = params.get("speaker");
+                        fillSelect(
+                            els.speaker,
+                            state.speakers.map((name) => ({ value: name, label: titleCase(name) })),
+                            state.speakers.includes(wantedVoice) ? wantedVoice : state.speakers.includes("ryan") ? "ryan" : state.speakers[0],
+                        );
+                        fillSelect(els.language, state.languages, params.get("language") || "auto");
+                        optionsLoaded = true;
+                    }
+
+                    if (!activeJobId && state.activeJob) trackJob(state.activeJob);
+                } catch (error) {
+                    els.dot.dataset.state = "error";
+                    els.engine.textContent = "Host unreachable";
+                    setStatus(error.message, "error");
+                }
+                syncControls();
+            };
+
+            const showResult = (job) => {
+                currentAudioId = job.id;
+                els.playerCard.classList.remove("hidden");
+                els.player.src = `/api/audio/${job.id}`;
+                els.player.load();
+                const size = job.sizeBytes ? `${(job.sizeBytes / 1024).toFixed(0)} KB` : "";
+                els.playerMeta.innerHTML =
+                    `<code>${job.fileName}</code> · ${job.durationSeconds}s of audio · ${size} · rendered in ${job.elapsedSeconds}s` +
+                    (artifactsDir ? `<br />Saved in <code>${artifactsDir}</code>` : "");
+            };
+
+            const renderHistory = (jobs) => {
+                const done = jobs.filter((job) => job.status === "done");
+                els.historyCard.classList.toggle("hidden", done.length === 0);
+                els.history.innerHTML = "";
+                for (const job of done) {
+                    const li = document.createElement("li");
+                    const text = document.createElement("span");
+                    text.className = "text";
+                    text.textContent = job.text;
+                    const meta = document.createElement("span");
+                    meta.className = "muted";
+                    meta.textContent = `${titleCase(job.speaker)} · ${job.durationSeconds}s`;
+                    const play = document.createElement("button");
+                    play.textContent = "Load";
+                    play.addEventListener("click", () => showResult(job));
+                    li.append(text, meta, play);
+                    els.history.append(li);
+                }
+            };
+
+            const trackJob = (jobId) => {
+                activeJobId = jobId;
+                syncControls();
+
+                const poll = async () => {
+                    if (activeJobId !== jobId) return;
+                    try {
+                        const job = await api(`/jobs/${jobId}`);
+                        const last = job.progress[job.progress.length - 1] || "Working…";
+
+                        if (job.status === "running" || job.status === "queued") {
+                            setStatus(`${last} (${job.elapsedSeconds}s elapsed)`);
+                            setTimeout(poll, 1000);
+                            return;
+                        }
+
+                        activeJobId = null;
+                        syncControls();
+
+                        if (job.status === "done") {
+                            setStatus(last);
+                            showResult(job);
+                        } else if (job.status === "cancelled") {
+                            setStatus("Generation cancelled.");
+                        } else {
+                            setStatus(job.error || "Generation failed.", "error");
+                        }
+
+                        renderHistory(await api("/history"));
+                    } catch (error) {
+                        activeJobId = null;
+                        setStatus(error.message, "error");
+                        syncControls();
+                    }
+                };
+
+                poll();
+            };
+
+            els.text.addEventListener("input", () => {
+                els.count.textContent = els.text.value.length;
+                syncControls();
+            });
+
+            els.generate.addEventListener("click", async () => {
+                setStatus("Queued…");
+                try {
+                    const job = await api("/generate", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            text: els.text.value,
+                            speaker: els.speaker.value,
+                            language: els.language.value,
+                        }),
+                    });
+                    trackJob(job.id);
+                } catch (error) {
+                    setStatus(error.message, "error");
+                }
+            });
+
+            els.cancel.addEventListener("click", async () => {
+                if (!activeJobId) return;
+                setStatus("Cancelling…");
+                await api(`/jobs/${activeJobId}/cancel`, { method: "POST" }).catch(() => {});
+            });
+
+            els.download.addEventListener("click", () => {
+                if (!currentAudioId) return;
+                const link = document.createElement("a");
+                link.href = `/api/audio/${currentAudioId}`;
+                link.download = `${currentAudioId}.wav`;
+                link.click();
+            });
+
+            refreshState();
+            setInterval(() => {
+                if (engineState !== "ready" || !activeJobId) refreshState();
+            }, 2000);
+            api("/history").then(renderHistory).catch(() => {});
+
+            const prefillText = new URLSearchParams(location.search).get("text");
+            if (prefillText) {
+                els.text.value = prefillText;
+                els.text.dispatchEvent(new Event("input"));
+            }
+        </script>
+    </body>
+</html>

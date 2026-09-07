@@ -242,6 +242,7 @@ Open [http://localhost:5153](http://localhost:5153) — two pages:
 | [Web App](docs/web-app.md) | Blazor web UI for speech generation |
 | [Blazor Components](docs/blazor-components.md) | Reusable Razor components package for TTS and voice cloning UIs |
 | [Blazor Demo Sample](docs/blazor-qwen-tts-demo.md) | How to run and validate the BlazorQwenTtsDemo sample app |
+| [Copilot Canvas](docs/canvas-tts-studio.md) | Qwen TTS Studio canvas for the GitHub Copilot app |
 | [Release Validation Checklist](docs/release-validation-checklist.md) | Issue/PR validation and merge-to-release gates |
 | [What's New Policy](docs/whats-new-policy.md) | Rules for maintaining the README "What's New" section |
 | [Architecture](docs/architecture.md) | Pipeline design, model components, project structure |
