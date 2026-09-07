@@ -121,9 +121,10 @@ All methods set `GraphOptimizationLevel.ORT_ENABLE_ALL` and include CPU as a fal
 
 - `TtsPipeline` and `VoiceClonePipeline` accept optional `Func<SessionOptions>?` parameters
 - `sessionOptionsFactory` — used for language model sessions (prefill, decode, code predictor)
-- `vocoderSessionOptionsFactory` — used for the vocoder session; defaults to `sessionOptionsFactory` if not specified
-- When `null` (default), sessions use CPU with full graph optimization
+- `vocoderSessionOptionsFactory` — used for the vocoder session; defaults to `sessionOptionsFactory` when omitted **or explicitly set to `null`**. To force CPU for the vocoder, pass `OrtSessionHelper.CreateCpuOptions`.
+- When both factories are `null` (default), sessions use CPU with full graph optimization
 - The factory pattern lets you configure any execution provider ONNX Runtime supports
+- A vocoder using a custom factory retries the specific runtime `Pad` / `Tensor shape.Size() must be >= 0` failure once on CPU, then reuses that CPU session. The language model stays on its configured provider. See [the Pad workaround below](#cuda-pad-node-failure--tensor-shapesize-must-be--0).
 
 ## Performance Notes
 
@@ -153,37 +154,38 @@ Non-zero status code returned while running Pad node. Name:'node_pad_1'
 onnxruntime::Tensor::CalculateTensorStorageSize Tensor shape.Size() must be >= 0
 ```
 
-The same text synthesizes correctly on the CPU provider, and the failure persists in hybrid mode
-(`vocoderSessionOptionsFactory: OrtSessionHelper.CreateCpuOptions`), so the failing node is in the
-language model rather than the vocoder. This is an interaction between the CUDA `Pad` kernel and the
-language model's dynamic decode shapes, not a defect in the library's own tensor shapes.
+The same text was reported to synthesize correctly on CPU. Inspection of the published 0.6B graphs
+found `node_pad_1` in **`vocoder.onnx`**, with no Pad nodes in `talker_prefill.onnx` or
+`talker_decode.onnx`. The original report used `vocoderSessionOptionsFactory: null`, which **inherits
+the CUDA factory**; it did not establish that the failure occurs with a CPU vocoder. The precise
+CUDA failure mechanism remains unconfirmed; disabling memory-pattern optimization is not a verified fix.
 
-Workarounds, in order of preference:
+The library now handles this specific runtime failure when a custom vocoder session factory is in
+use (including one inherited from `sessionOptionsFactory`):
 
-1. **Use DirectML** on Windows — it supports NVIDIA GPUs and already disables memory-pattern
-   optimization for these dynamic KV-cache shapes. See [DirectML: Hybrid Mode](#directml-hybrid-mode).
-2. **Try disabling memory-pattern optimization on CUDA** by supplying your own session options.
-   This mirrors what DirectML does and costs nothing to test:
+- Retry only vocoder decoding on a new CPU session, using the already-generated audio codes.
+- Reuse that CPU session for subsequent decodes; do not rerun or move the language model to CPU.
+- Emit a `Trace` warning on the switch. Keep the original session alive until pipeline disposal so
+  concurrent inference is not interrupted.
+- Do not retry unrelated errors, session initialization failures, or cancelled requests. If CPU
+  decoding also fails, propagate that error without another retry. Default CPU-only execution does
+  not add a retry.
 
-   ```csharp
-   await using var pipeline = await TtsPipeline.CreateAsync(
-       sessionOptionsFactory: () =>
-       {
-           var options = new SessionOptions
-           {
-               GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
-               EnableMemoryPattern = false,
-               ExecutionMode = ExecutionMode.ORT_SEQUENTIAL
-           };
-           options.AppendExecutionProvider_CUDA();
-           options.AppendExecutionProvider_CPU();
-           return options;
-       });
-   ```
+To avoid the failing CUDA vocoder attempt altogether (also useful with older library versions),
+explicitly select hybrid execution:
 
-3. **Fall back to CPU** (`OrtSessionHelper.CreateCpuOptions`) — slower, but always correct.
+```csharp
+using var pipeline = await TtsPipeline.CreateAsync(
+    sessionOptionsFactory: OrtSessionHelper.CreateCudaOptions,
+    vocoderSessionOptionsFactory: OrtSessionHelper.CreateCpuOptions);
+```
 
-Tracked in [issue #73](https://github.com/elbruno/ElBruno.QwenTTS/issues/73).
+On Windows, [DirectML hybrid mode](#directml-hybrid-mode) is another option. CPU-only execution is
+also available by leaving both factories unset.
+
+The recovery path is regression-tested without GPU hardware; the original GTX 1650 Ti / CUDA 12.8
+failure has not been reproduced on that hardware. Tracked in
+[issue #73](https://github.com/elbruno/ElBruno.QwenTTS/issues/73).
 
 ### Mixed package errors
 Only one ORT package can be referenced per project. Remove conflicting packages:
