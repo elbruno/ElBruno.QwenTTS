@@ -116,6 +116,10 @@ The script applies: Reshape `-1` resolution, 1D ConvTranspose → 2D conversion,
 | `CreateDirectMlOptions(deviceId)` | DirectML provider + CPU fallback |
 
 All methods set `GraphOptimizationLevel.ORT_ENABLE_ALL` and include CPU as a fallback provider.
+`CreateCudaOptions` and `CreateDirectMlOptions` both disable memory pattern optimization
+(`EnableMemoryPattern = false`) because the autoregressive language model uses dynamic KV-cache
+shapes that grow each decode step — this is incompatible with the memory pattern optimizer's
+assumption of stable, first-iteration allocation shapes, for CUDA as well as DirectML.
 
 ## How It Works
 
@@ -158,7 +162,10 @@ The same text was reported to synthesize correctly on CPU. Inspection of the pub
 found `node_pad_1` in **`vocoder.onnx`**, with no Pad nodes in `talker_prefill.onnx` or
 `talker_decode.onnx`. The original report used `vocoderSessionOptionsFactory: null`, which **inherits
 the CUDA factory**; it did not establish that the failure occurs with a CPU vocoder. The precise
-CUDA failure mechanism remains unconfirmed; disabling memory-pattern optimization is not a verified fix.
+CUDA failure mechanism remains unconfirmed. `CreateCudaOptions` now disables memory pattern
+optimization (matching `CreateDirectMlOptions`), since the growing KV-cache shapes are a property
+of the model rather than the execution provider — but this has not been verified to resolve the
+`Pad` node failure specifically; treat it as a plausible mitigation, not a confirmed fix.
 
 The library now handles this specific runtime failure when a custom vocoder session factory is in
 use (including one inherited from `sessionOptionsFactory`):
