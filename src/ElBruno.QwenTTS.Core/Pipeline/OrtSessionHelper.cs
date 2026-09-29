@@ -38,12 +38,19 @@ public static class OrtSessionHelper
     /// Requires the <c>Microsoft.ML.OnnxRuntime.Gpu</c> NuGet package and CUDA Toolkit + cuDNN installed.
     /// Falls back to CPU if CUDA is unavailable.
     /// </summary>
+    /// <remarks>
+    /// Memory pattern optimization is disabled because the autoregressive language model uses
+    /// dynamic KV-cache shapes that grow each decode step, which is incompatible with the memory
+    /// pattern optimizer's assumption of stable, first-iteration allocation shapes. This applies
+    /// to the CUDA execution provider just as it does to DirectML.
+    /// </remarks>
     /// <param name="deviceId">GPU device ID.</param>
     public static SessionOptions CreateCudaOptions(int deviceId)
     {
         var options = new SessionOptions
         {
-            GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
+            GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
+            EnableMemoryPattern = false
         };
         options.AppendExecutionProvider_CUDA(deviceId);
         options.AppendExecutionProvider_CPU();
