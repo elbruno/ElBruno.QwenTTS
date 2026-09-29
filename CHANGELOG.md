@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.10.2] - 2026-09-29
 
 ### Fixed
 - `OrtSessionHelper.CreateCudaOptions` now disables memory pattern optimization (`EnableMemoryPattern = false`), matching `CreateDirectMlOptions`. The autoregressive language model's growing KV-cache shapes are incompatible with the memory pattern optimizer's assumption of stable, first-iteration allocation shapes, regardless of execution provider ([#76](https://github.com/elbruno/ElBruno.QwenTTS/issues/76))
