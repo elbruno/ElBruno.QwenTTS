@@ -7,7 +7,7 @@ namespace ElBruno.QwenTTS.BlazorComponents.Tests;
 /// Locks in the browser-recording JS interop contract: qwenTtsRecording.start must be invoked
 /// with the timer element id so the recording duration can be rendered live.
 /// </summary>
-public sealed class VoiceCloneReferenceAudioInputRecordingTests : TestContext
+public sealed class VoiceCloneReferenceAudioInputRecordingTests : BunitContext
 {
     [Fact]
     public async Task StartRecording_InvokesJsInteropWithTimerElementId()
@@ -15,7 +15,7 @@ public sealed class VoiceCloneReferenceAudioInputRecordingTests : TestContext
         JSInterop.Setup<bool>("qwenTtsRecording.isAvailable").SetResult(true);
         var startInvocation = JSInterop.SetupVoid("qwenTtsRecording.start", invocation => invocation.Arguments.Count == 1).SetVoidResult();
 
-        var cut = RenderComponent<VoiceCloneReferenceAudioInput>();
+        var cut = Render<VoiceCloneReferenceAudioInput>();
 
         // Trigger the render that resolves recording availability.
         cut.Render();

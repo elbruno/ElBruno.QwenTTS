@@ -4,17 +4,14 @@ using Microsoft.AspNetCore.Components;
 
 namespace ElBruno.QwenTTS.BlazorComponents.Tests;
 
-public sealed class BlazorComponentRenderingTests : TestContext
+public sealed class BlazorComponentRenderingTests : BunitContext
 {
-    private IRenderedFragment RenderByType(Type componentType, params ComponentParameter[] parameters)
+    private IRenderedComponent<DynamicComponent> RenderByType(Type componentType, params (string Name, object Value)[] parameters)
     {
-        var genericRender = typeof(TestContext).GetMethods()
-            .First(m => m.Name == nameof(RenderComponent)
-                     && m.IsGenericMethodDefinition
-                     && m.GetParameters().Length == 1
-                     && m.GetParameters()[0].ParameterType == typeof(ComponentParameter[]));
-
-        return (IRenderedFragment)genericRender.MakeGenericMethod(componentType).Invoke(this, [parameters])!;
+        var parameterValues = parameters.ToDictionary(parameter => parameter.Name, parameter => parameter.Value);
+        return Render<DynamicComponent>(builder => builder
+            .Add(component => component.Type, componentType)
+            .Add(component => component.Parameters, parameterValues));
     }
 
     [Fact]
@@ -24,7 +21,7 @@ public sealed class BlazorComponentRenderingTests : TestContext
         var serviceType = BlazorComponentsTestHelpers.RequireParameterProperty(type, "TtsService").PropertyType;
         var serviceProxy = BlazorComponentsTestHelpers.CreateNoOpProxy(serviceType);
 
-        var cut = RenderByType(type, ComponentParameter.CreateParameter("TtsService", serviceProxy));
+        var cut = RenderByType(type, ("TtsService", serviceProxy));
 
         _ = cut.Find("textarea");
         Assert.NotEmpty(cut.FindAll("button"));
@@ -37,9 +34,9 @@ public sealed class BlazorComponentRenderingTests : TestContext
 
         using var stream = new MemoryStream([1, 2, 3, 4]);
         var cut = RenderByType(type,
-            ComponentParameter.CreateParameter("AudioStream", stream),
-            ComponentParameter.CreateParameter("Label", "Generated voice"),
-            ComponentParameter.CreateParameter("AutoPlay", false));
+            ("AudioStream", stream),
+            ("Label", "Generated voice"),
+            ("AutoPlay", false));
 
         _ = cut.Find("audio");
     }
@@ -51,7 +48,7 @@ public sealed class BlazorComponentRenderingTests : TestContext
         var serviceType = BlazorComponentsTestHelpers.RequireParameterProperty(type, "VoiceCloningService").PropertyType;
         var serviceProxy = BlazorComponentsTestHelpers.CreateNoOpProxy(serviceType);
 
-        var cut = RenderByType(type, ComponentParameter.CreateParameter("VoiceCloningService", serviceProxy));
+        var cut = RenderByType(type, ("VoiceCloningService", serviceProxy));
 
         _ = cut.Find("input[type='file']");
     }
@@ -61,7 +58,7 @@ public sealed class BlazorComponentRenderingTests : TestContext
     {
         var type = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Components.ModelDownloadStatus");
 
-        var cut = RenderByType(type, ComponentParameter.CreateParameter("ModelId", "qwen3-tts-0.6b"));
+        var cut = RenderByType(type, ("ModelId", "qwen3-tts-0.6b"));
         Assert.Contains("qwen3-tts-0.6b", cut.Markup, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -73,9 +70,9 @@ public sealed class BlazorComponentRenderingTests : TestContext
         var serviceProxy = BlazorComponentsTestHelpers.CreateNoOpProxy(serviceType);
 
         var cut = RenderByType(type,
-            ComponentParameter.CreateParameter("TtsService", serviceProxy),
-            ComponentParameter.CreateParameter("IsActive", true),
-            ComponentParameter.CreateParameter("ShowChunkCount", true));
+            ("TtsService", serviceProxy),
+            ("IsActive", true),
+            ("ShowChunkCount", true));
 
         Assert.True(cut.FindAll(".progress, progress, .progress-bar").Count > 0);
     }
@@ -85,7 +82,7 @@ public sealed class BlazorComponentRenderingTests : TestContext
     {
         var type = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Components.VoiceCloneReferenceAudioInput");
 
-        var cut = RenderByType(type, ComponentParameter.CreateParameter("EnableRecording", false));
+        var cut = RenderByType(type, ("EnableRecording", false));
 
         var input = cut.Find("input[type='file']");
         Assert.Contains(".wav", input.GetAttribute("accept"), StringComparison.OrdinalIgnoreCase);
@@ -109,7 +106,7 @@ public sealed class BlazorComponentRenderingTests : TestContext
     {
         var type = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Components.VoiceCloneForm");
 
-        var cut = RenderByType(type, ComponentParameter.CreateParameter("IsDisabled", true));
+        var cut = RenderByType(type, ("IsDisabled", true));
 
         Assert.Equal(2, cut.FindAll("textarea").Count);
         Assert.NotNull(cut.Find("button").GetAttribute("disabled"));
@@ -120,9 +117,9 @@ public sealed class BlazorComponentRenderingTests : TestContext
     {
         var type = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Components.VoiceCloneWorkflowStatus");
         var progressType = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Models.VoiceCloneProgress");
-        var progress = Activator.CreateInstance(progressType, "Preparing reference audio", 50d, false);
+        var progress = Activator.CreateInstance(progressType, "Preparing reference audio", 50d, false)!;
 
-        var cut = RenderByType(type, ComponentParameter.CreateParameter("Progress", progress));
+        var cut = RenderByType(type, ("Progress", progress));
 
         Assert.Contains("Preparing reference audio", cut.Markup);
     }
