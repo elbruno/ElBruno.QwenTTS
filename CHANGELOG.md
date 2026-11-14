@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- .NET 11 targets across the libraries, applications, tests, and samples while retaining existing target frameworks; the Aspire AppHost stays on its original .NET 10 target
+- Stable package release version 1.11.0 for the Core, VoiceCloning, and BlazorComponents packages
+- Updated Core and VoiceCloning to `ElBruno.HuggingFace.Downloader` 1.6.2, including its .NET 11 assets
+
+### Tests
+- Run multi-target test frameworks sequentially in CI to avoid collisions in shared test fixtures
+
 ## [1.10.2] - 2026-09-29
 
 ### Fixed

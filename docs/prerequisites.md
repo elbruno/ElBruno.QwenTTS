@@ -4,7 +4,7 @@
 
 | Requirement | Version | Install |
 |-------------|---------|---------|
-| **.NET SDK** | 10.0 | [dotnet.microsoft.com](https://dotnet.microsoft.com/download) |
+| **.NET SDK** | 11.0 | [dotnet.microsoft.com](https://dotnet.microsoft.com/download) |
 | **Disk space** | ~6 GB | For ONNX models + NuGet packages |
 | **Python** *(optional)* | >= 3.10 | [python.org](https://www.python.org/downloads/) — only needed for the alternative Python setup or ONNX re-export |
 
@@ -18,4 +18,4 @@
 dotnet --version
 ```
 
-The .NET SDK 10.0 or later must be installed. Models are downloaded automatically by the library on first run.
+The .NET SDK 11.0 or later must be installed to build the full solution. NuGet libraries retain .NET 8.0 and 10.0 targets and add .NET 11.0. Models are downloaded automatically by the library on first run.
