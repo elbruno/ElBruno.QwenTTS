@@ -215,6 +215,46 @@ public class VoiceClonePipelineTelemetryTests
     private static readonly SemaphoreSlim TelemetryTestGate = new(1, 1);
 
     [Fact]
+    public async Task Listener_ExcludesSameOperationFromAnotherTrace()
+    {
+        const string operation = "extract_embedding";
+        using var root = new Activity("telemetry-test")
+            .SetIdFormat(ActivityIdFormat.W3C)
+            .SetParentId(ActivityTraceId.CreateRandom(), ActivitySpanId.CreateRandom(), ActivityTraceFlags.Recorded)
+            .Start();
+        var (listener, activities) = CreateListener(operation, root);
+        using (listener)
+        {
+            var method = typeof(VoiceClonePipeline).GetMethod(
+                "ExecuteWithActivity", BindingFlags.NonPublic | BindingFlags.Static)!
+                .MakeGenericMethod(typeof(int));
+
+            method.Invoke(null, [operation, new Func<int>(() => 42)]);
+            Task<Activity?> unrelated;
+            using (ExecutionContext.SuppressFlow())
+            {
+                unrelated = Task.Run(() =>
+                {
+                    Activity? captured = null;
+                    method.Invoke(null, [operation, new Func<int>(() =>
+                    {
+                        captured = Activity.Current;
+                        return 42;
+                    })]);
+                    return captured;
+                });
+            }
+
+            var otherActivity = await unrelated;
+            Assert.NotNull(otherActivity);
+            Assert.NotEqual(root.TraceId, otherActivity.TraceId);
+            var activity = Assert.Single(activities);
+            Assert.Equal(root.TraceId, activity.TraceId);
+            Assert.Equal(root.SpanId, activity.ParentSpanId);
+        }
+    }
+
+    [Fact]
     public void SynchronousInstrumentation_RecordsSuccessAndFailureStatuses()
     {
         TelemetryTestGate.Wait();
@@ -222,7 +262,11 @@ public class VoiceClonePipelineTelemetryTests
         {
             foreach (var operation in new[] { "extract_embedding", "synthesize" })
             {
-                var (listener, activities) = CreateListener(operation);
+                using var root = new Activity("telemetry-test")
+                    .SetIdFormat(ActivityIdFormat.W3C)
+                    .SetParentId(ActivityTraceId.CreateRandom(), ActivitySpanId.CreateRandom(), ActivityTraceFlags.Recorded)
+                    .Start();
+                var (listener, activities) = CreateListener(operation, root);
                 using (listener)
                 {
                     var method = typeof(VoiceClonePipeline).GetMethod(
@@ -257,7 +301,7 @@ public class VoiceClonePipelineTelemetryTests
         }
     }
 
-    private static (ActivityListener Listener, ConcurrentQueue<Activity> Activities) CreateListener(string operation)
+    private static (ActivityListener Listener, ConcurrentQueue<Activity> Activities) CreateListener(string operation, Activity root)
     {
         var activities = new ConcurrentQueue<Activity>();
         var listener = new ActivityListener
@@ -266,7 +310,8 @@ public class VoiceClonePipelineTelemetryTests
             Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
             ActivityStarted = activity =>
             {
-                if (activity.DisplayName == $"gen_ai.voice_clone.{operation}")
+                if (activity.DisplayName == $"gen_ai.voice_clone.{operation}" &&
+                    activity.TraceId == root.TraceId && activity.ParentSpanId == root.SpanId)
                     activities.Enqueue(activity);
             }
         };
