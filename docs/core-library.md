@@ -553,7 +553,7 @@ For detailed model architecture (tensor shapes, KV-cache, codebook structure), s
 
 ## Requirements
 
-- **.NET 10** (or later)
+- **.NET 8, .NET 10, or .NET 11** (the package provides assets for each target)
 - **ONNX model files** — download via `python setup_environment.py` or from [HuggingFace](https://huggingface.co/elbruno/Qwen3-TTS-12Hz-0.6B-CustomVoice-ONNX)
 - ~2 GB disk space for models
 - ~4 GB RAM during inference

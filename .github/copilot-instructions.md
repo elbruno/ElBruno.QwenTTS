@@ -10,7 +10,7 @@ This repo contains **ElBruno.QwenTTS** — a C# .NET library and tools for runni
 
 ```bash
 dotnet build          # Build all 5 projects
-dotnet test           # Run xUnit tests (ElBruno.QwenTTS.Core.Tests)
+dotnet test -p:TestTfmsInParallel=false  # Run xUnit tests across target frameworks
 dotnet pack src/ElBruno.QwenTTS.Core/ElBruno.QwenTTS.Core.csproj -c Release -o artifacts  # Create NuGet package
 ```
 
@@ -18,7 +18,7 @@ dotnet pack src/ElBruno.QwenTTS.Core/ElBruno.QwenTTS.Core.csproj -c Release -o a
 
 ```
 ElBruno.QwenTTS.slnx                    # Solution file (5 projects)
-src/ElBruno.QwenTTS.Core/               # Core library (NuGet: ElBruno.QwenTTS, targets net8.0+net10.0)
+src/ElBruno.QwenTTS.Core/               # Core library (NuGet: ElBruno.QwenTTS, targets net8.0+net10.0+net11.0)
   Pipeline/TtsPipeline.cs               # Full TTS orchestrator + CreateAsync factory
   Pipeline/ModelDownloader.cs            # Auto-download models from HuggingFace (~5.5 GB)
   Models/                               # TextTokenizer, LanguageModel, Vocoder, EmbeddingStore

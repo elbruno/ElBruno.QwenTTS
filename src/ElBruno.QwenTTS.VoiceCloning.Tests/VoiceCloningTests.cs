@@ -222,7 +222,7 @@ public class VoiceClonePipelineTelemetryTests
         {
             foreach (var operation in new[] { "extract_embedding", "synthesize" })
             {
-                var (listener, activities) = CreateListener();
+                var (listener, activities) = CreateListener(operation);
                 using (listener)
                 {
                     var method = typeof(VoiceClonePipeline).GetMethod(
@@ -257,14 +257,18 @@ public class VoiceClonePipelineTelemetryTests
         }
     }
 
-    private static (ActivityListener Listener, ConcurrentQueue<Activity> Activities) CreateListener()
+    private static (ActivityListener Listener, ConcurrentQueue<Activity> Activities) CreateListener(string operation)
     {
         var activities = new ConcurrentQueue<Activity>();
         var listener = new ActivityListener
         {
             ShouldListenTo = source => source.Name == "ElBruno.QwenTTS",
             Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
-            ActivityStarted = activities.Enqueue
+            ActivityStarted = activity =>
+            {
+                if (activity.DisplayName == $"gen_ai.voice_clone.{operation}")
+                    activities.Enqueue(activity);
+            }
         };
         ActivitySource.AddActivityListener(listener);
         return (listener, activities);

@@ -25,12 +25,13 @@ jobs:
           dotnet-version: |
             8.0.x
             10.0.x
+            11.0.x
 
       - name: Build and test
         run: |
           dotnet restore
           dotnet build -c Release --no-restore
-          dotnet test -c Release --no-build --verbosity normal
+          dotnet test -c Release --no-build -p:TestTfmsInParallel=false --verbosity normal
 
       - name: Create insider release
         env:
