@@ -22,8 +22,8 @@ dotnet add package ElBruno.QwenTTS
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| Microsoft.ML.OnnxRuntime | 1.24.2 | ONNX model inference |
-| Microsoft.ML.Tokenizers | 2.0.0 | BPE text tokenization |
+| Microsoft.ML.OnnxRuntime | 1.24.4 | ONNX model inference |
+| Microsoft.ML.Tokenizers | 3.0.0 | BPE text tokenization |
 | NAudio | 2.2.1 | Audio processing |
 
 ## Quick Start
