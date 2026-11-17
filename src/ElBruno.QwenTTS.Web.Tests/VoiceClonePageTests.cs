@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ElBruno.QwenTTS.Web.Tests;
 
-public sealed class VoiceClonePageTests : TestContext
+public sealed class VoiceClonePageTests : BunitContext
 {
     [Fact]
     public async Task FailedReferenceReplacement_ClearsThePreviouslySavedReference()
@@ -31,7 +31,7 @@ public sealed class VoiceClonePageTests : TestContext
         Services.AddSingleton(service);
         JSInterop.Setup<bool>("qwenTtsRecording.isAvailable").SetResult(false);
 
-        var cut = RenderComponent<VoiceClone>();
+        var cut = Render<VoiceClone>();
         var input = cut.FindComponent<VoiceCloneReferenceAudioInput>();
 
         await input.InvokeAsync(() => input.Instance.ValueChanged.InvokeAsync(CreateReference("first.wav")));
