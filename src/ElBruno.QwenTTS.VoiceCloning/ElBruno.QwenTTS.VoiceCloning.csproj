@@ -28,7 +28,7 @@
 
   <ItemGroup>
     <PackageReference Include="ElBruno.HuggingFace.Downloader" Version="1.6.2" />
-    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.24.2" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.24.4" />
   </ItemGroup>
 
   <ItemGroup>

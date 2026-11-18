@@ -12,24 +12,29 @@ ElBruno.QwenTTS supports GPU acceleration through ONNX Runtime execution provide
 | `Microsoft.ML.OnnxRuntime.Gpu` | CUDA | NVIDIA | Win/Linux | CUDA Toolkit + cuDNN |
 | `Microsoft.ML.OnnxRuntime.DirectML` | DirectML | NVIDIA, AMD, Intel | Windows 10/11 | None |
 
-> **Important:** These packages are **mutually exclusive** — only reference **one** in your project.
+> **Important:** Only one ONNX Runtime native provider should be included in the output.
 
 ### 2. Swap the NuGet package
 
-Replace the CPU package with your GPU backend:
+The library depends on the CPU package. For a GPU backend, exclude its assets
+in the consuming project and add the matching provider package:
 
 ```xml
-<!-- In your .csproj — choose ONE: -->
+<!-- In your .csproj, exclude the transitive CPU package's assets: -->
+<PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.24.4" ExcludeAssets="all" />
 
-<!-- CPU (default) -->
-<PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.24.2" />
+<!-- Choose ONE provider: NVIDIA GPU via CUDA -->
+<PackageReference Include="Microsoft.ML.OnnxRuntime.Gpu" Version="1.24.4" />
 
-<!-- NVIDIA GPU via CUDA -->
-<PackageReference Include="Microsoft.ML.OnnxRuntime.Gpu" Version="1.24.2" />
-
-<!-- Any GPU via DirectML (Windows only) -->
-<PackageReference Include="Microsoft.ML.OnnxRuntime.DirectML" Version="1.24.2" />
+<!-- OR any GPU via DirectML (Windows only) -->
+<PackageReference Include="Microsoft.ML.OnnxRuntime.DirectML" Version="1.24.4" />
 ```
+
+For CPU-only use, no additional package reference is needed.
+
+Keep the ONNX Runtime provider version aligned with the version used by
+ElBruno.QwenTTS. The 1.24.x line retains the DirectML package; newer ONNX
+Runtime versions currently do not offer a matching DirectML package.
 
 ### 3. Configure SessionOptions
 
@@ -141,10 +146,10 @@ assumption of stable, first-iteration allocation shapes, for CUDA as well as Dir
 ## Troubleshooting
 
 ### "CUDA execution provider is not enabled"
-Install `Microsoft.ML.OnnxRuntime.Gpu` instead of `Microsoft.ML.OnnxRuntime`, and ensure CUDA Toolkit + cuDNN are installed.
+Exclude the CPU package's assets and install `Microsoft.ML.OnnxRuntime.Gpu` as shown above. Ensure CUDA Toolkit and cuDNN are installed.
 
 ### "DML execution provider is not enabled"
-Install `Microsoft.ML.OnnxRuntime.DirectML` instead of `Microsoft.ML.OnnxRuntime`.
+Exclude the CPU package's assets and install `Microsoft.ML.OnnxRuntime.DirectML` as shown above.
 
 ### DirectML Reshape crash
 Delete your local model cache and re-download to get the pre-patched models. Also ensure you use `vocoderSessionOptionsFactory: OrtSessionHelper.CreateCpuOptions` for the vocoder. If using older models, run `python python/patch_models_for_dml.py <model_dir>` to patch them manually.
@@ -195,8 +200,6 @@ failure has not been reproduced on that hardware. Tracked in
 [issue #73](https://github.com/elbruno/ElBruno.QwenTTS/issues/73).
 
 ### Mixed package errors
-Only one ORT package can be referenced per project. Remove conflicting packages:
-```bash
-dotnet remove package Microsoft.ML.OnnxRuntime
-dotnet add package Microsoft.ML.OnnxRuntime.Gpu
-```
+The core library brings in the CPU package transitively. Exclude its assets
+and add only the GPU provider you need, as shown in the package configuration
+above. Verify that all ONNX Runtime packages use the same version.

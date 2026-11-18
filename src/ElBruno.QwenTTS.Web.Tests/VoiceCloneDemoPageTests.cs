@@ -5,13 +5,13 @@ using ElBruno.QwenTTS.Web.Components.Pages;
 
 namespace ElBruno.QwenTTS.Web.Tests;
 
-public sealed class VoiceCloneDemoPageTests : TestContext
+public sealed class VoiceCloneDemoPageTests : BunitContext
 {
     [Fact]
     public async Task DemoRoute_CompletesDeterministicIclWorkflowWithoutHostServices()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        var cut = RenderComponent<VoiceCloneDemo>();
+        var cut = Render<VoiceCloneDemo>();
         var reference = CreateReference();
 
         var input = cut.FindComponent<VoiceCloneReferenceAudioInput>();
@@ -34,7 +34,7 @@ public sealed class VoiceCloneDemoPageTests : TestContext
     public async Task DemoRoute_ReportsCancellationWithoutAccessingModels()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        var cut = RenderComponent<VoiceCloneDemo>();
+        var cut = Render<VoiceCloneDemo>();
         var reference = CreateReference();
         var input = cut.FindComponent<VoiceCloneReferenceAudioInput>();
         await input.InvokeAsync(() => input.Instance.ValueChanged.InvokeAsync(reference));

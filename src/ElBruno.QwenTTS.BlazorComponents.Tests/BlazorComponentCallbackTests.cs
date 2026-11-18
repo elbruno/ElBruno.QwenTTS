@@ -5,25 +5,17 @@ using Microsoft.AspNetCore.Components;
 
 namespace ElBruno.QwenTTS.BlazorComponents.Tests;
 
-public sealed class BlazorComponentCallbackTests : TestContext
+public sealed class BlazorComponentCallbackTests : BunitContext
 {
-    private object RenderByType(Type componentType, params ComponentParameter[] parameters)
+    private IRenderedComponent<DynamicComponent> RenderByType(Type componentType, params (string Name, object? Value)[] parameters)
     {
-        var genericRender = typeof(TestContext).GetMethods()
-            .First(m => m.Name == nameof(RenderComponent)
-                     && m.IsGenericMethodDefinition
-                     && m.GetParameters().Length == 1
-                     && m.GetParameters()[0].ParameterType == typeof(ComponentParameter[]));
-
-        return genericRender.MakeGenericMethod(componentType).Invoke(this, [parameters])!;
+        return Render<DynamicComponent>(p => p
+            .Add(x => x.Type, componentType)
+            .Add(x => x.Parameters, parameters.ToDictionary(p => p.Name, p => p.Value!)));
     }
 
-    private static object GetInstance(object renderedComponent)
-    {
-        var instanceProperty = renderedComponent.GetType().GetProperty("Instance");
-        Assert.NotNull(instanceProperty);
-        return instanceProperty!.GetValue(renderedComponent)!;
-    }
+    private static object GetInstance(IRenderedComponent<DynamicComponent> renderedComponent)
+        => renderedComponent.Instance.Instance!;
 
     [Fact]
     public async Task TtsInputPanel_OnAudioReady_CanBeAssignedAndInvoked()
@@ -35,8 +27,8 @@ public sealed class BlazorComponentCallbackTests : TestContext
         Stream? received = null;
         var callback = EventCallback.Factory.Create<Stream>(this, stream => received = stream);
         var cut = RenderByType(type,
-            ComponentParameter.CreateParameter("TtsService", serviceProxy),
-            ComponentParameter.CreateParameter("OnAudioReady", callback));
+            ("TtsService", serviceProxy),
+            ("OnAudioReady", callback));
 
         var instance = GetInstance(cut);
         var callbackValue = (EventCallback<Stream>)type.GetProperty("OnAudioReady")!.GetValue(instance)!;
@@ -54,8 +46,8 @@ public sealed class BlazorComponentCallbackTests : TestContext
         var callback = EventCallback.Factory.Create(this, () => invoked = true);
 
         var cut = RenderByType(type,
-            ComponentParameter.CreateParameter("ModelId", "qwen3-tts-0.6b"),
-            ComponentParameter.CreateParameter("OnModelReady", callback));
+            ("ModelId", "qwen3-tts-0.6b"),
+            ("OnModelReady", callback));
 
         var instance = GetInstance(cut);
         var callbackValue = (EventCallback)type.GetProperty("OnModelReady")!.GetValue(instance)!;
@@ -68,7 +60,7 @@ public sealed class BlazorComponentCallbackTests : TestContext
     public void VoiceCloneForm_RequiresTextAndReferenceAudio()
     {
         var type = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Components.VoiceCloneForm");
-        var cut = (IRenderedFragment)RenderByType(type);
+        var cut = RenderByType(type);
 
         cut.Find("button").Click();
 
@@ -79,7 +71,7 @@ public sealed class BlazorComponentCallbackTests : TestContext
     public void VoiceCloneForm_RequiresReferenceAudio()
     {
         var type = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Components.VoiceCloneForm");
-        var cut = (IRenderedFragment)RenderByType(type, ComponentParameter.CreateParameter("Text", "Hello"));
+        var cut = RenderByType(type, ("Text", "Hello"));
 
         cut.Find("button").Click();
 
@@ -92,9 +84,9 @@ public sealed class BlazorComponentCallbackTests : TestContext
         var type = BlazorComponentsTestHelpers.RequireType("ElBruno.QwenTTS.BlazorComponents.Components.VoiceCloneForm");
         var cancelled = false;
         var callback = EventCallback.Factory.Create(this, () => cancelled = true);
-        var cut = (IRenderedFragment)RenderByType(type,
-            ComponentParameter.CreateParameter("IsSubmitting", true),
-            ComponentParameter.CreateParameter("OnCancel", callback));
+        var cut = RenderByType(type,
+            ("IsSubmitting", true),
+            ("OnCancel", callback));
 
         cut.FindAll("button")[1].Click();
 
@@ -113,11 +105,11 @@ public sealed class BlazorComponentCallbackTests : TestContext
         VoiceCloneRequest? request = null;
         var callback = EventCallback.Factory.Create<VoiceCloneRequest>(this, value => request = value);
 
-        var cut = (IRenderedFragment)RenderByType(formType,
-            ComponentParameter.CreateParameter("Text", "Hello"),
-            ComponentParameter.CreateParameter("ReferenceAudio", audio),
-            ComponentParameter.CreateParameter("ReferenceTranscript", "Reference words"),
-            ComponentParameter.CreateParameter("OnSubmit", callback));
+        var cut = RenderByType(formType,
+            ("Text", "Hello"),
+            ("ReferenceAudio", audio),
+            ("ReferenceTranscript", "Reference words"),
+            ("OnSubmit", callback));
 
         cut.Find("button").Click();
 
